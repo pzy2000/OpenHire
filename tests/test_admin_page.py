@@ -798,6 +798,8 @@ async def test_admin_js_asset_matches_main_polling_and_sse(aiohttp_client) -> No
     assert "validateOrganizationDraft" in body
     assert "data-organization-connect" in body
     assert "data-organization-save" in body
+    assert "data-organization-skill-toggle" in body
+    assert "organization.skills_selected" in body
     assert 'fetch("/employees"' in body
     assert "Delete Employee" in body
     assert "data-delete-employee-card" in body
@@ -1330,6 +1332,8 @@ async def test_admin_css_keeps_scrolled_modal_close_buttons_outside_scroll(aioht
     assert ".organization-edge" in body
     assert ".organization-detail" in body
     assert ".organization-connector" in body
+    assert ".organization-skill-head" in body
+    assert ".organization-skill-options" in body
     assert ".transcript-modal-shell" in body
     assert ".transcript-modal-close" in body
     assert ".skill-content-modal-shell" in body

@@ -6465,6 +6465,41 @@ html[data-theme="light"] .organization-node {
   flex-direction: column;
 }
 
+.organization-skill-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.organization-skill-summary {
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+.organization-skill-toggle {
+  padding: 7px 10px;
+  white-space: nowrap;
+}
+
+.organization-skill-tags,
+.organization-skill-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.organization-skill-tags {
+  align-items: flex-start;
+}
+
+.organization-skill-options {
+  max-height: 320px;
+  overflow: auto;
+  padding-right: 4px;
+}
+
 .organization-skill-option {
   display: flex;
   align-items: center;

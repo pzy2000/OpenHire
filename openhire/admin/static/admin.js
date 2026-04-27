@@ -189,6 +189,8 @@ const TRANSLATIONS = {
     "organization.reports": "Direct reports",
     "organization.no_reports": "No direct reports",
     "organization.skills": "Local skills",
+    "organization.skills_selected": "{count} selected",
+    "organization.skills_empty": "No local skills selected.",
     "organization.tools": "Tools",
     "organization.tools_placeholder": "message, github",
     "organization.start_line": "Start report line",
@@ -682,6 +684,8 @@ const TRANSLATIONS = {
     "organization.reports": "直属下级",
     "organization.no_reports": "无直属下级",
     "organization.skills": "本地技能",
+    "organization.skills_selected": "已选 {count} 个",
+    "organization.skills_empty": "未选择本地技能。",
     "organization.tools": "工具",
     "organization.tools_placeholder": "message, github",
     "organization.start_line": "开始连线",
@@ -1482,6 +1486,7 @@ const organizationState = {
   draft: null,
   selectedEmployeeId: null,
   connectFromId: null,
+  isSkillListExpanded: false,
   drag: null,
   validation: { valid: true, errors: [], warnings: [] },
   error: "",
@@ -4281,7 +4286,11 @@ function markOrganizationDirty(message = "") {
 }
 
 function selectOrganizationEmployee(employeeId) {
-  organizationState.selectedEmployeeId = text(employeeId, "");
+  const nextEmployeeId = text(employeeId, "");
+  if (organizationState.selectedEmployeeId !== nextEmployeeId) {
+    organizationState.isSkillListExpanded = false;
+  }
+  organizationState.selectedEmployeeId = nextEmployeeId;
   organizationState.saveStatus = "";
   renderOrganization();
 }
@@ -4463,6 +4472,9 @@ function renderOrganizationDetail() {
   const managerId = organizationManagerId(selectedId);
   const reports = organizationReports(selectedId).map((employeeId) => organizationEmployee(employeeId)?.name || employeeId);
   const selectedSkills = new Set(normalizeSkillIds(node.skill_ids));
+  const localSkills = skillState.localSkills || [];
+  const selectedLocalSkills = localSkills.filter((skill) => isRequiredLocalSkill(skill) || selectedSkills.has(skill.id));
+  const isSkillListExpanded = organizationState.isSkillListExpanded;
   return `
     <section class="panel organization-detail" data-organization-detail="true">
       <div class="panel-head">
@@ -4491,23 +4503,43 @@ function renderOrganizationDetail() {
         <div>${reports.length ? reports.map((name) => `<span class="tag">${html(name)}</span>`).join("") : `<span class="tag">${html(t("organization.no_reports"))}</span>`}</div>
       </div>
       <div class="organization-skill-list">
-        <div class="agent-section-title">${html(t("organization.skills"))}</div>
-        ${(skillState.localSkills || []).map((skill) => {
-          const required = isRequiredLocalSkill(skill);
-          const checked = required || selectedSkills.has(skill.id);
-          return `
-            <label class="organization-skill-option">
-              <input
-                type="checkbox"
-                data-organization-skill="${html(selectedId)}"
-                data-skill-id="${html(skill.id)}"
-                ${checked ? "checked" : ""}
-                ${required ? "disabled" : ""}
-              >
-              <span>${html(skill.name)}</span>
-            </label>
-          `;
-        }).join("") || `<span class="tag">none</span>`}
+        <div class="organization-skill-head">
+          <div>
+            <div class="agent-section-title">${html(t("organization.skills"))}</div>
+            <div class="organization-skill-summary">${html(t("organization.skills_selected", { count: selectedLocalSkills.length }))}</div>
+          </div>
+          ${localSkills.length ? `
+            <button class="secondary-button organization-skill-toggle" type="button" data-organization-skill-toggle="true">
+              ${html(isSkillListExpanded ? t("button.collapse") : t("button.show_more", { count: localSkills.length }))}
+            </button>
+          ` : ""}
+        </div>
+        ${selectedLocalSkills.length ? `
+          <div class="organization-skill-tags">
+            ${selectedLocalSkills.slice(0, 4).map((skill) => `<span class="tag">${html(skill.name)}</span>`).join("")}
+            ${selectedLocalSkills.length > 4 ? `<span class="tag">+${html(String(selectedLocalSkills.length - 4))}</span>` : ""}
+          </div>
+        ` : `<span class="tag">${html(t("organization.skills_empty"))}</span>`}
+        ${isSkillListExpanded ? `
+          <div class="organization-skill-options">
+            ${localSkills.map((skill) => {
+              const required = isRequiredLocalSkill(skill);
+              const checked = required || selectedSkills.has(skill.id);
+              return `
+                <label class="organization-skill-option">
+                  <input
+                    type="checkbox"
+                    data-organization-skill="${html(selectedId)}"
+                    data-skill-id="${html(skill.id)}"
+                    ${checked ? "checked" : ""}
+                    ${required ? "disabled" : ""}
+                  >
+                  <span>${html(skill.name)}</span>
+                </label>
+              `;
+            }).join("") || `<span class="tag">none</span>`}
+          </div>
+        ` : ""}
       </div>
       <label class="organization-field">
         <span>${html(t("organization.tools"))}</span>
@@ -10531,6 +10563,12 @@ function initEmployeeInteractions() {
     const organizationRemoveManagerButton = event.target.closest("[data-organization-remove-manager]");
     if (organizationRemoveManagerButton) {
       setOrganizationManager(organizationRemoveManagerButton.getAttribute("data-organization-remove-manager"), "");
+      return;
+    }
+    const organizationSkillToggleButton = event.target.closest("[data-organization-skill-toggle]");
+    if (organizationSkillToggleButton) {
+      organizationState.isSkillListExpanded = !organizationState.isSkillListExpanded;
+      renderOrganization();
       return;
     }
     const dreamRefreshButton = event.target.closest("[data-dream-refresh]");
