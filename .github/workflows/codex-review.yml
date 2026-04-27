@@ -1,0 +1,119 @@
+name: Codex Review
+
+on:
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - ready_for_review
+
+concurrency:
+  group: codex-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    name: Run Codex review
+    if: ${{ github.event.pull_request.draft == false }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      final_message: ${{ steps.run_codex.outputs.final-message }}
+
+    steps:
+      - name: Check OpenAI API key
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          if [ -z "$OPENAI_API_KEY" ]; then
+            echo "::error::Missing OPENAI_API_KEY repository secret."
+            echo "Add it in GitHub: Settings > Secrets and variables > Actions > New repository secret."
+            exit 1
+          fi
+
+      - name: Check out pull request
+        uses: actions/checkout@v5
+        with:
+          ref: refs/pull/${{ github.event.pull_request.number }}/merge
+          fetch-depth: 0
+
+      - name: Fetch pull request refs
+        env:
+          PR_BASE_REF: ${{ github.event.pull_request.base.ref }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          git fetch --no-tags origin \
+            "$PR_BASE_REF" \
+            "+refs/pull/$PR_NUMBER/head"
+
+      - name: Run Codex
+        id: run_codex
+        uses: openai/codex-action@v1
+        with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          sandbox: read-only
+          safety-strategy: drop-sudo
+          model: ${{ vars.CODEX_REVIEW_MODEL }}
+          prompt: |
+            You are reviewing PR #${{ github.event.pull_request.number }} for ${{ github.repository }}.
+
+            Review only the changes introduced by this pull request. Do not modify files, create commits, or push changes.
+
+            Local review context:
+            - Base SHA: ${{ github.event.pull_request.base.sha }}
+            - Head SHA: ${{ github.event.pull_request.head.sha }}
+            - Base ref: ${{ github.event.pull_request.base.ref }}
+            - Head ref: ${{ github.event.pull_request.head.ref }}
+
+            Start by inspecting:
+            - git diff --stat ${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}
+            - git diff ${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}
+
+            Focus on actionable issues introduced by this PR that affect correctness, security, reliability, performance, maintainability, or developer experience.
+            Prefer concrete findings with file paths and line numbers. Avoid style-only comments unless they hide a real bug.
+            If there are no substantive issues, say that clearly and mention any residual test risk.
+
+            Pull request title and body:
+            ----
+            ${{ github.event.pull_request.title }}
+            ${{ github.event.pull_request.body }}
+
+  post-feedback:
+    name: Post Codex feedback
+    needs: review
+    if: ${{ needs.review.outputs.final_message != '' }}
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
+
+    steps:
+      - name: Comment on pull request
+        uses: actions/github-script@v7
+        env:
+          CODEX_FINAL_MESSAGE: ${{ needs.review.outputs.final_message }}
+        with:
+          github-token: ${{ github.token }}
+          script: |
+            const raw = (process.env.CODEX_FINAL_MESSAGE || '').trim();
+            if (!raw) {
+              return;
+            }
+
+            const maxBodyLength = 65000;
+            const body = [
+              '## Codex automated review',
+              '',
+              raw.length > maxBodyLength
+                ? `${raw.slice(0, maxBodyLength)}\n\n_Comment truncated because it exceeded GitHub's body limit._`
+                : raw,
+            ].join('\n');
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              body,
+            });

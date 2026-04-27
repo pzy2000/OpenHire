@@ -1,0 +1,1165 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenHire 日报 · 2026-04-22</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background:
+                radial-gradient(1200px 600px at 10% -10%, #dbeafe 0%, transparent 60%),
+                radial-gradient(900px 500px at 100% 0%, #ede9fe 0%, transparent 60%),
+                #f3f4f6;
+            color: #1f2937;
+        }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        .hero-panel {
+            background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 55%, #4338ca 100%);
+            color: #fff;
+            box-shadow: 0 20px 40px -15px rgba(30, 58, 138, 0.45);
+        }
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.35rem 0.85rem;
+            background: rgba(255, 255, 255, 0.12);
+            border: 1px solid rgba(255, 255, 255, 0.22);
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: #e0e7ff;
+        }
+        .hero-stat {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.16);
+            border-radius: 12px;
+            padding: 0.9rem 1rem;
+        }
+        .chat-bubble-user {
+            background-color: #3b82f6;
+            color: white;
+            border-bottom-right-radius: 0;
+        }
+        .chat-bubble-assistant {
+            background-color: #f8fafc;
+            color: #1f2937;
+            border-bottom-left-radius: 0;
+            border: 1px solid #e5e7eb;
+        }
+        .chat-bubble-tool {
+            background-color: #fef3c7;
+            color: #92400e;
+            border-bottom-left-radius: 0;
+            border: 1px solid #fde68a;
+            font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+            font-size: 0.82rem;
+        }
+        .chat-bubble-tool pre {
+            white-space: pre-wrap;
+            word-break: break-word;
+            margin: 0;
+            font-family: inherit;
+        }
+        .chat-log::-webkit-scrollbar { width: 8px; }
+        .chat-log::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 4px; }
+        .role-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 9999px;
+            display: grid;
+            place-items: center;
+            color: white;
+            font-size: 0.75rem;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+        .stage-divider {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            color: #6b7280;
+            font-size: 0.8rem;
+            margin: 0.5rem 0;
+        }
+        .stage-divider::before, .stage-divider::after {
+            content: "";
+            flex: 1;
+            height: 1px;
+            background: #e5e7eb;
+        }
+        .stage-label {
+            padding: 0.25rem 0.75rem;
+            background: #eef2ff;
+            color: #4338ca;
+            border-radius: 9999px;
+            font-weight: 600;
+            font-size: 0.75rem;
+            letter-spacing: 0.02em;
+        }
+
+        /* Collapsible skill protocol card */
+        details.protocol {
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            border-radius: 14px;
+            padding: 0;
+            overflow: hidden;
+            transition: box-shadow .2s ease, border-color .2s ease;
+        }
+        details.protocol[open] {
+            border-color: #c7d2fe;
+            box-shadow: 0 10px 24px -16px rgba(67, 56, 202, 0.45);
+        }
+        details.protocol > summary {
+            list-style: none;
+            cursor: pointer;
+            padding: 1rem 1.15rem;
+            display: flex;
+            align-items: center;
+            gap: .85rem;
+            font-weight: 600;
+            color: #111827;
+        }
+        details.protocol > summary::-webkit-details-marker { display: none; }
+        details.protocol .chev {
+            margin-left: auto;
+            transition: transform .25s ease;
+            color: #6366f1;
+        }
+        details.protocol[open] .chev { transform: rotate(90deg); }
+        details.protocol .body {
+            padding: 0 1.15rem 1.15rem 1.15rem;
+            color: #374151;
+            font-size: .9rem;
+            line-height: 1.7;
+            animation: fadeSlide .25s ease;
+        }
+        @keyframes fadeSlide {
+            from { opacity: 0; transform: translateY(-4px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .proto-icon {
+            width: 32px; height: 32px;
+            display: grid; place-items: center;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #eef2ff, #e0e7ff);
+            color: #4338ca;
+            flex-shrink: 0;
+        }
+
+        /* Commit timeline */
+        .commit-item {
+            position: relative;
+            padding-left: 2.25rem;
+            padding-bottom: 1rem;
+        }
+        .commit-item::before {
+            content: "";
+            position: absolute;
+            left: 0.6rem;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: linear-gradient(to bottom, #c7d2fe, #a7f3d0);
+        }
+        .commit-item::after {
+            content: "";
+            position: absolute;
+            left: 0.25rem;
+            top: 0.45rem;
+            width: 0.85rem;
+            height: 0.85rem;
+            border-radius: 9999px;
+            background: #fff;
+            border: 3px solid #6366f1;
+        }
+        .commit-item.key::after { border-color: #db2777; box-shadow: 0 0 0 4px rgba(219, 39, 119, 0.12); }
+
+        .scenario-card {
+            background: linear-gradient(160deg, #ffffff 0%, #eef2ff 120%);
+            border: 1px solid #e0e7ff;
+            border-radius: 14px;
+            padding: 1rem 1.1rem;
+            transition: transform .2s ease, box-shadow .2s ease;
+        }
+        .scenario-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 14px 28px -18px rgba(67, 56, 202, 0.5);
+        }
+        .skill-chip {
+            display: inline-flex; align-items: center; gap: .35rem;
+            padding: .22rem .55rem;
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+            border-radius: 9999px;
+            font-size: .72rem;
+            color: #334155;
+        }
+        .skill-chip.hot { border-color: #fecaca; color: #b91c1c; background: #fef2f2; }
+
+        .mermaid-wrap { background: #ffffff; border: 1px dashed #c7d2fe; border-radius: 14px; padding: 1rem; }
+
+        code.inline { background: #f1f5f9; border: 1px solid #e2e8f0; padding: 1px 6px; border-radius: 6px; font-size: .8rem; }
+
+        /* Nested details for "full session" under director cards */
+        details.session {
+            margin-top: .75rem;
+            border-top: 1px dashed #e5e7eb;
+            padding-top: .65rem;
+        }
+        details.session > summary {
+            list-style: none;
+            cursor: pointer;
+            font-size: .78rem;
+            color: #4f46e5;
+            display: inline-flex;
+            align-items: center;
+            gap: .35rem;
+        }
+        details.session > summary::-webkit-details-marker { display: none; }
+        details.session[open] > summary i { transform: rotate(90deg); }
+        details.session > summary i { transition: transform .25s ease; }
+    </style>
+</head>
+<body class="min-h-screen p-4 md:p-8">
+    <div class="max-w-6xl mx-auto space-y-8">
+
+        <!-- Hero Header -->
+        <header class="hero-panel rounded-3xl p-8 md:p-10 relative overflow-hidden">
+            <div class="absolute -top-10 -right-10 w-56 h-56 rounded-full bg-indigo-400/20 blur-3xl"></div>
+            <div class="absolute -bottom-12 -left-10 w-64 h-64 rounded-full bg-cyan-400/20 blur-3xl"></div>
+            <div class="relative space-y-5">
+                <span class="hero-badge"><i class="fas fa-chart-line"></i> 2026-04-22 · Daily Report</span>
+                <h1 class="text-3xl md:text-4xl font-extrabold tracking-tight">OpenHire 项目进展汇报</h1>
+                <p class="text-indigo-100 max-w-3xl">
+                    面向 mentor 的当日进展汇总：预置大量高 stars 技能并由 Agent 自动配置、每位数字员工默认持有「优秀员工协议」、以及 5 位 Docker 数字员工围绕真实业务需求的端到端协作实录。
+                </p>
+                <div class="grid grid-cols-2 md:grid-cols-5 gap-3 pt-2">
+                    <div class="hero-stat">
+                        <div class="text-2xl font-bold">10</div>
+                        <div class="text-xs text-indigo-200 mt-0.5">今日 commits</div>
+                    </div>
+                    <div class="hero-stat">
+                        <div class="text-2xl font-bold">5</div>
+                        <div class="text-xs text-indigo-200 mt-0.5">Docker 数字员工</div>
+                    </div>
+                    <div class="hero-stat">
+                        <div class="text-2xl font-bold">7</div>
+                        <div class="text-xs text-indigo-200 mt-0.5">默认协议条款</div>
+                    </div>
+                    <div class="hero-stat">
+                        <div class="text-2xl font-bold">5</div>
+                        <div class="text-xs text-indigo-200 mt-0.5">预置场景包</div>
+                    </div>
+                    <div class="hero-stat">
+                        <div class="text-2xl font-bold">20+</div>
+                        <div class="text-xs text-indigo-200 mt-0.5">高 stars 候选技能</div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Section 1: Today's commits -->
+        <section class="glass-panel rounded-2xl p-8">
+            <div class="flex items-center space-x-3 mb-6">
+                <div class="p-3 bg-indigo-100 text-indigo-600 rounded-lg">
+                    <i class="fas fa-code-commit text-xl"></i>
+                </div>
+                <div>
+                    <h2 class="text-2xl font-bold">1. 今日研发进展</h2>
+                    <p class="text-sm text-gray-500 mt-1">2026-04-22 一天内完成 10 条 commit，核心聚焦技能体系与员工协议</p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div class="p-4 rounded-xl border border-indigo-100 bg-indigo-50">
+                    <div class="text-xs text-indigo-600 mb-1"><i class="fas fa-seedling mr-1"></i>重点 1 · 预置技能 + Agent 自动配置</div>
+                    <div class="text-sm text-gray-800">commit <code class="inline">ce03d2d</code> · <code class="inline">8622b38</code></div>
+                </div>
+                <div class="p-4 rounded-xl border border-pink-100 bg-pink-50">
+                    <div class="text-xs text-pink-600 mb-1"><i class="fas fa-user-shield mr-1"></i>重点 2 · 优秀员工协议默认技能</div>
+                    <div class="text-sm text-gray-800">commit <code class="inline">00525b8</code></div>
+                </div>
+                <div class="p-4 rounded-xl border border-emerald-100 bg-emerald-50">
+                    <div class="text-xs text-emerald-600 mb-1"><i class="fas fa-people-arrows mr-1"></i>重点 3 · 协作基础设施完善</div>
+                    <div class="text-sm text-gray-800">commit <code class="inline">ab13576</code> · <code class="inline">e613f26</code> · <code class="inline">4ea93e0</code></div>
+                </div>
+            </div>
+
+            <div class="space-y-1">
+                <div class="commit-item key">
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <code class="inline">ce03d2d</code>
+                        <span class="text-xs text-gray-500">17:22</span>
+                        <span class="text-xs px-2 py-0.5 bg-pink-100 text-pink-700 rounded-full">重点</span>
+                    </div>
+                    <div class="font-semibold text-gray-900 mt-1">Smart skill recommendation · 智能技能推荐</div>
+                    <div class="text-sm text-gray-600 mt-0.5">新增员工创建时的技能推荐开关、推荐 API 端点，以及基于 LLM 的 <code class="inline">EmployeeSkillSelector</code>；覆盖 admin UI、配置、测试共 11 个文件 / 894 行新增。</div>
+                </div>
+                <div class="commit-item key">
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <code class="inline">8622b38</code>
+                        <span class="text-xs text-gray-500">16:09</span>
+                        <span class="text-xs px-2 py-0.5 bg-pink-100 text-pink-700 rounded-full">重点</span>
+                    </div>
+                    <div class="font-semibold text-gray-900 mt-1">Search skill content preview · ClawHub 技能预览</div>
+                    <div class="text-sm text-gray-600 mt-0.5">新增从 ClawHub 拉取 SKILL.md 全文的端点与 admin 预览 Modal，允许员工创建前查看技能全貌并做出选择。</div>
+                </div>
+                <div class="commit-item">
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <code class="inline">3ecb025</code>
+                        <span class="text-xs text-gray-500">15:30</span>
+                    </div>
+                    <div class="font-semibold text-gray-900 mt-1">Skill content management &amp; preview</div>
+                    <div class="text-sm text-gray-600 mt-0.5">引入技能内容查询/更新端点，admin 端补齐技能内容 Modal 的编辑与预览能力。</div>
+                </div>
+                <div class="commit-item">
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <code class="inline">448313a</code>
+                        <span class="text-xs text-gray-500">18:40</span>
+                    </div>
+                    <div class="font-semibold text-gray-900 mt-1">OpenHireTool registration logic 重构</div>
+                    <div class="text-sm text-gray-600 mt-0.5">根据是否存在 <code class="inline">message</code> 工具自动决定 group id 归属，保障自动入群行为。</div>
+                </div>
+                <div class="commit-item">
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <code class="inline">14e13a6</code>
+                        <span class="text-xs text-gray-500">18:10</span>
+                    </div>
+                    <div class="font-semibold text-gray-900 mt-1">clean_docker_agent_output · 输出净化</div>
+                    <div class="text-sm text-gray-600 mt-0.5">当 Docker 员工没有外发消息时，清理容器日志噪声并提取 JSON 作为 fallback 消息。</div>
+                </div>
+                <div class="commit-item">
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <code class="inline">ab13576</code>
+                        <span class="text-xs text-gray-500">17:55</span>
+                    </div>
+                    <div class="font-semibold text-gray-900 mt-1">Outbound message handling · 员工外发消息</div>
+                    <div class="text-sm text-gray-600 mt-0.5">支持从 OpenHireTool 直接向飞书群回写消息，AgentLoop 检测到员工已外发后自动抑制重复回复。</div>
+                </div>
+                <div class="commit-item key">
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <code class="inline">00525b8</code>
+                        <span class="text-xs text-gray-500">04:37</span>
+                        <span class="text-xs px-2 py-0.5 bg-pink-100 text-pink-700 rounded-full">重点</span>
+                    </div>
+                    <div class="font-semibold text-gray-900 mt-1">Required employee skill · 优秀员工协议默认技能</div>
+                    <div class="text-sm text-gray-600 mt-0.5">落地 <code class="inline">openhire/skills/excellent-employee/SKILL.md</code>，强制所有员工默认持有、禁止删除，并注入到 system prompt。</div>
+                </div>
+                <div class="commit-item">
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <code class="inline">e613f26</code>
+                        <span class="text-xs text-gray-500">03:10</span>
+                    </div>
+                    <div class="font-semibold text-gray-900 mt-1">Chat history · 聊天记录查看</div>
+                    <div class="text-sm text-gray-600 mt-0.5">新增主控 Agent 与 Docker 员工的 transcript 查询端点，admin 端可查看完整对话链路。</div>
+                </div>
+                <div class="commit-item">
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <code class="inline">fd4d516</code>
+                        <span class="text-xs text-gray-500">02:45</span>
+                    </div>
+                    <div class="font-semibold text-gray-900 mt-1">OpenClawAdapter 环境与命令重构</div>
+                    <div class="text-sm text-gray-600 mt-0.5">引入环境变量管理，支持 Docker 内部访问宿主机时自动改写 localhost；适配 ACP 新配置。</div>
+                </div>
+                <div class="commit-item">
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <code class="inline">4ea93e0</code>
+                        <span class="text-xs text-gray-500">昨日 21:50</span>
+                    </div>
+                    <div class="font-semibold text-gray-900 mt-1">Docker agent 持久化容器 · instance_id</div>
+                    <div class="text-sm text-gray-600 mt-0.5">给所有 Docker 适配器新增 <code class="inline">instance_id</code> 参数，实现容器级会话持久化，为本次 5 员工长协作打底。</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 2: Preset skills + Auto config -->
+        <section class="glass-panel rounded-2xl p-8">
+            <div class="flex items-center space-x-3 mb-6">
+                <div class="p-3 bg-emerald-100 text-emerald-600 rounded-lg">
+                    <i class="fas fa-puzzle-piece text-xl"></i>
+                </div>
+                <div>
+                    <h2 class="text-2xl font-bold">2. 预置高 stars 技能 · Agent 自动配置</h2>
+                    <p class="text-sm text-gray-500 mt-1">基于 ClawHub 公共技能仓库 + 5 大业务场景包 + LLM 选型，员工创建即自动匹配技能集</p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <!-- Left: 5 scenario cards -->
+                <div>
+                    <div class="text-xs font-semibold text-emerald-700 mb-3 tracking-wider">SCENARIO PACKS · 5 大预置场景包</div>
+                    <div class="space-y-3">
+                        <div class="scenario-card">
+                            <div class="flex items-center gap-2 mb-2">
+                                <i class="fas fa-envelope-open-text text-indigo-600"></i>
+                                <div class="font-semibold">邮箱与消息分诊</div>
+                                <span class="ml-auto text-xs text-gray-400">7 queries</span>
+                            </div>
+                            <div class="flex flex-wrap gap-1.5">
+                                <span class="skill-chip hot"><i class="fab fa-google"></i>gmail</span>
+                                <span class="skill-chip"><i class="fab fa-slack"></i>slack</span>
+                                <span class="skill-chip"><i class="fab fa-microsoft"></i>teams</span>
+                                <span class="skill-chip">notion</span>
+                                <span class="skill-chip">hubspot</span>
+                                <span class="skill-chip">salesforce</span>
+                                <span class="skill-chip">email</span>
+                            </div>
+                        </div>
+                        <div class="scenario-card">
+                            <div class="flex items-center gap-2 mb-2">
+                                <i class="fas fa-newspaper text-indigo-600"></i>
+                                <div class="font-semibold">日报 / 周报</div>
+                                <span class="ml-auto text-xs text-gray-400">7 queries</span>
+                            </div>
+                            <div class="flex flex-wrap gap-1.5">
+                                <span class="skill-chip hot">report</span>
+                                <span class="skill-chip">news</span>
+                                <span class="skill-chip">monitor</span>
+                                <span class="skill-chip">spreadsheet</span>
+                                <span class="skill-chip">browser</span>
+                                <span class="skill-chip">web</span>
+                                <span class="skill-chip">search</span>
+                            </div>
+                        </div>
+                        <div class="scenario-card">
+                            <div class="flex items-center gap-2 mb-2">
+                                <i class="fas fa-ticket text-indigo-600"></i>
+                                <div class="font-semibold">工单分派</div>
+                                <span class="ml-auto text-xs text-gray-400">6 queries</span>
+                            </div>
+                            <div class="flex flex-wrap gap-1.5">
+                                <span class="skill-chip hot"><i class="fab fa-jira"></i>jira</span>
+                                <span class="skill-chip">linear</span>
+                                <span class="skill-chip">zendesk</span>
+                                <span class="skill-chip"><i class="fab fa-github"></i>github</span>
+                                <span class="skill-chip">pagerduty</span>
+                                <span class="skill-chip">ticket</span>
+                            </div>
+                        </div>
+                        <div class="scenario-card">
+                            <div class="flex items-center gap-2 mb-2">
+                                <i class="fas fa-gauge-high text-indigo-600"></i>
+                                <div class="font-semibold">运营巡检</div>
+                                <span class="ml-auto text-xs text-gray-400">7 queries</span>
+                            </div>
+                            <div class="flex flex-wrap gap-1.5">
+                                <span class="skill-chip">browser</span>
+                                <span class="skill-chip">monitor</span>
+                                <span class="skill-chip">spreadsheet</span>
+                                <span class="skill-chip">salesforce</span>
+                                <span class="skill-chip">hubspot</span>
+                                <span class="skill-chip">database</span>
+                                <span class="skill-chip hot">alert</span>
+                            </div>
+                        </div>
+                        <div class="scenario-card">
+                            <div class="flex items-center gap-2 mb-2">
+                                <i class="fas fa-calendar-days text-indigo-600"></i>
+                                <div class="font-semibold">行政日程</div>
+                                <span class="ml-auto text-xs text-gray-400">6 queries</span>
+                            </div>
+                            <div class="flex flex-wrap gap-1.5">
+                                <span class="skill-chip hot">calendar</span>
+                                <span class="skill-chip">meeting</span>
+                                <span class="skill-chip">gmail</span>
+                                <span class="skill-chip">notion</span>
+                                <span class="skill-chip">pdf</span>
+                                <span class="skill-chip">document</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-5 p-4 rounded-xl bg-gradient-to-br from-amber-50 to-white border border-amber-100">
+                        <div class="text-xs text-amber-700 mb-1 font-semibold"><i class="fas fa-database mr-1"></i>来源 · ClawHub 公共技能仓库</div>
+                        <div class="text-sm text-gray-700">每条 query 通过 <code class="inline">/api/v1/packages/search?family=skill</code> 拉取高分包，按 downloads / stars / risk 排序，首轮筛出 20 ~ 50 条候选技能预览，用户一键批量落库到本地 catalog。</div>
+                    </div>
+                </div>
+
+                <!-- Right: LLM auto-selector -->
+                <div>
+                    <div class="text-xs font-semibold text-emerald-700 mb-3 tracking-wider">AUTO-CONFIG · LLM 自动选型</div>
+
+                    <div class="p-5 rounded-xl bg-white border border-gray-200 mb-4">
+                        <div class="flex items-center gap-2 mb-3">
+                            <i class="fas fa-wand-magic-sparkles text-indigo-500"></i>
+                            <div class="font-semibold">EmployeeSkillSelector</div>
+                            <span class="ml-auto text-xs text-gray-400">openhire/workforce/skill_selection.py</span>
+                        </div>
+                        <ol class="text-sm text-gray-700 space-y-2 list-decimal list-inside">
+                            <li>创建员工时，读取本地 <code class="inline">SkillCatalogService.list()</code> 全量候选</li>
+                            <li>移除必装的 <code class="inline">excellent-employee</code> 协议（不会重复选）</li>
+                            <li>将员工 name / role / system_prompt 喂给 LLM，返回 JSON <code class="inline">{skill_ids, reason}</code></li>
+                            <li>最多挑 5 条，失败自动重试 5 次，解析失败则降级为空集并记录 warning</li>
+                            <li>前端 admin toggle 可预览推荐结果并人工微调</li>
+                        </ol>
+                    </div>
+
+                    <div class="mermaid-wrap">
+                        <div class="text-xs text-indigo-600 mb-2 font-semibold"><i class="fas fa-diagram-project mr-1"></i>自动配置流程图</div>
+                        <div class="mermaid">
+flowchart LR
+    A[创建员工<br/>role + prompt] --> B[读取本地 catalog]
+    B --> C{Catalog 是否有<br/>预置高 stars 技能}
+    C -- 否 --> D[引导 ClawHub 批量导入]
+    D --> B
+    C -- 是 --> E[LLM 选型<br/>最多 5 条]
+    E --> F[admin UI 预览<br/>可微调]
+    F --> G[落库 + 注入到<br/>员工 system prompt]
+    G --> H[默认附加<br/>优秀员工协议]
+    H --> I[员工上岗]
+                        </div>
+                    </div>
+
+                    <div class="mt-4 grid grid-cols-2 gap-3">
+                        <div class="p-3 rounded-lg bg-indigo-50 border border-indigo-100 text-xs">
+                            <div class="text-indigo-700 font-semibold mb-0.5">并发控制</div>
+                            <div class="text-gray-600">asyncio.Semaphore(5) 并行获取 SKILL.md 详情</div>
+                        </div>
+                        <div class="p-3 rounded-lg bg-indigo-50 border border-indigo-100 text-xs">
+                            <div class="text-indigo-700 font-semibold mb-0.5">风险提示</div>
+                            <div class="text-gray-600">包含 risk / popular / scenario 等标签供人工审核</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 3: Excellent Employee Protocol (expandable) -->
+        <section class="glass-panel rounded-2xl p-8">
+            <div class="flex items-center space-x-3 mb-6">
+                <div class="p-3 bg-pink-100 text-pink-600 rounded-lg">
+                    <i class="fas fa-user-shield text-xl"></i>
+                </div>
+                <div>
+                    <h2 class="text-2xl font-bold">3. 优秀员工协议 · 默认技能</h2>
+                    <p class="text-sm text-gray-500 mt-1">所有数字员工自带、禁止删除；7 条协议点击即可展开完整正文</p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Left 2/3: 7 expandable protocol cards -->
+                <div class="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <details class="protocol">
+                        <summary>
+                            <div class="proto-icon"><i class="fas fa-sun"></i></div>
+                            <div>
+                                <div>日报协议</div>
+                                <div class="text-xs text-gray-500 font-normal">每天固定格式总结</div>
+                            </div>
+                            <i class="fas fa-chevron-right chev"></i>
+                        </summary>
+                        <div class="body">
+                            <p>每天固定总结：</p>
+                            <ul class="list-disc list-inside space-y-0.5">
+                                <li><b>完成</b>：已经交付的事项和可验证结果</li>
+                                <li><b>进行中</b>：正在推进的事项、当前阶段和预计下一步</li>
+                                <li><b>阻塞</b>：等待谁、缺什么、卡在哪里</li>
+                                <li><b>明日计划</b>：下一天最重要的 1 ~ 3 件事</li>
+                            </ul>
+                        </div>
+                    </details>
+
+                    <details class="protocol">
+                        <summary>
+                            <div class="proto-icon"><i class="fas fa-calendar-week"></i></div>
+                            <div>
+                                <div>周报协议</div>
+                                <div class="text-xs text-gray-500 font-normal">每周汇总 + 决策请求</div>
+                            </div>
+                            <i class="fas fa-chevron-right chev"></i>
+                        </summary>
+                        <div class="body">
+                            <p>每周汇总：</p>
+                            <ul class="list-disc list-inside space-y-0.5">
+                                <li><b>成果</b>：本周完成的关键交付</li>
+                                <li><b>风险</b>：可能影响目标的风险、异常和趋势</li>
+                                <li><b>决策请求</b>：需要真人判断、授权或拍板的事项</li>
+                                <li><b>下周重点</b>：下周优先级、预期产出和需要协作的人</li>
+                            </ul>
+                        </div>
+                    </details>
+
+                    <details class="protocol">
+                        <summary>
+                            <div class="proto-icon"><i class="fas fa-magnifying-glass-chart"></i></div>
+                            <div>
+                                <div>巡检协议</div>
+                                <div class="text-xs text-gray-500 font-normal">主动发现异常</div>
+                            </div>
+                            <i class="fas fa-chevron-right chev"></i>
+                        </summary>
+                        <div class="body">
+                            定时检查自己负责的系统、文档、群聊、任务池和外部反馈。发现长期未闭环、状态异常、信息过期或风险升高时，主动提醒并给出下一步建议。
+                        </div>
+                    </details>
+
+                    <details class="protocol">
+                        <summary>
+                            <div class="proto-icon"><i class="fas fa-people-arrows"></i></div>
+                            <div>
+                                <div>交接协议</div>
+                                <div class="text-xs text-gray-500 font-normal">任何任务随时可交接</div>
+                            </div>
+                            <i class="fas fa-chevron-right chev"></i>
+                        </summary>
+                        <div class="body">
+                            任何长期任务都维护可交接状态，至少包含背景、目标、当前进度、已尝试路径、关键链接、阻塞点和下一步。别人接手时不需要从零翻聊天记录。
+                        </div>
+                    </details>
+
+                    <details class="protocol">
+                        <summary>
+                            <div class="proto-icon"><i class="fas fa-link"></i></div>
+                            <div>
+                                <div>证据协议</div>
+                                <div class="text-xs text-gray-500 font-normal">结论必须可验证</div>
+                            </div>
+                            <i class="fas fa-chevron-right chev"></i>
+                        </summary>
+                        <div class="body">
+                            重要结论必须附来源或验证方式。涉及代码、配置、数据、客户反馈、招聘流程或运营判断时，优先给出链接、文件、日志、截图、测试结果或可复现步骤。
+                        </div>
+                    </details>
+
+                    <details class="protocol">
+                        <summary>
+                            <div class="proto-icon"><i class="fas fa-triangle-exclamation"></i></div>
+                            <div>
+                                <div>升级协议</div>
+                                <div class="text-xs text-gray-500 font-normal">及时升级给真人</div>
+                            </div>
+                            <i class="fas fa-chevron-right chev"></i>
+                        </summary>
+                        <div class="body">
+                            遇到权限、成本、安全、生产风险、需求冲突、信息不足或无法验证的关键判断时，及时升级给真人。升级时说明原因、影响、候选方案和推荐选择。
+                        </div>
+                    </details>
+
+                    <details class="protocol md:col-span-2">
+                        <summary>
+                            <div class="proto-icon"><i class="fas fa-network-wired"></i></div>
+                            <div>
+                                <div>协作协议</div>
+                                <div class="text-xs text-gray-500 font-normal">多员工参与时的噪音控制</div>
+                            </div>
+                            <i class="fas fa-chevron-right chev"></i>
+                        </summary>
+                        <div class="body">
+                            需要多个数字员工参与时，由主员工聚合结论，避免在群聊里制造噪音。协作输出必须包含责任人、任务边界、交付物、截止时间和最终汇总。
+                        </div>
+                    </details>
+                </div>
+
+                <!-- Right 1/3: System injection points -->
+                <div class="space-y-4">
+                    <div class="p-5 rounded-xl bg-gradient-to-br from-pink-50 to-white border border-pink-100">
+                        <div class="text-xs font-semibold text-pink-700 mb-2 tracking-wider">HOW IT IS WIRED</div>
+                        <div class="text-sm text-gray-700 space-y-2">
+                            <p>所有员工的 system prompt 会在头部注入一个包裹块，确保 7 条协议在每次对话前被 LLM 读到：</p>
+<pre class="text-xs bg-slate-900 text-slate-100 rounded-lg p-3 overflow-x-auto">[OpenHire Required Skill:
+ excellent-employee]
+ ... 7 条协议正文 ...
+[/OpenHire Required Skill:
+ excellent-employee]</pre>
+                            <p class="text-xs text-gray-500"><i class="fas fa-location-arrow mr-1"></i><code class="inline">openhire/workforce/required_skill.py</code></p>
+                        </div>
+                    </div>
+
+                    <div class="p-5 rounded-xl bg-white border border-gray-200">
+                        <div class="text-xs font-semibold text-gray-700 mb-2 tracking-wider">GUARANTEES</div>
+                        <ul class="text-sm text-gray-700 space-y-1.5">
+                            <li><i class="fas fa-lock text-pink-500 mr-2"></i>禁止删除：调用 delete API 会抛 <code class="inline">RequiredSkillDeleteError</code></li>
+                            <li><i class="fas fa-circle-plus text-pink-500 mr-2"></i>创建员工时自动补齐，即使用户未勾选</li>
+                            <li><i class="fas fa-arrows-rotate text-pink-500 mr-2"></i>内容编辑后可一键同步已在编员工</li>
+                            <li><i class="fas fa-flag text-pink-500 mr-2"></i>admin 列表有 <span class="inline-flex items-center gap-1 text-pink-600"><i class="fas fa-star"></i>必装</span> 视觉标记</li>
+                        </ul>
+                    </div>
+
+                    <div class="p-4 rounded-xl bg-indigo-50 border border-indigo-100 text-xs text-indigo-800">
+                        <i class="fas fa-lightbulb mr-1"></i>
+                        Mentor 视角：协议 ≠ 岗位技能。把这层「工作方式」协议做成默认能力，等价于给所有数字员工发了一本 <b>员工手册</b>，让他们天然具备稳定汇报、主动巡检、可交接、带证据、会升级、会协作的底层习惯。
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 4: Collaboration demo -->
+        <section class="glass-panel rounded-2xl p-8">
+            <div class="flex items-center space-x-3 mb-6">
+                <div class="p-3 bg-blue-100 text-blue-600 rounded-lg">
+                    <i class="fas fa-comments text-xl"></i>
+                </div>
+                <div>
+                    <h2 class="text-2xl font-bold">4. 多员工协作实战</h2>
+                    <p class="text-sm text-gray-500 mt-1">案例：5 位总监级 Docker 数字员工协同推进「竞品价格监控看板」</p>
+                </div>
+            </div>
+
+            <!-- Team roster overview -->
+            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
+                <div class="p-3 rounded-xl border border-gray-200 bg-white">
+                    <div class="flex items-center gap-2 mb-1.5">
+                        <div class="role-avatar" style="background:#111827">AI</div>
+                        <div class="text-xs text-gray-500">主控 Agent</div>
+                    </div>
+                    <div class="font-semibold text-sm text-gray-900">研发总管</div>
+                    <div class="text-xs text-gray-500 mt-0.5">飞书群 oc_b29a...ca88</div>
+                </div>
+                <div class="p-3 rounded-xl border border-blue-100 bg-blue-50/60">
+                    <div class="flex items-center gap-2 mb-1.5">
+                        <div class="role-avatar" style="background:#0ea5e9">市</div>
+                        <div class="text-xs text-sky-700">市场总监</div>
+                    </div>
+                    <div class="font-semibold text-sm text-gray-900">9ae9ea6d</div>
+                    <div class="text-xs text-gray-500 mt-0.5">openhire-9ae9ea6d</div>
+                </div>
+                <div class="p-3 rounded-xl border border-purple-100 bg-purple-50/60">
+                    <div class="flex items-center gap-2 mb-1.5">
+                        <div class="role-avatar" style="background:#9333ea">产</div>
+                        <div class="text-xs text-purple-700">产品总监</div>
+                    </div>
+                    <div class="font-semibold text-sm text-gray-900">c0697f2c</div>
+                    <div class="text-xs text-gray-500 mt-0.5">openhire-c0697f2c</div>
+                </div>
+                <div class="p-3 rounded-xl border border-amber-100 bg-amber-50/60">
+                    <div class="flex items-center gap-2 mb-1.5">
+                        <div class="role-avatar" style="background:#d97706">架</div>
+                        <div class="text-xs text-amber-700">架构总监</div>
+                    </div>
+                    <div class="font-semibold text-sm text-gray-900">89c3a232</div>
+                    <div class="text-xs text-gray-500 mt-0.5">openhire-89c3a232</div>
+                </div>
+                <div class="p-3 rounded-xl border border-green-100 bg-green-50/60">
+                    <div class="flex items-center gap-2 mb-1.5">
+                        <div class="role-avatar" style="background:#16a34a">开</div>
+                        <div class="text-xs text-green-700">开发总监</div>
+                    </div>
+                    <div class="font-semibold text-sm text-gray-900">bda7bb57</div>
+                    <div class="text-xs text-gray-500 mt-0.5">openhire-bda7bb57</div>
+                </div>
+                <div class="p-3 rounded-xl border border-rose-100 bg-rose-50/60">
+                    <div class="flex items-center gap-2 mb-1.5">
+                        <div class="role-avatar" style="background:#e11d48">测</div>
+                        <div class="text-xs text-rose-700">测试总监</div>
+                    </div>
+                    <div class="font-semibold text-sm text-gray-900">a60e0f05</div>
+                    <div class="text-xs text-gray-500 mt-0.5">openhire-a60e0f05</div>
+                </div>
+            </div>
+
+            <div class="mb-4 p-3 rounded-lg bg-slate-900 text-slate-100 text-xs flex items-center gap-2">
+                <i class="fas fa-circle text-emerald-400 animate-pulse"></i>
+                <span>docker ps · 5 个 <code class="bg-slate-800 px-1 rounded">openhire-nanobot:latest</code> 容器 Up 45 minutes，均为本次协作的独立工作空间</span>
+            </div>
+
+            <!-- Chat log -->
+            <div class="chat-log bg-gray-50 rounded-xl p-4 md:p-6 h-[760px] overflow-y-auto border border-gray-200 space-y-5">
+
+                <!-- Stage 1: Role confirmation -->
+                <div class="stage-divider"><span class="stage-label">阶段一 · 主控 Agent 复述职责</span></div>
+
+                <div class="flex justify-end">
+                    <div class="chat-bubble-user rounded-2xl px-5 py-3 max-w-[85%] shadow-sm">
+                        <p>从现在开始，你是我的研发总管。按「市场调研 → PRD → 架构设计 → 开发实现 → 测试验收」推进，你不直接做专业产出，只负责调度、催办、汇总和推进。先复述一遍职责边界，不要开始执行。</p>
+                    </div>
+                </div>
+
+                <div class="flex justify-start">
+                    <div class="chat-bubble-assistant rounded-2xl px-5 py-3 max-w-[85%] shadow-sm">
+                        <p class="font-semibold mb-1">收到。职责边界如下：</p>
+                        <ul class="text-sm list-disc list-inside space-y-0.5">
+                            <li>只负责<b>流程推进</b>（五阶段拆解、催办、汇总）</li>
+                            <li>不直接承担市场 / 产品 / 架构 / 研发 / 测试的专业产出</li>
+                            <li>根据阶段通知该由谁产出什么、明确输入输出与截止</li>
+                            <li>遇到拍板 / 权限 / 风险类决策，及时升级给真人</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Stage 2: Spawn 5 docker employees -->
+                <div class="stage-divider"><span class="stage-label">阶段二 · 一句话创建 5 位 Docker 总监</span></div>
+
+                <div class="flex justify-end">
+                    <div class="chat-bubble-user rounded-2xl px-5 py-3 max-w-[85%] shadow-sm">
+                        <p>用 nanobot docker 创建市场总监、产品总监、开发总监、架构总监和测试总监五个员工。</p>
+                    </div>
+                </div>
+
+                <div class="flex justify-center">
+                    <div class="bg-gray-200 text-gray-600 text-xs px-3 py-1 rounded-full flex items-center">
+                        <i class="fas fa-container-storage mr-2"></i>主控 Agent 并行拉起 5 个 Docker 容器，每个容器自带优秀员工协议
+                    </div>
+                </div>
+
+                <div class="flex justify-start">
+                    <div class="chat-bubble-tool rounded-2xl px-5 py-3 max-w-[90%] shadow-sm">
+<pre>Registered: 市场总监  (id=9ae9ea6d, container=openhire-9ae9ea6d)
+Registered: 产品总监  (id=c0697f2c, container=openhire-c0697f2c)
+Registered: 开发总监  (id=bda7bb57, container=openhire-bda7bb57)
+Registered: 架构总监  (id=89c3a232, container=openhire-89c3a232)
+Registered: 测试总监  (id=a60e0f05, container=openhire-a60e0f05)
+All 5 employees joined group oc_b29a...ca88.</pre>
+                    </div>
+                </div>
+
+                <!-- Stage 3: Delegate the demand -->
+                <div class="stage-divider"><span class="stage-label">阶段三 · 下发业务需求 · 并行委派</span></div>
+
+                <div class="flex justify-end">
+                    <div class="chat-bubble-user rounded-2xl px-5 py-3 max-w-[85%] shadow-sm">
+                        <p>需求：搭建一个竞品价格监控看板。支持录入竞品链接、定时采集价格/原价/优惠/库存，提供趋势图和异常波动标记，在低价 / 剧烈波动 / 缺货时通过飞书预警，支持 Excel 导出。</p>
+                    </div>
+                </div>
+
+                <div class="flex justify-center">
+                    <div class="bg-gray-200 text-gray-600 text-xs px-3 py-1 rounded-full flex items-center">
+                        <i class="fas fa-paper-plane mr-2"></i>主控 Agent 向 5 位总监并行派单
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 md:grid-cols-5 gap-2">
+                    <div class="chat-bubble-tool rounded-2xl px-3 py-2 shadow-sm">
+                        <div class="flex items-center gap-2 mb-1"><div class="role-avatar" style="width:20px;height:20px;background:#0ea5e9;font-size:.65rem">市</div><b class="text-xs">市场总监</b></div>
+                        <div class="text-[11px] text-amber-900/80">市场调研阶段结论</div>
+                    </div>
+                    <div class="chat-bubble-tool rounded-2xl px-3 py-2 shadow-sm">
+                        <div class="flex items-center gap-2 mb-1"><div class="role-avatar" style="width:20px;height:20px;background:#9333ea;font-size:.65rem">产</div><b class="text-xs">产品总监</b></div>
+                        <div class="text-[11px] text-amber-900/80">PRD 前置准备清单</div>
+                    </div>
+                    <div class="chat-bubble-tool rounded-2xl px-3 py-2 shadow-sm">
+                        <div class="flex items-center gap-2 mb-1"><div class="role-avatar" style="width:20px;height:20px;background:#d97706;font-size:.65rem">架</div><b class="text-xs">架构总监</b></div>
+                        <div class="text-[11px] text-amber-900/80">架构可行性预研</div>
+                    </div>
+                    <div class="chat-bubble-tool rounded-2xl px-3 py-2 shadow-sm">
+                        <div class="flex items-center gap-2 mb-1"><div class="role-avatar" style="width:20px;height:20px;background:#16a34a;font-size:.65rem">开</div><b class="text-xs">开发总监</b></div>
+                        <div class="text-[11px] text-amber-900/80">研发子系统拆分</div>
+                    </div>
+                    <div class="chat-bubble-tool rounded-2xl px-3 py-2 shadow-sm">
+                        <div class="flex items-center gap-2 mb-1"><div class="role-avatar" style="width:20px;height:20px;background:#e11d48;font-size:.65rem">测</div><b class="text-xs">测试总监</b></div>
+                        <div class="text-[11px] text-amber-900/80">质量目标与验收</div>
+                    </div>
+                </div>
+
+                <!-- Stage 4: 5 director outputs -->
+                <div class="stage-divider"><span class="stage-label">阶段四 · 5 位 Docker 员工并行产出</span></div>
+
+                <!-- Market -->
+                <div class="flex justify-start gap-3">
+                    <div class="role-avatar" style="background:#0ea5e9">市</div>
+                    <div class="chat-bubble-assistant rounded-2xl px-5 py-3 max-w-[90%] shadow-sm">
+                        <p class="font-semibold mb-1">市场总监 · 市场调研阶段结论</p>
+                        <p class="text-sm text-gray-700">核心不是「做一个看板」，而是「帮业务方及时发现价格异常、理解趋势、快速行动」。目标用户主要是电商运营、定价策略、KA 渠道、市场情报团队；高频价值集中在 <b>异常告警 / 趋势洞察 / 结果输出</b> 三类。</p>
+                        <details class="session">
+                            <summary><i class="fas fa-chevron-right text-xs"></i> 查看完整会话 (openhire-delegate-openhire-9ae9ea6d.jsonl)</summary>
+                            <div class="mt-2 text-sm text-gray-700 space-y-2">
+                                <p><b>目标用户</b>：电商运营 / 定价经理 / KA 渠道管理 / 市场情报团队</p>
+                                <p><b>核心场景</b>：日常巡检 · 大促期监控 · 破价乱价治理 · 周报月报输出</p>
+                                <p><b>差异化建议</b>：若停留在「采集价格 + 列表展示」替代性极强；想形成壁垒需做到「可配置监控 + 可信告警 + 可解释趋势 + 可复用输出」四件套。</p>
+                                <p class="text-xs text-gray-500"><i class="fas fa-hashtag mr-1"></i>自带【优秀员工协议】，在结论前自动附「完成 / 进行中 / 阻塞 / 明日计划」结构</p>
+                            </div>
+                        </details>
+                    </div>
+                </div>
+
+                <!-- Product -->
+                <div class="flex justify-start gap-3">
+                    <div class="role-avatar" style="background:#9333ea">产</div>
+                    <div class="chat-bubble-assistant rounded-2xl px-5 py-3 max-w-[90%] shadow-sm">
+                        <p class="font-semibold mb-1">产品总监 · PRD 前置准备清单</p>
+                        <p class="text-sm text-gray-700">在正式 PRD 前先输出两份材料：<b>A. PRD 准备清单</b>（背景、用户角色、核心场景、优先级）与 <b>B. 产品定义草案</b>（边界、MVP 范围、度量指标），方便研发总管判断能否立项。</p>
+                        <details class="session">
+                            <summary><i class="fas fa-chevron-right text-xs"></i> 查看完整会话 (openhire-delegate-openhire-c0697f2c.jsonl)</summary>
+                            <div class="mt-2 text-sm text-gray-700 space-y-2">
+                                <p><b>PRD 初稿 V0.1 摘要</b>：定位内部工具，面向运营/定价/策略团队；输入竞品链接，输出价格变更趋势 + 异常波动标记 + 飞书告警 + Excel 导出。</p>
+                                <p><b>MVP 范围</b>：1 个类目、1 ~ 2 个竞品站点、50 ~ 200 个核心 SKU、日级或小时级采集。</p>
+                                <p><b>验收口径</b>：准确率、成功率、时效、页面清单四项拍板后进入开发。</p>
+                            </div>
+                        </details>
+                    </div>
+                </div>
+
+                <!-- Architect -->
+                <div class="flex justify-start gap-3">
+                    <div class="role-avatar" style="background:#d97706">架</div>
+                    <div class="chat-bubble-assistant rounded-2xl px-5 py-3 max-w-[90%] shadow-sm">
+                        <p class="font-semibold mb-1">架构总监 · 架构可行性预研</p>
+                        <p class="text-sm text-gray-700">技术上可行，但「可持续稳定采集」与「合规边界」是成败关键。建议将系统收敛为「价格监控与异常告警平台」，避免首期纳入过多运营动作，P0 先做少站点、少 SKU、少规则闭环。</p>
+                        <details class="session">
+                            <summary><i class="fas fa-chevron-right text-xs"></i> 查看完整会话 (openhire-delegate-openhire-89c3a232.jsonl)</summary>
+                            <div class="mt-2 text-sm text-gray-700 space-y-2">
+                                <p><b>MVP 默认假设</b>：3 ~ 5 个竞品渠道、100 ~ 1000 个重点 SKU、小时级 / 天级采集。</p>
+                                <p><b>架构分层</b>：数据采集 · 清洗与标准化 · 存储建模 · 看板展示 · 任务运维。</p>
+                                <p><b>风险</b>：反爬 / 页面结构漂移 / 价格口径不一致，必须先 PoC 再铺开。</p>
+                            </div>
+                        </details>
+                    </div>
+                </div>
+
+                <!-- Dev -->
+                <div class="flex justify-start gap-3">
+                    <div class="role-avatar" style="background:#16a34a">开</div>
+                    <div class="chat-bubble-assistant rounded-2xl px-5 py-3 max-w-[90%] shadow-sm">
+                        <p class="font-semibold mb-1">开发总监 · 研发子系统拆分</p>
+                        <p class="text-sm text-gray-700">按 <b>数据采集 → 数据处理 → 存储建模 → 看板展示 → 任务运维</b> 拆分，便于并行评估。给出每个子系统的目标、典型能力与产出物，为 WBS 打底。</p>
+                        <details class="session">
+                            <summary><i class="fas fa-chevron-right text-xs"></i> 查看完整会话 (openhire-delegate-openhire-bda7bb57.jsonl)</summary>
+                            <div class="mt-2 text-sm text-gray-700 space-y-2">
+                                <p><b>开发实施方案 V0.1</b>：MVP 监控 1 个类目 / 1 ~ 2 个来源 / 50 ~ 200 个商品；核心能力：商品池维护、价格抓取、标准化、最新价对比、历史趋势、基础异常提醒、导出。</p>
+                                <p><b>关键 WBS</b>：项目启动与范围冻结 → 口径定义 → 采集原型 → 数据闭环 → 异常识别 → 业务闭环。</p>
+                            </div>
+                        </details>
+                    </div>
+                </div>
+
+                <!-- Test -->
+                <div class="flex justify-start gap-3">
+                    <div class="role-avatar" style="background:#e11d48">测</div>
+                    <div class="chat-bubble-assistant rounded-2xl px-5 py-3 max-w-[90%] shadow-sm">
+                        <p class="font-semibold mb-1">测试总监 · 测试与验收预研</p>
+                        <p class="text-sm text-gray-700">需求核心不是「做一个看板页面」，而是「稳定、准确、可追溯地完成采集 / 清洗 / 展示 / 告警 / 导出」。测试重点从前端展示<b>前移</b>到数据链路正确性、监控时效性、告警可信度、结果可审计性。</p>
+                        <details class="session">
+                            <summary><i class="fas fa-chevron-right text-xs"></i> 查看完整会话 (openhire-delegate-openhire-a60e0f05.jsonl)</summary>
+                            <div class="mt-2 text-sm text-gray-700 space-y-2">
+                                <p><b>质量目标</b>：采集成功率 ≥ 98% · 价格匹配准确率 ≥ 99% · 告警触达延迟 ≤ 5 分钟。</p>
+                                <p><b>验收前置</b>：标准、样本、基线数据必须早于开发完成准备；页面功能完成 ≠ 可验收。</p>
+                                <p><b>风险场景</b>：结构漂移 / 促销标签混淆 / 库存状态口径不一致 / 告警误报。</p>
+                            </div>
+                        </details>
+                    </div>
+                </div>
+
+                <!-- Stage 5: Master aggregation -->
+                <div class="stage-divider"><span class="stage-label">阶段五 · 主控 Agent 聚合结论</span></div>
+
+                <div class="flex justify-start">
+                    <div class="chat-bubble-assistant rounded-2xl px-5 py-3 max-w-[90%] shadow-sm">
+                        <p class="font-semibold mb-2">研发总管 · 项目启动结论</p>
+                        <p class="text-sm text-gray-700 mb-2">已完成首轮调研与预研协调，5 位总监均已给出阶段性结论，可以推进立项，但不能直接跳开发。以下 4 类前置信息需要真人拍板：</p>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
+                            <div class="p-2 rounded bg-amber-50 border border-amber-100"><b class="text-amber-800">① 范围边界</b> · 首版监控哪几个竞品站点 / 商品池规模</div>
+                            <div class="p-2 rounded bg-amber-50 border border-amber-100"><b class="text-amber-800">② 价格口径</b> · 原价 / 促销价 / 到手价取值规则</div>
+                            <div class="p-2 rounded bg-amber-50 border border-amber-100"><b class="text-amber-800">③ 告警通道</b> · 飞书机器人 / 群目标 / 模版</div>
+                            <div class="p-2 rounded bg-amber-50 border border-amber-100"><b class="text-amber-800">④ 验收样本</b> · 业务侧需提供基线与抽检清单</div>
+                        </div>
+                        <div class="mt-3 p-3 rounded-lg bg-indigo-50 border border-indigo-100 text-sm text-indigo-700">
+                            <b>候选动作：</b> 方案 A · 排期版 WBS &nbsp;|&nbsp; 方案 B · 周报风险跟踪表 &nbsp;|&nbsp; 方案 C · 直接分派第一周任务并催办。
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Stage 6: Iteration -->
+                <div class="stage-divider"><span class="stage-label">阶段六 · 迭代推进 · 排期版 WBS</span></div>
+
+                <div class="flex justify-end">
+                    <div class="chat-bubble-user rounded-2xl px-5 py-3 max-w-[80%] shadow-sm">
+                        <p>直接继续即可 → 直接进入 A（排期版 WBS）。</p>
+                    </div>
+                </div>
+
+                <div class="flex justify-center">
+                    <div class="bg-gray-200 text-gray-600 text-xs px-3 py-1 rounded-full flex items-center">
+                        <i class="fas fa-repeat mr-2"></i>主控 Agent 复用现有容器，向 3 位总监再次下发任务（持久化会话）
+                    </div>
+                </div>
+
+                <div class="flex justify-start">
+                    <div class="chat-bubble-tool rounded-2xl px-5 py-3 max-w-[90%] shadow-sm">
+<pre>Delegated to 开发总监  (id=bda7bb57, container=openhire-bda7bb57) · sent 1 message(s)
+Delegated to 架构总监  (id=89c3a232, container=openhire-89c3a232) · sent 1 message(s)
+Delegated to 测试总监  (id=a60e0f05, container=openhire-a60e0f05) · sent 1 message(s)</pre>
+                    </div>
+                </div>
+
+                <div class="flex justify-start">
+                    <div class="chat-bubble-assistant rounded-2xl px-5 py-3 max-w-[90%] shadow-sm">
+                        <p class="font-semibold mb-2">研发总管 · 排期版 WBS + 角色分工 + 里程碑推进表</p>
+                        <div class="overflow-x-auto rounded border border-gray-200">
+                            <table class="w-full text-xs">
+                                <thead class="bg-gray-100 text-gray-700">
+                                    <tr>
+                                        <th class="px-3 py-2 text-left">里程碑</th>
+                                        <th class="px-3 py-2 text-left">时间</th>
+                                        <th class="px-3 py-2 text-left">通过条件</th>
+                                        <th class="px-3 py-2 text-left">交付物</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-100">
+                                    <tr><td class="px-3 py-1.5 font-semibold">M1 方案冻结</td><td class="px-3 py-1.5">周1</td><td class="px-3 py-1.5">范围/口径/样本/验收标准明确</td><td class="px-3 py-1.5">PRD + 架构 + 验收</td></tr>
+                                    <tr><td class="px-3 py-1.5 font-semibold">M2 采集原型</td><td class="px-3 py-1.5">周2</td><td class="px-3 py-1.5">≥1 条站点链路可采可解析</td><td class="px-3 py-1.5">采集原型</td></tr>
+                                    <tr><td class="px-3 py-1.5 font-semibold">M3 数据闭环</td><td class="px-3 py-1.5">周3</td><td class="px-3 py-1.5">定时采集 → 落库 → 展示通</td><td class="px-3 py-1.5">列表 + 任务链路</td></tr>
+                                    <tr><td class="px-3 py-1.5 font-semibold">M4 异常识别</td><td class="px-3 py-1.5">周4</td><td class="px-3 py-1.5">低价/波动/缺货可识别</td><td class="px-3 py-1.5">趋势图 + 异常检测</td></tr>
+                                    <tr><td class="px-3 py-1.5 font-semibold">M5 业务闭环</td><td class="px-3 py-1.5">周5</td><td class="px-3 py-1.5">告警 + 导出 + 联调完成</td><td class="px-3 py-1.5">飞书告警 + Excel</td></tr>
+                                    <tr><td class="px-3 py-1.5 font-semibold">M6 具备上线</td><td class="px-3 py-1.5">周6</td><td class="px-3 py-1.5">验收通过、核心缺陷关闭</td><td class="px-3 py-1.5">验收报告 + 上线清单</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="mt-3 text-xs text-gray-500"><i class="fas fa-shield-halved mr-1"></i>所有结论均由各总监在独立 Docker 容器内产出，经主控 Agent 汇总 + 去噪后呈现，符合「协作协议」的噪音控制要求。</div>
+                        <div class="mt-2 p-2 rounded-lg bg-indigo-50 border border-indigo-100 text-xs text-indigo-700">
+                            <b>下轮候选：</b>① 项目周报/日报模板 + 风险跟踪表 &nbsp;|&nbsp; ② 任务分派清单（可直接分给 4 位总监）&nbsp;|&nbsp; ③ 代你开始分派第一周任务并催办。
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Stage 7: Option 3 · First-week task dispatch -->
+                <div class="stage-divider"><span class="stage-label">阶段七 · 选项 3 · 第 1 周任务分派 · 进入执行</span></div>
+
+                <div class="flex justify-end">
+                    <div class="chat-bubble-user rounded-2xl px-5 py-3 max-w-[80%] shadow-sm">
+                        <p>选项 3 。</p>
+                    </div>
+                </div>
+
+                <div class="flex justify-center">
+                    <div class="bg-gray-200 text-gray-600 text-xs px-3 py-1 rounded-full flex items-center">
+                        <i class="fas fa-bullhorn mr-2"></i>主控 Agent 直接代下发第 1 周任务给 4 位总监（市场总监已完成调研不再打扰）
+                    </div>
+                </div>
+
+                <div class="flex justify-start">
+                    <div class="chat-bubble-tool rounded-2xl px-5 py-3 max-w-[90%] shadow-sm">
+<pre>Delegated to 产品总监  (id=c0697f2c) · Outbound bridge: sent 1 message(s)
+Delegated to 架构总监  (id=89c3a232) · Outbound bridge: sent 1 message(s)
+Delegated to 开发总监  (id=bda7bb57) · Outbound bridge: sent 1 message(s)
+Delegated to 测试总监  (id=a60e0f05) · Outbound bridge: sent 1 message(s)</pre>
+                    </div>
+                </div>
+
+                <div class="flex justify-start">
+                    <div class="chat-bubble-assistant rounded-2xl px-5 py-3 max-w-[90%] shadow-sm">
+                        <p class="font-semibold mb-2">研发总管 · 已正式向 4 位总监下发第 1 周任务</p>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
+                            <div class="p-3 rounded-lg border border-purple-100 bg-purple-50/50">
+                                <div class="flex items-center gap-2 mb-1"><div class="role-avatar" style="width:18px;height:18px;background:#9333ea;font-size:.6rem">产</div><b class="text-xs">产品总监</b></div>
+                                <ul class="text-xs text-gray-700 list-disc list-inside space-y-0.5">
+                                    <li>MVP 范围冻结清单</li>
+                                    <li>关键口径清单</li>
+                                    <li>验收样本需求清单</li>
+                                    <li>待拍板问题清单</li>
+                                </ul>
+                            </div>
+                            <div class="p-3 rounded-lg border border-amber-100 bg-amber-50/50">
+                                <div class="flex items-center gap-2 mb-1"><div class="role-avatar" style="width:18px;height:18px;background:#d97706;font-size:.6rem">架</div><b class="text-xs">架构总监</b></div>
+                                <ul class="text-xs text-gray-700 list-disc list-inside space-y-0.5">
+                                    <li>技术摸底清单</li>
+                                    <li>采集可行性验证方案</li>
+                                    <li>架构前置门槛</li>
+                                    <li>高风险技术项清单</li>
+                                </ul>
+                            </div>
+                            <div class="p-3 rounded-lg border border-green-100 bg-green-50/50">
+                                <div class="flex items-center gap-2 mb-1"><div class="role-avatar" style="width:18px;height:18px;background:#16a34a;font-size:.6rem">开</div><b class="text-xs">开发总监</b></div>
+                                <ul class="text-xs text-gray-700 list-disc list-inside space-y-0.5">
+                                    <li>周 1 研发启动清单</li>
+                                    <li>首条链路原型计划</li>
+                                    <li>资源与依赖清单</li>
+                                    <li>风险与阻塞清单</li>
+                                </ul>
+                            </div>
+                            <div class="p-3 rounded-lg border border-rose-100 bg-rose-50/50">
+                                <div class="flex items-center gap-2 mb-1"><div class="role-avatar" style="width:18px;height:18px;background:#e11d48;font-size:.6rem">测</div><b class="text-xs">测试总监</b></div>
+                                <ul class="text-xs text-gray-700 list-disc list-inside space-y-0.5">
+                                    <li>周 1 测试介入清单</li>
+                                    <li>验收样本与基线准备方案</li>
+                                    <li>阶段验收门建议</li>
+                                    <li>高风险质量点清单</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div class="mt-3 p-3 rounded-lg bg-slate-50 border border-slate-200 text-sm text-slate-700">
+                            <div class="font-semibold mb-1 text-slate-800"><i class="fas fa-forward-step mr-1 text-indigo-500"></i>项目状态切换</div>
+                            从「方案阶段」正式进入 <b>周 1 执行阶段</b>。本周目标：① 冻结 MVP 范围 &nbsp;② 明确关键业务口径 &nbsp;③ 完成技术摸底方案 &nbsp;④ 建立验收样本与质量门。
+                        </div>
+
+                        <div class="mt-3 text-xs text-gray-600 flex flex-wrap gap-2">
+                            <span class="px-2 py-1 bg-indigo-50 border border-indigo-100 rounded"><i class="fas fa-hourglass-half mr-1 text-indigo-500"></i>等待各总监回传交付</span>
+                            <span class="px-2 py-1 bg-indigo-50 border border-indigo-100 rounded"><i class="fas fa-layer-group mr-1 text-indigo-500"></i>统一汇总成周 1 推进结果</span>
+                            <span class="px-2 py-1 bg-indigo-50 border border-indigo-100 rounded"><i class="fas fa-triangle-exclamation mr-1 text-indigo-500"></i>识别缺口并继续催办 / 升级</span>
+                        </div>
+
+                        <div class="mt-3 text-xs text-gray-500 border-t border-gray-100 pt-2">
+                            <i class="fas fa-robot mr-1 text-emerald-500"></i>
+                            主控 Agent 提示：后续可切换到「研发总管持续推进」模式，每日自动催办 + 周报机制 + 里程碑提醒，无需再下指令。
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- Section 5: Summary KPIs -->
+        <section class="glass-panel rounded-2xl p-8">
+            <div class="flex items-center space-x-3 mb-6">
+                <div class="p-3 bg-amber-100 text-amber-600 rounded-lg">
+                    <i class="fas fa-flag-checkered text-xl"></i>
+                </div>
+                <div>
+                    <h2 class="text-2xl font-bold">5. 总结</h2>
+                    <p class="text-sm text-gray-500 mt-1">单日进展、可量化指标、下一步方向</p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
+                <div class="p-4 bg-indigo-50 rounded-xl text-center">
+                    <div class="text-3xl font-extrabold text-indigo-600">10</div>
+                    <div class="text-xs text-gray-600 mt-1">今日 commits</div>
+                </div>
+                <div class="p-4 bg-emerald-50 rounded-xl text-center">
+                    <div class="text-3xl font-extrabold text-emerald-600">5</div>
+                    <div class="text-xs text-gray-600 mt-1">预置场景包</div>
+                </div>
+                <div class="p-4 bg-pink-50 rounded-xl text-center">
+                    <div class="text-3xl font-extrabold text-pink-600">7</div>
+                    <div class="text-xs text-gray-600 mt-1">优秀员工协议条款</div>
+                </div>
+                <div class="p-4 bg-blue-50 rounded-xl text-center">
+                    <div class="text-3xl font-extrabold text-blue-600">5</div>
+                    <div class="text-xs text-gray-600 mt-1">Docker 员工协作</div>
+                </div>
+                <div class="p-4 bg-amber-50 rounded-xl text-center">
+                    <div class="text-3xl font-extrabold text-amber-600">1</div>
+                    <div class="text-xs text-gray-600 mt-1">一句话驱动需求</div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="p-5 rounded-xl bg-gradient-to-br from-indigo-50 to-white border border-indigo-100">
+                    <div class="text-xs text-indigo-600 mb-1 font-semibold"><i class="fas fa-star mr-1"></i>能力升级</div>
+                    <div class="text-sm text-indigo-900">Agent 不再只会「执行」，能在创建员工时<b>主动选型</b>、在落地前<b>主动预览</b>、在运行中<b>主动汇总</b>。</div>
+                </div>
+                <div class="p-5 rounded-xl bg-gradient-to-br from-pink-50 to-white border border-pink-100">
+                    <div class="text-xs text-pink-600 mb-1 font-semibold"><i class="fas fa-user-check mr-1"></i>工作方式标准化</div>
+                    <div class="text-sm text-pink-900">默认注入的「优秀员工协议」让每位数字员工都具备稳定汇报 / 主动巡检 / 可交接 / 带证据 / 会升级 / 会协作的底层习惯。</div>
+                </div>
+                <div class="p-5 rounded-xl bg-gradient-to-br from-emerald-50 to-white border border-emerald-100">
+                    <div class="text-xs text-emerald-600 mb-1 font-semibold"><i class="fas fa-rocket mr-1"></i>下一步</div>
+                    <div class="text-sm text-emerald-900">1) 扩充 ClawHub 场景包覆盖面；2) 在多 Docker 员工协作中接入 transcript + 日报自动生成；3) 给 mentor 准备一个 live demo 通道。</div>
+                </div>
+            </div>
+        </section>
+
+        <footer class="text-center text-xs text-gray-400 pt-4 pb-8">
+            数据来源：git log (2026-04-22) · 飞书群 oc_b29a28b615a9f00af8229c733210ca88 · 5 个 openhire-nanobot Docker 容器的 nanobot 会话 jsonl
+        </footer>
+
+    </div>
+
+    <script>
+        if (window.mermaid) {
+            mermaid.initialize({ startOnLoad: true, theme: 'default', securityLevel: 'loose' });
+        }
+    </script>
+</body>
+</html>

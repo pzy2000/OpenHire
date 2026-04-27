@@ -1,0 +1,1165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenHire Daily Report · 2026-04-22</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background:
+                radial-gradient(1200px 600px at 10% -10%, #dbeafe 0%, transparent 60%),
+                radial-gradient(900px 500px at 100% 0%, #ede9fe 0%, transparent 60%),
+                #f3f4f6;
+            color: #1f2937;
+        }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        .hero-panel {
+            background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 55%, #4338ca 100%);
+            color: #fff;
+            box-shadow: 0 20px 40px -15px rgba(30, 58, 138, 0.45);
+        }
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.35rem 0.85rem;
+            background: rgba(255, 255, 255, 0.12);
+            border: 1px solid rgba(255, 255, 255, 0.22);
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: #e0e7ff;
+        }
+        .hero-stat {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.16);
+            border-radius: 12px;
+            padding: 0.9rem 1rem;
+        }
+        .chat-bubble-user {
+            background-color: #3b82f6;
+            color: white;
+            border-bottom-right-radius: 0;
+        }
+        .chat-bubble-assistant {
+            background-color: #f8fafc;
+            color: #1f2937;
+            border-bottom-left-radius: 0;
+            border: 1px solid #e5e7eb;
+        }
+        .chat-bubble-tool {
+            background-color: #fef3c7;
+            color: #92400e;
+            border-bottom-left-radius: 0;
+            border: 1px solid #fde68a;
+            font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+            font-size: 0.82rem;
+        }
+        .chat-bubble-tool pre {
+            white-space: pre-wrap;
+            word-break: break-word;
+            margin: 0;
+            font-family: inherit;
+        }
+        .chat-log::-webkit-scrollbar { width: 8px; }
+        .chat-log::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 4px; }
+        .role-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 9999px;
+            display: grid;
+            place-items: center;
+            color: white;
+            font-size: 0.75rem;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+        .stage-divider {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            color: #6b7280;
+            font-size: 0.8rem;
+            margin: 0.5rem 0;
+        }
+        .stage-divider::before, .stage-divider::after {
+            content: "";
+            flex: 1;
+            height: 1px;
+            background: #e5e7eb;
+        }
+        .stage-label {
+            padding: 0.25rem 0.75rem;
+            background: #eef2ff;
+            color: #4338ca;
+            border-radius: 9999px;
+            font-weight: 600;
+            font-size: 0.75rem;
+            letter-spacing: 0.02em;
+        }
+
+        /* Collapsible skill protocol card */
+        details.protocol {
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            border-radius: 14px;
+            padding: 0;
+            overflow: hidden;
+            transition: box-shadow .2s ease, border-color .2s ease;
+        }
+        details.protocol[open] {
+            border-color: #c7d2fe;
+            box-shadow: 0 10px 24px -16px rgba(67, 56, 202, 0.45);
+        }
+        details.protocol > summary {
+            list-style: none;
+            cursor: pointer;
+            padding: 1rem 1.15rem;
+            display: flex;
+            align-items: center;
+            gap: .85rem;
+            font-weight: 600;
+            color: #111827;
+        }
+        details.protocol > summary::-webkit-details-marker { display: none; }
+        details.protocol .chev {
+            margin-left: auto;
+            transition: transform .25s ease;
+            color: #6366f1;
+        }
+        details.protocol[open] .chev { transform: rotate(90deg); }
+        details.protocol .body {
+            padding: 0 1.15rem 1.15rem 1.15rem;
+            color: #374151;
+            font-size: .9rem;
+            line-height: 1.7;
+            animation: fadeSlide .25s ease;
+        }
+        @keyframes fadeSlide {
+            from { opacity: 0; transform: translateY(-4px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .proto-icon {
+            width: 32px; height: 32px;
+            display: grid; place-items: center;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #eef2ff, #e0e7ff);
+            color: #4338ca;
+            flex-shrink: 0;
+        }
+
+        /* Commit timeline */
+        .commit-item {
+            position: relative;
+            padding-left: 2.25rem;
+            padding-bottom: 1rem;
+        }
+        .commit-item::before {
+            content: "";
+            position: absolute;
+            left: 0.6rem;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: linear-gradient(to bottom, #c7d2fe, #a7f3d0);
+        }
+        .commit-item::after {
+            content: "";
+            position: absolute;
+            left: 0.25rem;
+            top: 0.45rem;
+            width: 0.85rem;
+            height: 0.85rem;
+            border-radius: 9999px;
+            background: #fff;
+            border: 3px solid #6366f1;
+        }
+        .commit-item.key::after { border-color: #db2777; box-shadow: 0 0 0 4px rgba(219, 39, 119, 0.12); }
+
+        .scenario-card {
+            background: linear-gradient(160deg, #ffffff 0%, #eef2ff 120%);
+            border: 1px solid #e0e7ff;
+            border-radius: 14px;
+            padding: 1rem 1.1rem;
+            transition: transform .2s ease, box-shadow .2s ease;
+        }
+        .scenario-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 14px 28px -18px rgba(67, 56, 202, 0.5);
+        }
+        .skill-chip {
+            display: inline-flex; align-items: center; gap: .35rem;
+            padding: .22rem .55rem;
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+            border-radius: 9999px;
+            font-size: .72rem;
+            color: #334155;
+        }
+        .skill-chip.hot { border-color: #fecaca; color: #b91c1c; background: #fef2f2; }
+
+        .mermaid-wrap { background: #ffffff; border: 1px dashed #c7d2fe; border-radius: 14px; padding: 1rem; }
+
+        code.inline { background: #f1f5f9; border: 1px solid #e2e8f0; padding: 1px 6px; border-radius: 6px; font-size: .8rem; }
+
+        /* Nested details for "full session" under director cards */
+        details.session {
+            margin-top: .75rem;
+            border-top: 1px dashed #e5e7eb;
+            padding-top: .65rem;
+        }
+        details.session > summary {
+            list-style: none;
+            cursor: pointer;
+            font-size: .78rem;
+            color: #4f46e5;
+            display: inline-flex;
+            align-items: center;
+            gap: .35rem;
+        }
+        details.session > summary::-webkit-details-marker { display: none; }
+        details.session[open] > summary i { transform: rotate(90deg); }
+        details.session > summary i { transition: transform .25s ease; }
+    </style>
+</head>
+<body class="min-h-screen p-4 md:p-8">
+    <div class="max-w-6xl mx-auto space-y-8">
+
+        <!-- Hero Header -->
+        <header class="hero-panel rounded-3xl p-8 md:p-10 relative overflow-hidden">
+            <div class="absolute -top-10 -right-10 w-56 h-56 rounded-full bg-indigo-400/20 blur-3xl"></div>
+            <div class="absolute -bottom-12 -left-10 w-64 h-64 rounded-full bg-cyan-400/20 blur-3xl"></div>
+            <div class="relative space-y-5">
+                <span class="hero-badge"><i class="fas fa-chart-line"></i> 2026-04-22 · Daily Report</span>
+                <h1 class="text-3xl md:text-4xl font-extrabold tracking-tight">OpenHire Project Progress Report</h1>
+                <p class="text-indigo-100 max-w-3xl">
+                    End-of-day summary for mentors: a large set of high-star skills is pre-seeded and auto-configured by the Agent, every digital employee ships with the “Excellent Employee Protocol” by default, and this report captures end-to-end collaboration among five Docker-based digital employees against a real business scenario.
+                </p>
+                <div class="grid grid-cols-2 md:grid-cols-5 gap-3 pt-2">
+                    <div class="hero-stat">
+                        <div class="text-2xl font-bold">10</div>
+                        <div class="text-xs text-indigo-200 mt-0.5">Commits today</div>
+                    </div>
+                    <div class="hero-stat">
+                        <div class="text-2xl font-bold">5</div>
+                        <div class="text-xs text-indigo-200 mt-0.5">Docker digital employees</div>
+                    </div>
+                    <div class="hero-stat">
+                        <div class="text-2xl font-bold">7</div>
+                        <div class="text-xs text-indigo-200 mt-0.5">Default protocol clauses</div>
+                    </div>
+                    <div class="hero-stat">
+                        <div class="text-2xl font-bold">5</div>
+                        <div class="text-xs text-indigo-200 mt-0.5">Preset scenario packs</div>
+                    </div>
+                    <div class="hero-stat">
+                        <div class="text-2xl font-bold">20+</div>
+                        <div class="text-xs text-indigo-200 mt-0.5">High-star skill candidates</div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Section 1: Today's commits -->
+        <section class="glass-panel rounded-2xl p-8">
+            <div class="flex items-center space-x-3 mb-6">
+                <div class="p-3 bg-indigo-100 text-indigo-600 rounded-lg">
+                    <i class="fas fa-code-commit text-xl"></i>
+                </div>
+                <div>
+                    <h2 class="text-2xl font-bold">1. R&amp;D progress today</h2>
+                    <p class="text-sm text-gray-500 mt-1">10 commits on 2026-04-22, focused on the skill system and employee protocols</p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div class="p-4 rounded-xl border border-indigo-100 bg-indigo-50">
+                    <div class="text-xs text-indigo-600 mb-1"><i class="fas fa-seedling mr-1"></i>Focus 1 · Preset skills + Agent auto-config</div>
+                    <div class="text-sm text-gray-800">commit <code class="inline">ce03d2d</code> · <code class="inline">8622b38</code></div>
+                </div>
+                <div class="p-4 rounded-xl border border-pink-100 bg-pink-50">
+                    <div class="text-xs text-pink-600 mb-1"><i class="fas fa-user-shield mr-1"></i>Focus 2 · Excellent Employee Protocol as default skill</div>
+                    <div class="text-sm text-gray-800">commit <code class="inline">00525b8</code></div>
+                </div>
+                <div class="p-4 rounded-xl border border-emerald-100 bg-emerald-50">
+                    <div class="text-xs text-emerald-600 mb-1"><i class="fas fa-people-arrows mr-1"></i>Focus 3 · Collaboration infrastructure</div>
+                    <div class="text-sm text-gray-800">commit <code class="inline">ab13576</code> · <code class="inline">e613f26</code> · <code class="inline">4ea93e0</code></div>
+                </div>
+            </div>
+
+            <div class="space-y-1">
+                <div class="commit-item key">
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <code class="inline">ce03d2d</code>
+                        <span class="text-xs text-gray-500">17:22</span>
+                        <span class="text-xs px-2 py-0.5 bg-pink-100 text-pink-700 rounded-full">Key</span>
+                    </div>
+                    <div class="font-semibold text-gray-900 mt-1">Smart skill recommendation</div>
+                    <div class="text-sm text-gray-600 mt-0.5">Added skill recommendation toggle at employee creation, recommendation API, and LLM-based <code class="inline">EmployeeSkillSelector</code>; 11 files / 894 lines across admin UI, config, and tests.</div>
+                </div>
+                <div class="commit-item key">
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <code class="inline">8622b38</code>
+                        <span class="text-xs text-gray-500">16:09</span>
+                        <span class="text-xs px-2 py-0.5 bg-pink-100 text-pink-700 rounded-full">Key</span>
+                    </div>
+                    <div class="font-semibold text-gray-900 mt-1">Search skill content preview · ClawHub</div>
+                    <div class="text-sm text-gray-600 mt-0.5">Endpoint to fetch full SKILL.md from ClawHub and admin preview modal so users can review a skill end-to-end before assigning it.</div>
+                </div>
+                <div class="commit-item">
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <code class="inline">3ecb025</code>
+                        <span class="text-xs text-gray-500">15:30</span>
+                    </div>
+                    <div class="font-semibold text-gray-900 mt-1">Skill content management &amp; preview</div>
+                    <div class="text-sm text-gray-600 mt-0.5">Skill content query/update endpoints; admin skill content modal with edit and preview.</div>
+                </div>
+                <div class="commit-item">
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <code class="inline">448313a</code>
+                        <span class="text-xs text-gray-500">18:40</span>
+                    </div>
+                    <div class="font-semibold text-gray-900 mt-1">OpenHireTool registration logic refactor</div>
+                    <div class="text-sm text-gray-600 mt-0.5">Group id assignment follows whether a <code class="inline">message</code> tool exists, preserving auto-join behavior.</div>
+                </div>
+                <div class="commit-item">
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <code class="inline">14e13a6</code>
+                        <span class="text-xs text-gray-500">18:10</span>
+                    </div>
+                    <div class="font-semibold text-gray-900 mt-1">clean_docker_agent_output</div>
+                    <div class="text-sm text-gray-600 mt-0.5">When a Docker employee sends no outbound message, strip container log noise and extract JSON as a fallback message.</div>
+                </div>
+                <div class="commit-item">
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <code class="inline">ab13576</code>
+                        <span class="text-xs text-gray-500">17:55</span>
+                    </div>
+                    <div class="font-semibold text-gray-900 mt-1">Outbound message handling</div>
+                    <div class="text-sm text-gray-600 mt-0.5">OpenHireTool can post back to the Feishu group; AgentLoop suppresses duplicate replies when the employee already sent a message.</div>
+                </div>
+                <div class="commit-item key">
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <code class="inline">00525b8</code>
+                        <span class="text-xs text-gray-500">04:37</span>
+                        <span class="text-xs px-2 py-0.5 bg-pink-100 text-pink-700 rounded-full">Key</span>
+                    </div>
+                    <div class="font-semibold text-gray-900 mt-1">Required employee skill · Excellent Employee Protocol</div>
+                    <div class="text-sm text-gray-600 mt-0.5">Ships <code class="inline">openhire/skills/excellent-employee/SKILL.md</code> for all employees by default, non-removable, injected into the system prompt.</div>
+                </div>
+                <div class="commit-item">
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <code class="inline">e613f26</code>
+                        <span class="text-xs text-gray-500">03:10</span>
+                    </div>
+                    <div class="font-semibold text-gray-900 mt-1">Chat history</div>
+                    <div class="text-sm text-gray-600 mt-0.5">Transcript query endpoints for the master Agent and Docker employees; full conversation chain visible in admin.</div>
+                </div>
+                <div class="commit-item">
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <code class="inline">fd4d516</code>
+                        <span class="text-xs text-gray-500">02:45</span>
+                    </div>
+                    <div class="font-semibold text-gray-900 mt-1">OpenClawAdapter environment &amp; command refactor</div>
+                    <div class="text-sm text-gray-600 mt-0.5">Environment variable management; rewrites <code class="inline">localhost</code> when Docker reaches the host; aligned with new ACP config.</div>
+                </div>
+                <div class="commit-item">
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <code class="inline">4ea93e0</code>
+                        <span class="text-xs text-gray-500">Prev. day 21:50</span>
+                    </div>
+                    <div class="font-semibold text-gray-900 mt-1">Docker agent persistent containers · instance_id</div>
+                    <div class="text-sm text-gray-600 mt-0.5">All Docker adapters accept <code class="inline">instance_id</code> for container-scoped session persistence, enabling the five-employee long collaboration below.</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 2: Preset skills + Auto config -->
+        <section class="glass-panel rounded-2xl p-8">
+            <div class="flex items-center space-x-3 mb-6">
+                <div class="p-3 bg-emerald-100 text-emerald-600 rounded-lg">
+                    <i class="fas fa-puzzle-piece text-xl"></i>
+                </div>
+                <div>
+                    <h2 class="text-2xl font-bold">2. Preset high-star skills · Agent auto-config</h2>
+                    <p class="text-sm text-gray-500 mt-1">ClawHub public skill registry + five business scenario packs + LLM selection: skills auto-match on employee creation</p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <!-- Left: 5 scenario cards -->
+                <div>
+                    <div class="text-xs font-semibold text-emerald-700 mb-3 tracking-wider">SCENARIO PACKS · 5 PRESET PACKS</div>
+                    <div class="space-y-3">
+                        <div class="scenario-card">
+                            <div class="flex items-center gap-2 mb-2">
+                                <i class="fas fa-envelope-open-text text-indigo-600"></i>
+                                <div class="font-semibold">Email &amp; message triage</div>
+                                <span class="ml-auto text-xs text-gray-400">7 queries</span>
+                            </div>
+                            <div class="flex flex-wrap gap-1.5">
+                                <span class="skill-chip hot"><i class="fab fa-google"></i>gmail</span>
+                                <span class="skill-chip"><i class="fab fa-slack"></i>slack</span>
+                                <span class="skill-chip"><i class="fab fa-microsoft"></i>teams</span>
+                                <span class="skill-chip">notion</span>
+                                <span class="skill-chip">hubspot</span>
+                                <span class="skill-chip">salesforce</span>
+                                <span class="skill-chip">email</span>
+                            </div>
+                        </div>
+                        <div class="scenario-card">
+                            <div class="flex items-center gap-2 mb-2">
+                                <i class="fas fa-newspaper text-indigo-600"></i>
+                                <div class="font-semibold">Daily / weekly reports</div>
+                                <span class="ml-auto text-xs text-gray-400">7 queries</span>
+                            </div>
+                            <div class="flex flex-wrap gap-1.5">
+                                <span class="skill-chip hot">report</span>
+                                <span class="skill-chip">news</span>
+                                <span class="skill-chip">monitor</span>
+                                <span class="skill-chip">spreadsheet</span>
+                                <span class="skill-chip">browser</span>
+                                <span class="skill-chip">web</span>
+                                <span class="skill-chip">search</span>
+                            </div>
+                        </div>
+                        <div class="scenario-card">
+                            <div class="flex items-center gap-2 mb-2">
+                                <i class="fas fa-ticket text-indigo-600"></i>
+                                <div class="font-semibold">Ticket routing</div>
+                                <span class="ml-auto text-xs text-gray-400">6 queries</span>
+                            </div>
+                            <div class="flex flex-wrap gap-1.5">
+                                <span class="skill-chip hot"><i class="fab fa-jira"></i>jira</span>
+                                <span class="skill-chip">linear</span>
+                                <span class="skill-chip">zendesk</span>
+                                <span class="skill-chip"><i class="fab fa-github"></i>github</span>
+                                <span class="skill-chip">pagerduty</span>
+                                <span class="skill-chip">ticket</span>
+                            </div>
+                        </div>
+                        <div class="scenario-card">
+                            <div class="flex items-center gap-2 mb-2">
+                                <i class="fas fa-gauge-high text-indigo-600"></i>
+                                <div class="font-semibold">Ops health checks</div>
+                                <span class="ml-auto text-xs text-gray-400">7 queries</span>
+                            </div>
+                            <div class="flex flex-wrap gap-1.5">
+                                <span class="skill-chip">browser</span>
+                                <span class="skill-chip">monitor</span>
+                                <span class="skill-chip">spreadsheet</span>
+                                <span class="skill-chip">salesforce</span>
+                                <span class="skill-chip">hubspot</span>
+                                <span class="skill-chip">database</span>
+                                <span class="skill-chip hot">alert</span>
+                            </div>
+                        </div>
+                        <div class="scenario-card">
+                            <div class="flex items-center gap-2 mb-2">
+                                <i class="fas fa-calendar-days text-indigo-600"></i>
+                                <div class="font-semibold">Admin &amp; calendar</div>
+                                <span class="ml-auto text-xs text-gray-400">6 queries</span>
+                            </div>
+                            <div class="flex flex-wrap gap-1.5">
+                                <span class="skill-chip hot">calendar</span>
+                                <span class="skill-chip">meeting</span>
+                                <span class="skill-chip">gmail</span>
+                                <span class="skill-chip">notion</span>
+                                <span class="skill-chip">pdf</span>
+                                <span class="skill-chip">document</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-5 p-4 rounded-xl bg-gradient-to-br from-amber-50 to-white border border-amber-100">
+                        <div class="text-xs text-amber-700 mb-1 font-semibold"><i class="fas fa-database mr-1"></i>Source · ClawHub public registry</div>
+                        <div class="text-sm text-gray-700">Each query calls <code class="inline">/api/v1/packages/search?family=skill</code> for high-scoring packages, sorted by downloads / stars / risk; first pass yields ~20–50 skill previews, one-click batch import into the local catalog.</div>
+                    </div>
+                </div>
+
+                <!-- Right: LLM auto-selector -->
+                <div>
+                    <div class="text-xs font-semibold text-emerald-700 mb-3 tracking-wider">AUTO-CONFIG · LLM SELECTION</div>
+
+                    <div class="p-5 rounded-xl bg-white border border-gray-200 mb-4">
+                        <div class="flex items-center gap-2 mb-3">
+                            <i class="fas fa-wand-magic-sparkles text-indigo-500"></i>
+                            <div class="font-semibold">EmployeeSkillSelector</div>
+                            <span class="ml-auto text-xs text-gray-400">openhire/workforce/skill_selection.py</span>
+                        </div>
+                        <ol class="text-sm text-gray-700 space-y-2 list-decimal list-inside">
+                            <li>On create, read full candidates from <code class="inline">SkillCatalogService.list()</code></li>
+                            <li>Remove required <code class="inline">excellent-employee</code> (not selected twice)</li>
+                            <li>Send employee name / role / system_prompt to the LLM; response JSON <code class="inline">{skill_ids, reason}</code></li>
+                            <li>Up to 5 skills; 5 retries on failure; on parse error fall back to empty set with a warning</li>
+                            <li>Admin toggle previews recommendations and allows manual edits</li>
+                        </ol>
+                    </div>
+
+                    <div class="mermaid-wrap">
+                        <div class="text-xs text-indigo-600 mb-2 font-semibold"><i class="fas fa-diagram-project mr-1"></i>Auto-config flow</div>
+                        <div class="mermaid">
+flowchart LR
+    A[Create employee<br/>role + prompt] --> B[Read local catalog]
+    B --> C{Catalog has<br/>preset high-star skills?}
+    C -- No --> D[Guide ClawHub bulk import]
+    D --> B
+    C -- Yes --> E[LLM picks<br/>up to 5]
+    E --> F[admin UI preview<br/>tweak if needed]
+    F --> G[Persist + inject into<br/>employee system prompt]
+    G --> H[Default append<br/>Excellent Employee Protocol]
+    H --> I[Employee live]
+                        </div>
+                    </div>
+
+                    <div class="mt-4 grid grid-cols-2 gap-3">
+                        <div class="p-3 rounded-lg bg-indigo-50 border border-indigo-100 text-xs">
+                            <div class="text-indigo-700 font-semibold mb-0.5">Concurrency</div>
+                            <div class="text-gray-600"><code class="inline">asyncio.Semaphore(5)</code> for parallel SKILL.md fetches</div>
+                        </div>
+                        <div class="p-3 rounded-lg bg-indigo-50 border border-indigo-100 text-xs">
+                            <div class="text-indigo-700 font-semibold mb-0.5">Risk labels</div>
+                            <div class="text-gray-600">Tags such as risk / popular / scenario for human review</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 3: Excellent Employee Protocol (expandable) -->
+        <section class="glass-panel rounded-2xl p-8">
+            <div class="flex items-center space-x-3 mb-6">
+                <div class="p-3 bg-pink-100 text-pink-600 rounded-lg">
+                    <i class="fas fa-user-shield text-xl"></i>
+                </div>
+                <div>
+                    <h2 class="text-2xl font-bold">3. Excellent Employee Protocol · default skill</h2>
+                    <p class="text-sm text-gray-500 mt-1">Every digital employee has it, cannot be removed; expand each of the 7 clauses for full text</p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Left 2/3: 7 expandable protocol cards -->
+                <div class="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <details class="protocol">
+                        <summary>
+                            <div class="proto-icon"><i class="fas fa-sun"></i></div>
+                            <div>
+                                <div>Daily report protocol</div>
+                                <div class="text-xs text-gray-500 font-normal">Fixed format every day</div>
+                            </div>
+                            <i class="fas fa-chevron-right chev"></i>
+                        </summary>
+                        <div class="body">
+                            <p>End each day with a fixed structure:</p>
+                            <ul class="list-disc list-inside space-y-0.5">
+                                <li><b>Done</b>: Delivered work and verifiable results</li>
+                                <li><b>In progress</b>: What is moving, current stage, next step</li>
+                                <li><b>Blocked</b>: Who you are waiting on, what is missing, where it is stuck</li>
+                                <li><b>Tomorrow</b>: The 1–3 most important things for the next day</li>
+                            </ul>
+                        </div>
+                    </details>
+
+                    <details class="protocol">
+                        <summary>
+                            <div class="proto-icon"><i class="fas fa-calendar-week"></i></div>
+                            <div>
+                                <div>Weekly report protocol</div>
+                                <div class="text-xs text-gray-500 font-normal">Weekly summary + decision asks</div>
+                            </div>
+                            <i class="fas fa-chevron-right chev"></i>
+                        </summary>
+                        <div class="body">
+                            <p>Weekly summary:</p>
+                            <ul class="list-disc list-inside space-y-0.5">
+                                <li><b>Outcomes</b>: Key deliveries this week</li>
+                                <li><b>Risks</b>: Risks, anomalies, and trends that may affect goals</li>
+                                <li><b>Decision requests</b>: Items that need a human to judge, authorize, or decide</li>
+                                <li><b>Next week</b>: Priorities, expected output, and who to collaborate with</li>
+                            </ul>
+                        </div>
+                    </details>
+
+                    <details class="protocol">
+                        <summary>
+                            <div class="proto-icon"><i class="fas fa-magnifying-glass-chart"></i></div>
+                            <div>
+                                <div>Health-check protocol</div>
+                                <div class="text-xs text-gray-500 font-normal">Proactively surface issues</div>
+                            </div>
+                            <i class="fas fa-chevron-right chev"></i>
+                        </summary>
+                        <div class="body">
+                            On a schedule, review systems, docs, chats, backlogs, and external signals you own. If something stays open too long, status looks wrong, information is stale, or risk rises, surface it early with a suggested next step.
+                        </div>
+                    </details>
+
+                    <details class="protocol">
+                        <summary>
+                            <div class="proto-icon"><i class="fas fa-people-arrows"></i></div>
+                            <div>
+                                <div>Handoff protocol</div>
+                                <div class="text-xs text-gray-500 font-normal">Any task can be handed off anytime</div>
+                            </div>
+                            <i class="fas fa-chevron-right chev"></i>
+                        </summary>
+                        <div class="body">
+                            Long-running work keeps a handoff-ready state: context, goal, current progress, paths tried, key links, blockers, and next steps. Someone taking over should not have to re-read the entire chat from zero.
+                        </div>
+                    </details>
+
+                    <details class="protocol">
+                        <summary>
+                            <div class="proto-icon"><i class="fas fa-link"></i></div>
+                            <div>
+                                <div>Evidence protocol</div>
+                                <div class="text-xs text-gray-500 font-normal">Conclusions must be verifiable</div>
+                            </div>
+                            <i class="fas fa-chevron-right chev"></i>
+                        </summary>
+                        <div class="body">
+                            Important conclusions need a source or how to verify them. For code, config, data, customer feedback, hiring, or ops calls, prefer links, files, logs, screenshots, test output, or reproduction steps.
+                        </div>
+                    </details>
+
+                    <details class="protocol">
+                        <summary>
+                            <div class="proto-icon"><i class="fas fa-triangle-exclamation"></i></div>
+                            <div>
+                                <div>Escalation protocol</div>
+                                <div class="text-xs text-gray-500 font-normal">Escalate to humans in time</div>
+                            </div>
+                            <i class="fas fa-chevron-right chev"></i>
+                        </summary>
+                        <div class="body">
+                            Escalate promptly on permissions, cost, security, production risk, conflicting requirements, missing information, or judgments you cannot verify. When escalating, state why, impact, options, and a recommended choice.
+                        </div>
+                    </details>
+
+                    <details class="protocol md:col-span-2">
+                        <summary>
+                            <div class="proto-icon"><i class="fas fa-network-wired"></i></div>
+                            <div>
+                                <div>Collaboration protocol</div>
+                                <div class="text-xs text-gray-500 font-normal">Noise control with multiple employees</div>
+                            </div>
+                            <i class="fas fa-chevron-right chev"></i>
+                        </summary>
+                        <div class="body">
+                            When several digital employees are involved, a lead owner aggregates conclusions to avoid chat noise. Collaboration output should name owners, scope, deliverables, deadlines, and a final rollup.
+                        </div>
+                    </details>
+                </div>
+
+                <!-- Right 1/3: System injection points -->
+                <div class="space-y-4">
+                    <div class="p-5 rounded-xl bg-gradient-to-br from-pink-50 to-white border border-pink-100">
+                        <div class="text-xs font-semibold text-pink-700 mb-2 tracking-wider">HOW IT IS WIRED</div>
+                        <div class="text-sm text-gray-700 space-y-2">
+                            <p>Every employee system prompt gets a leading wrapper so all seven clauses are visible to the LLM before each turn:</p>
+<pre class="text-xs bg-slate-900 text-slate-100 rounded-lg p-3 overflow-x-auto">[OpenHire Required Skill:
+ excellent-employee]
+ ... full text of 7 protocol clauses ...
+[/OpenHire Required Skill:
+ excellent-employee]</pre>
+                            <p class="text-xs text-gray-500"><i class="fas fa-location-arrow mr-1"></i><code class="inline">openhire/workforce/required_skill.py</code></p>
+                        </div>
+                    </div>
+
+                    <div class="p-5 rounded-xl bg-white border border-gray-200">
+                        <div class="text-xs font-semibold text-gray-700 mb-2 tracking-wider">GUARANTEES</div>
+                        <ul class="text-sm text-gray-700 space-y-1.5">
+                            <li><i class="fas fa-lock text-pink-500 mr-2"></i>Non-removable: delete API raises <code class="inline">RequiredSkillDeleteError</code></li>
+                            <li><i class="fas fa-circle-plus text-pink-500 mr-2"></i>Auto-attached on create even if the user does not check the box</li>
+                            <li><i class="fas fa-arrows-rotate text-pink-500 mr-2"></i>After content edits, one-click sync to active employees</li>
+                            <li><i class="fas fa-flag text-pink-500 mr-2"></i>Admin list shows a <span class="inline-flex items-center gap-1 text-pink-600"><i class="fas fa-star"></i>Required</span> badge</li>
+                        </ul>
+                    </div>
+
+                    <div class="p-4 rounded-xl bg-indigo-50 border border-indigo-100 text-xs text-indigo-800">
+                        <i class="fas fa-lightbulb mr-1"></i>
+                        Mentor view: protocol ≠ job skills. Making this “way of working” a default is like giving every digital employee a <b>handbook</b>: stable reporting, proactive checks, handoffs, evidence, escalation, and collaboration as baseline habits.
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 4: Collaboration demo -->
+        <section class="glass-panel rounded-2xl p-8">
+            <div class="flex items-center space-x-3 mb-6">
+                <div class="p-3 bg-blue-100 text-blue-600 rounded-lg">
+                    <i class="fas fa-comments text-xl"></i>
+                </div>
+                <div>
+                    <h2 class="text-2xl font-bold">4. Multi-employee collaboration (live)</h2>
+                    <p class="text-sm text-gray-500 mt-1">Case: five director-level Docker digital employees on a “competitor price monitoring dashboard”</p>
+                </div>
+            </div>
+
+            <!-- Team roster overview -->
+            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
+                <div class="p-3 rounded-xl border border-gray-200 bg-white">
+                    <div class="flex items-center gap-2 mb-1.5">
+                        <div class="role-avatar" style="background:#111827">AI</div>
+                        <div class="text-xs text-gray-500">Master Agent</div>
+                    </div>
+                    <div class="font-semibold text-sm text-gray-900">Engineering Lead</div>
+                    <div class="text-xs text-gray-500 mt-0.5">Feishu group oc_b29a...ca88</div>
+                </div>
+                <div class="p-3 rounded-xl border border-blue-100 bg-blue-50/60">
+                    <div class="flex items-center gap-2 mb-1.5">
+                        <div class="role-avatar" style="background:#0ea5e9">M</div>
+                        <div class="text-xs text-sky-700">Marketing Director</div>
+                    </div>
+                    <div class="font-semibold text-sm text-gray-900">9ae9ea6d</div>
+                    <div class="text-xs text-gray-500 mt-0.5">openhire-9ae9ea6d</div>
+                </div>
+                <div class="p-3 rounded-xl border border-purple-100 bg-purple-50/60">
+                    <div class="flex items-center gap-2 mb-1.5">
+                        <div class="role-avatar" style="background:#9333ea">P</div>
+                        <div class="text-xs text-purple-700">Product Director</div>
+                    </div>
+                    <div class="font-semibold text-sm text-gray-900">c0697f2c</div>
+                    <div class="text-xs text-gray-500 mt-0.5">openhire-c0697f2c</div>
+                </div>
+                <div class="p-3 rounded-xl border border-amber-100 bg-amber-50/60">
+                    <div class="flex items-center gap-2 mb-1.5">
+                        <div class="role-avatar" style="background:#d97706">A</div>
+                        <div class="text-xs text-amber-700">Architecture Director</div>
+                    </div>
+                    <div class="font-semibold text-sm text-gray-900">89c3a232</div>
+                    <div class="text-xs text-gray-500 mt-0.5">openhire-89c3a232</div>
+                </div>
+                <div class="p-3 rounded-xl border border-green-100 bg-green-50/60">
+                    <div class="flex items-center gap-2 mb-1.5">
+                        <div class="role-avatar" style="background:#16a34a">D</div>
+                        <div class="text-xs text-green-700">Development Director</div>
+                    </div>
+                    <div class="font-semibold text-sm text-gray-900">bda7bb57</div>
+                    <div class="text-xs text-gray-500 mt-0.5">openhire-bda7bb57</div>
+                </div>
+                <div class="p-3 rounded-xl border border-rose-100 bg-rose-50/60">
+                    <div class="flex items-center gap-2 mb-1.5">
+                        <div class="role-avatar" style="background:#e11d48">Q</div>
+                        <div class="text-xs text-rose-700">QA Director</div>
+                    </div>
+                    <div class="font-semibold text-sm text-gray-900">a60e0f05</div>
+                    <div class="text-xs text-gray-500 mt-0.5">openhire-a60e0f05</div>
+                </div>
+            </div>
+
+            <div class="mb-4 p-3 rounded-lg bg-slate-900 text-slate-100 text-xs flex items-center gap-2">
+                <i class="fas fa-circle text-emerald-400 animate-pulse"></i>
+                <span><code class="bg-slate-800 px-1 rounded">docker ps</code> · 5 <code class="bg-slate-800 px-1 rounded">openhire-nanobot:latest</code> containers up ~45 min, each an isolated workspace for this run</span>
+            </div>
+
+            <!-- Chat log -->
+            <div class="chat-log bg-gray-50 rounded-xl p-4 md:p-6 h-[760px] overflow-y-auto border border-gray-200 space-y-5">
+
+                <!-- Stage 1: Role confirmation -->
+                <div class="stage-divider"><span class="stage-label">Phase 1 · Master Agent confirms role</span></div>
+
+                <div class="flex justify-end">
+                    <div class="chat-bubble-user rounded-2xl px-5 py-3 max-w-[85%] shadow-sm">
+                        <p>From now on you are my engineering lead. Drive “market research → PRD → architecture → implementation → QA acceptance.” You do not produce specialist deliverables yourself; you orchestrate, nudge, summarize, and move work forward. Restate the boundaries only; do not start execution.</p>
+                    </div>
+                </div>
+
+                <div class="flex justify-start">
+                    <div class="chat-bubble-assistant rounded-2xl px-5 py-3 max-w-[85%] shadow-sm">
+                        <p class="font-semibold mb-1">Understood. Boundaries:</p>
+                        <ul class="text-sm list-disc list-inside space-y-0.5">
+                            <li>I only <b>run the process</b> (five stages, nudges, rollups)</li>
+                            <li>I do not own market / product / architecture / dev / QA specialist output</li>
+                            <li>Per stage I say who should produce what, with inputs, outputs, and deadlines</li>
+                            <li>On decisions, permissions, or risk, escalate to a human in time</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Stage 2: Spawn 5 docker employees -->
+                <div class="stage-divider"><span class="stage-label">Phase 2 · One sentence spawns five Docker directors</span></div>
+
+                <div class="flex justify-end">
+                    <div class="chat-bubble-user rounded-2xl px-5 py-3 max-w-[85%] shadow-sm">
+                        <p>Using the nanobot docker image, create marketing, product, development, architecture, and QA directors as five employees.</p>
+                    </div>
+                </div>
+
+                <div class="flex justify-center">
+                    <div class="bg-gray-200 text-gray-600 text-xs px-3 py-1 rounded-full flex items-center">
+                        <i class="fas fa-container-storage mr-2"></i>Master Agent starts five Docker containers in parallel, each with the Excellent Employee Protocol
+                    </div>
+                </div>
+
+                <div class="flex justify-start">
+                    <div class="chat-bubble-tool rounded-2xl px-5 py-3 max-w-[90%] shadow-sm">
+<pre>Registered: Marketing Director  (id=9ae9ea6d, container=openhire-9ae9ea6d)
+Registered: Product Director  (id=c0697f2c, container=openhire-c0697f2c)
+Registered: Development Director  (id=bda7bb57, container=openhire-bda7bb57)
+Registered: Architecture Director  (id=89c3a232, container=openhire-89c3a232)
+Registered: QA Director  (id=a60e0f05, container=openhire-a60e0f05)
+All 5 employees joined group oc_b29a...ca88.</pre>
+                    </div>
+                </div>
+
+                <!-- Stage 3: Delegate the demand -->
+                <div class="stage-divider"><span class="stage-label">Phase 3 · Business ask · parallel delegation</span></div>
+
+                <div class="flex justify-end">
+                    <div class="chat-bubble-user rounded-2xl px-5 py-3 max-w-[85%] shadow-sm">
+                        <p>Requirement: build a competitor price monitoring dashboard. Support entering competitor links, scheduled collection of list/original/promo/stock, trend charts and anomaly flags, Feishu alerts on low price / high volatility / out of stock, and Excel export.</p>
+                    </div>
+                </div>
+
+                <div class="flex justify-center">
+                    <div class="bg-gray-200 text-gray-600 text-xs px-3 py-1 rounded-full flex items-center">
+                        <i class="fas fa-paper-plane mr-2"></i>Master Agent delegates in parallel to all five directors
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 md:grid-cols-5 gap-2">
+                    <div class="chat-bubble-tool rounded-2xl px-3 py-2 shadow-sm">
+                        <div class="flex items-center gap-2 mb-1"><div class="role-avatar" style="width:20px;height:20px;background:#0ea5e9;font-size:.65rem">M</div><b class="text-xs">Marketing Director</b></div>
+                        <div class="text-[11px] text-amber-900/80">Market research phase</div>
+                    </div>
+                    <div class="chat-bubble-tool rounded-2xl px-3 py-2 shadow-sm">
+                        <div class="flex items-center gap-2 mb-1"><div class="role-avatar" style="width:20px;height:20px;background:#9333ea;font-size:.65rem">P</div><b class="text-xs">Product Director</b></div>
+                        <div class="text-[11px] text-amber-900/80">PRD prep checklist</div>
+                    </div>
+                    <div class="chat-bubble-tool rounded-2xl px-3 py-2 shadow-sm">
+                        <div class="flex items-center gap-2 mb-1"><div class="role-avatar" style="width:20px;height:20px;background:#d97706;font-size:.65rem">A</div><b class="text-xs">Architecture Director</b></div>
+                        <div class="text-[11px] text-amber-900/80">Architecture feasibility</div>
+                    </div>
+                    <div class="chat-bubble-tool rounded-2xl px-3 py-2 shadow-sm">
+                        <div class="flex items-center gap-2 mb-1"><div class="role-avatar" style="width:20px;height:20px;background:#16a34a;font-size:.65rem">D</div><b class="text-xs">Development Director</b></div>
+                        <div class="text-[11px] text-amber-900/80">Subsystem breakdown</div>
+                    </div>
+                    <div class="chat-bubble-tool rounded-2xl px-3 py-2 shadow-sm">
+                        <div class="flex items-center gap-2 mb-1"><div class="role-avatar" style="width:20px;height:20px;background:#e11d48;font-size:.65rem">Q</div><b class="text-xs">QA Director</b></div>
+                        <div class="text-[11px] text-amber-900/80">Quality goals &amp; acceptance</div>
+                    </div>
+                </div>
+
+                <!-- Stage 4: 5 director outputs -->
+                <div class="stage-divider"><span class="stage-label">Phase 4 · Five Docker employees in parallel</span></div>
+
+                <!-- Market -->
+                <div class="flex justify-start gap-3">
+                    <div class="role-avatar" style="background:#0ea5e9">M</div>
+                    <div class="chat-bubble-assistant rounded-2xl px-5 py-3 max-w-[90%] shadow-sm">
+                        <p class="font-semibold mb-1">Marketing Director · Market research</p>
+                        <p class="text-sm text-gray-700">The core is not “ship a dashboard” but “help the business catch price issues early, see trends, and act fast.” Primary users: e-com ops, pricing, KA channels, market intel; highest value in <b>alerts / trend insight / exportable output</b>.</p>
+                        <details class="session">
+                            <summary><i class="fas fa-chevron-right text-xs"></i> Full session (openhire-delegate-openhire-9ae9ea6d.jsonl)</summary>
+                            <div class="mt-2 text-sm text-gray-700 space-y-2">
+                                <p><b>Target users</b>: e-com ops / pricing / KA / market intel</p>
+                                <p><b>Core scenarios</b>: daily checks · big-sale monitoring · underpricing governance · weekly/monthly reports</p>
+                                <p><b>Differentiation</b>: “scrape + list” is easy to replace; a moat needs “configurable monitoring + trusted alerts + explainable trends + reusable outputs.”</p>
+                                <p class="text-xs text-gray-500"><i class="fas fa-hashtag mr-1"></i>With the Excellent Employee Protocol, conclusions are prefixed with Done / In progress / Blocked / Tomorrow</p>
+                            </div>
+                        </details>
+                    </div>
+                </div>
+
+                <!-- Product -->
+                <div class="flex justify-start gap-3">
+                    <div class="role-avatar" style="background:#9333ea">P</div>
+                    <div class="chat-bubble-assistant rounded-2xl px-5 py-3 max-w-[90%] shadow-sm">
+                        <p class="font-semibold mb-1">Product Director · PRD prep checklist</p>
+                        <p class="text-sm text-gray-700">Before a full PRD, produce two items: <b>A. PRD prep checklist</b> (context, roles, key scenarios, priority) and <b>B. product definition draft</b> (boundaries, MVP, metrics) so the lead can greenlight.</p>
+                        <details class="session">
+                            <summary><i class="fas fa-chevron-right text-xs"></i> Full session (openhire-delegate-openhire-c0697f2c.jsonl)</summary>
+                            <div class="mt-2 text-sm text-gray-700 space-y-2">
+                                <p><b>PRD draft v0.1</b>: internal tool for ops / pricing / strategy; input competitor links; output price deltas, anomaly flags, Feishu alerts, Excel export.</p>
+                                <p><b>MVP</b>: one category, 1–2 competitor sites, 50–200 key SKUs, daily or hourly collection.</p>
+                                <p><b>Acceptance</b>: agree on accuracy, success rate, timeliness, and page list before build.</p>
+                            </div>
+                        </details>
+                    </div>
+                </div>
+
+                <!-- Architect -->
+                <div class="flex justify-start gap-3">
+                    <div class="role-avatar" style="background:#d97706">A</div>
+                    <div class="chat-bubble-assistant rounded-2xl px-5 py-3 max-w-[90%] shadow-sm">
+                        <p class="font-semibold mb-1">Architecture Director · Feasibility</p>
+                        <p class="text-sm text-gray-700">Technically viable, but “stable, sustainable collection” and “compliance boundaries” decide success. Shape the system as a “price monitoring and anomaly platform”; avoid too many ops actions in v1. P0: few sites, few SKUs, few rules, closed loop.</p>
+                        <details class="session">
+                            <summary><i class="fas fa-chevron-right text-xs"></i> Full session (openhire-delegate-openhire-89c3a232.jsonl)</summary>
+                            <div class="mt-2 text-sm text-gray-700 space-y-2">
+                                <p><b>MVP defaults</b>: 3–5 competitor channels, 100–1,000 SKUs, hourly or daily collection.</p>
+                                <p><b>Layers</b>: collection · normalize · storage/model · dashboard · job ops.</p>
+                                <p><b>Risks</b>: anti-bot, DOM drift, price definition mismatch; need PoC before scale.</p>
+                            </div>
+                        </details>
+                    </div>
+                </div>
+
+                <!-- Dev -->
+                <div class="flex justify-start gap-3">
+                    <div class="role-avatar" style="background:#16a34a">D</div>
+                    <div class="chat-bubble-assistant rounded-2xl px-5 py-3 max-w-[90%] shadow-sm">
+                        <p class="font-semibold mb-1">Development Director · Subsystem split</p>
+                        <p class="text-sm text-gray-700">Split by <b>collection → processing → storage/model → dashboard → job ops</b> for parallel sizing. For each subsystem: goal, typical capabilities, artifacts, as a WBS base.</p>
+                        <details class="session">
+                            <summary><i class="fas fa-chevron-right text-xs"></i> Full session (openhire-delegate-openhire-bda7bb57.jsonl)</summary>
+                            <div class="mt-2 text-sm text-gray-700 space-y-2">
+                                <p><b>Implementation plan v0.1</b>: MVP one category / 1–2 sources / 50–200 items; product pool, scrape, normalize, latest vs history, basic anomaly signal, export.</p>
+                                <p><b>Key WBS</b>: kickoff and scope lock → definition → collection prototype → data loop → anomaly → business close.</p>
+                            </div>
+                        </details>
+                    </div>
+                </div>
+
+                <!-- Test -->
+                <div class="flex justify-start gap-3">
+                    <div class="role-avatar" style="background:#e11d48">Q</div>
+                    <div class="chat-bubble-assistant rounded-2xl px-5 py-3 max-w-[90%] shadow-sm">
+                        <p class="font-semibold mb-1">QA Director · Test &amp; acceptance</p>
+                        <p class="text-sm text-gray-700">The need is not “a dashboard page” but “stable, accurate, auditable collection / clean / show / alert / export.” Test focus moves <b>left</b> to data-path correctness, monitoring latency, alert trust, and auditable output.</p>
+                        <details class="session">
+                            <summary><i class="fas fa-chevron-right text-xs"></i> Full session (openhire-delegate-openhire-a60e0f05.jsonl)</summary>
+                            <div class="mt-2 text-sm text-gray-700 space-y-2">
+                                <p><b>Quality goals</b>: collection success ≥ 98% · price match ≥ 99% · alert delay ≤ 5 min.</p>
+                                <p><b>Prereq to accept</b>: standards, samples, and baselines before dev is “done”; UI complete ≠ shippable.</p>
+                                <p><b>Risk cases</b>: structure drift, promo label confusion, stock semantics mismatch, false alerts.</p>
+                            </div>
+                        </details>
+                    </div>
+                </div>
+
+                <!-- Stage 5: Master aggregation -->
+                <div class="stage-divider"><span class="stage-label">Phase 5 · Master Agent roll-up</span></div>
+
+                <div class="flex justify-start">
+                    <div class="chat-bubble-assistant rounded-2xl px-5 py-3 max-w-[90%] shadow-sm">
+                        <p class="font-semibold mb-2">Engineering Lead · Kickoff</p>
+                        <p class="text-sm text-gray-700 mb-2">First pass of research and pre-work is in; all five directors delivered phase notes. We can move to a formal start, not straight to build. Four human decisions still needed:</p>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
+                            <div class="p-2 rounded bg-amber-50 border border-amber-100"><b class="text-amber-800">① Scope</b> · which competitor sites and catalog size in v1</div>
+                            <div class="p-2 rounded bg-amber-50 border border-amber-100"><b class="text-amber-800">② Price definition</b> · list / promo / landed price rules</div>
+                            <div class="p-2 rounded bg-amber-50 border border-amber-100"><b class="text-amber-800">③ Alert channel</b> · Feishu bot, group, template</div>
+                            <div class="p-2 rounded bg-amber-50 border border-amber-100"><b class="text-amber-800">④ Acceptance samples</b> · baselines and spot-check list from the business</div>
+                        </div>
+                        <div class="mt-3 p-3 rounded-lg bg-indigo-50 border border-indigo-100 text-sm text-indigo-700">
+                            <b>Next options:</b> A · scheduled WBS &nbsp;|&nbsp; B · weekly risk tracker &nbsp;|&nbsp; C · assign week-1 tasks and nudge.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Stage 6: Iteration -->
+                <div class="stage-divider"><span class="stage-label">Phase 6 · Iteration · scheduled WBS</span></div>
+
+                <div class="flex justify-end">
+                    <div class="chat-bubble-user rounded-2xl px-5 py-3 max-w-[80%] shadow-sm">
+                        <p>Continue with option A: scheduled WBS.</p>
+                    </div>
+                </div>
+
+                <div class="flex justify-center">
+                    <div class="bg-gray-200 text-gray-600 text-xs px-3 py-1 rounded-full flex items-center">
+                        <i class="fas fa-repeat mr-2"></i>Master Agent reuses containers; delegates again to three directors (persistent sessions)
+                    </div>
+                </div>
+
+                <div class="flex justify-start">
+                    <div class="chat-bubble-tool rounded-2xl px-5 py-3 max-w-[90%] shadow-sm">
+<pre>Delegated to Development Director  (id=bda7bb57, container=openhire-bda7bb57) · sent 1 message(s)
+Delegated to Architecture Director  (id=89c3a232, container=openhire-89c3a232) · sent 1 message(s)
+Delegated to QA Director  (id=a60e0f05, container=openhire-a60e0f05) · sent 1 message(s)</pre>
+                    </div>
+                </div>
+
+                <div class="flex justify-start">
+                    <div class="chat-bubble-assistant rounded-2xl px-5 py-3 max-w-[90%] shadow-sm">
+                        <p class="font-semibold mb-2">Engineering Lead · WBS, owners, milestone table</p>
+                        <div class="overflow-x-auto rounded border border-gray-200">
+                            <table class="w-full text-xs">
+                                <thead class="bg-gray-100 text-gray-700">
+                                    <tr>
+                                        <th class="px-3 py-2 text-left">Milestone</th>
+                                        <th class="px-3 py-2 text-left">Time</th>
+                                        <th class="px-3 py-2 text-left">Pass criteria</th>
+                                        <th class="px-3 py-2 text-left">Deliverable</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-100">
+                                    <tr><td class="px-3 py-1.5 font-semibold">M1 Scope lock</td><td class="px-3 py-1.5">W1</td><td class="px-3 py-1.5">Scope, definition, samples, acceptance clear</td><td class="px-3 py-1.5">PRD + arch + acceptance</td></tr>
+                                    <tr><td class="px-3 py-1.5 font-semibold">M2 Collection prototype</td><td class="px-3 py-1.5">W2</td><td class="px-3 py-1.5">≥1 site path scrape + parse</td><td class="px-3 py-1.5">Prototype</td></tr>
+                                    <tr><td class="px-3 py-1.5 font-semibold">M3 Data loop</td><td class="px-3 py-1.5">W3</td><td class="px-3 py-1.5">Schedule → store → display</td><td class="px-3 py-1.5">List + job path</td></tr>
+                                    <tr><td class="px-3 py-1.5 font-semibold">M4 Anomaly</td><td class="px-3 py-1.5">W4</td><td class="px-3 py-1.5">Low / volatility / OOS detectable</td><td class="px-3 py-1.5">Trends + detection</td></tr>
+                                    <tr><td class="px-3 py-1.5 font-semibold">M5 Business close</td><td class="px-3 py-1.5">W5</td><td class="px-3 py-1.5">Alerts + export + integrated test</td><td class="px-3 py-1.5">Feishu + Excel</td></tr>
+                                    <tr><td class="px-3 py-1.5 font-semibold">M6 Go-live ready</td><td class="px-3 py-1.5">W6</td><td class="px-3 py-1.5">Acceptance pass, key defects closed</td><td class="px-3 py-1.5">Report + launch checklist</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="mt-3 text-xs text-gray-500"><i class="fas fa-shield-halved mr-1"></i>All items were produced in isolated Docker containers and rolled up by the master Agent for noise control per the collaboration protocol.</div>
+                        <div class="mt-2 p-2 rounded-lg bg-indigo-50 border border-indigo-100 text-xs text-indigo-700">
+                            <b>Next round:</b> ① project weekly/daily templates + risk tracker &nbsp;|&nbsp; ② task list to assign to four directors &nbsp;|&nbsp; ③ start week-1 tasks and nudge.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Stage 7: Option 3 · First-week task dispatch -->
+                <div class="stage-divider"><span class="stage-label">Phase 7 · Option 3 · Week-1 tasks · execution</span></div>
+
+                <div class="flex justify-end">
+                    <div class="chat-bubble-user rounded-2xl px-5 py-3 max-w-[80%] shadow-sm">
+                        <p>Option 3.</p>
+                    </div>
+                </div>
+
+                <div class="flex justify-center">
+                    <div class="bg-gray-200 text-gray-600 text-xs px-3 py-1 rounded-full flex items-center">
+                        <i class="fas fa-bullhorn mr-2"></i>Master Agent dispatches week-1 tasks to four directors (marketing already done, left alone)
+                    </div>
+                </div>
+
+                <div class="flex justify-start">
+                    <div class="chat-bubble-tool rounded-2xl px-5 py-3 max-w-[90%] shadow-sm">
+<pre>Delegated to Product Director  (id=c0697f2c) · Outbound bridge: sent 1 message(s)
+Delegated to Architecture Director  (id=89c3a232) · Outbound bridge: sent 1 message(s)
+Delegated to Development Director  (id=bda7bb57) · Outbound bridge: sent 1 message(s)
+Delegated to QA Director  (id=a60e0f05) · Outbound bridge: sent 1 message(s)</pre>
+                    </div>
+                </div>
+
+                <div class="flex justify-start">
+                    <div class="chat-bubble-assistant rounded-2xl px-5 py-3 max-w-[90%] shadow-sm">
+                        <p class="font-semibold mb-2">Engineering Lead · Week-1 tasks sent to four directors</p>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
+                            <div class="p-3 rounded-lg border border-purple-100 bg-purple-50/50">
+                                <div class="flex items-center gap-2 mb-1"><div class="role-avatar" style="width:18px;height:18px;background:#9333ea;font-size:.6rem">P</div><b class="text-xs">Product Director</b></div>
+                                <ul class="text-xs text-gray-700 list-disc list-inside space-y-0.5">
+                                    <li>MVP scope freeze checklist</li>
+                                    <li>Key definition checklist</li>
+                                    <li>Acceptance sample needs</li>
+                                    <li>Open questions for human decision</li>
+                                </ul>
+                            </div>
+                            <div class="p-3 rounded-lg border border-amber-100 bg-amber-50/50">
+                                <div class="flex items-center gap-2 mb-1"><div class="role-avatar" style="width:18px;height:18px;background:#d97706;font-size:.6rem">A</div><b class="text-xs">Architecture Director</b></div>
+                                <ul class="text-xs text-gray-700 list-disc list-inside space-y-0.5">
+                                    <li>Tech discovery checklist</li>
+                                    <li>Collection feasibility plan</li>
+                                    <li>Architecture gates</li>
+                                    <li>High-risk tech items</li>
+                                </ul>
+                            </div>
+                            <div class="p-3 rounded-lg border border-green-100 bg-green-50/50">
+                                <div class="flex items-center gap-2 mb-1"><div class="role-avatar" style="width:18px;height:18px;background:#16a34a;font-size:.6rem">D</div><b class="text-xs">Development Director</b></div>
+                                <ul class="text-xs text-gray-700 list-disc list-inside space-y-0.5">
+                                    <li>Week-1 dev kickoff checklist</li>
+                                    <li>First-path prototype plan</li>
+                                    <li>Resources and dependencies</li>
+                                    <li>Risks and blockers</li>
+                                </ul>
+                            </div>
+                            <div class="p-3 rounded-lg border border-rose-100 bg-rose-50/50">
+                                <div class="flex items-center gap-2 mb-1"><div class="role-avatar" style="width:18px;height:18px;background:#e11d48;font-size:.6rem">Q</div><b class="text-xs">QA Director</b></div>
+                                <ul class="text-xs text-gray-700 list-disc list-inside space-y-0.5">
+                                    <li>Week-1 test engagement checklist</li>
+                                    <li>Sample and baseline plan</li>
+                                    <li>Stage gate suggestions</li>
+                                    <li>High-risk quality items</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div class="mt-3 p-3 rounded-lg bg-slate-50 border border-slate-200 text-sm text-slate-700">
+                            <div class="font-semibold mb-1 text-slate-800"><i class="fas fa-forward-step mr-1 text-indigo-500"></i>Project state</div>
+                            Moving from “design” into <b>week-1 execution</b>. Goals: ① lock MVP ② key business definitions ③ tech discovery plan ④ acceptance samples and quality gates.
+                        </div>
+
+                        <div class="mt-3 text-xs text-gray-600 flex flex-wrap gap-2">
+                            <span class="px-2 py-1 bg-indigo-50 border border-indigo-100 rounded"><i class="fas fa-hourglass-half mr-1 text-indigo-500"></i>Wait for director deliverables</span>
+                            <span class="px-2 py-1 bg-indigo-50 border border-indigo-100 rounded"><i class="fas fa-layer-group mr-1 text-indigo-500"></i>Roll up week-1 progress</span>
+                            <span class="px-2 py-1 bg-indigo-50 border border-indigo-100 rounded"><i class="fas fa-triangle-exclamation mr-1 text-indigo-500"></i>Surface gaps, nudge, escalate</span>
+                        </div>
+
+                        <div class="mt-3 text-xs text-gray-500 border-t border-gray-100 pt-2">
+                            <i class="fas fa-robot mr-1 text-emerald-500"></i>
+                            Master Agent note: you can switch to “engineering lead on autopilot”: daily nudges, weekly reports, milestone reminders, without new instructions.
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- Section 5: Summary KPIs -->
+        <section class="glass-panel rounded-2xl p-8">
+            <div class="flex items-center space-x-3 mb-6">
+                <div class="p-3 bg-amber-100 text-amber-600 rounded-lg">
+                    <i class="fas fa-flag-checkered text-xl"></i>
+                </div>
+                <div>
+                    <h2 class="text-2xl font-bold">5. Summary</h2>
+                    <p class="text-sm text-gray-500 mt-1">One-day progress, measurable signals, what is next</p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
+                <div class="p-4 bg-indigo-50 rounded-xl text-center">
+                    <div class="text-3xl font-extrabold text-indigo-600">10</div>
+                    <div class="text-xs text-gray-600 mt-1">Commits today</div>
+                </div>
+                <div class="p-4 bg-emerald-50 rounded-xl text-center">
+                    <div class="text-3xl font-extrabold text-emerald-600">5</div>
+                    <div class="text-xs text-gray-600 mt-1">Preset scenario packs</div>
+                </div>
+                <div class="p-4 bg-pink-50 rounded-xl text-center">
+                    <div class="text-3xl font-extrabold text-pink-600">7</div>
+                    <div class="text-xs text-gray-600 mt-1">Excellent Employee clauses</div>
+                </div>
+                <div class="p-4 bg-blue-50 rounded-xl text-center">
+                    <div class="text-3xl font-extrabold text-blue-600">5</div>
+                    <div class="text-xs text-gray-600 mt-1">Docker employees in collaboration</div>
+                </div>
+                <div class="p-4 bg-amber-50 rounded-xl text-center">
+                    <div class="text-3xl font-extrabold text-amber-600">1</div>
+                    <div class="text-xs text-gray-600 mt-1">One-liner to drive a requirement</div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="p-5 rounded-xl bg-gradient-to-br from-indigo-50 to-white border border-indigo-100">
+                    <div class="text-xs text-indigo-600 mb-1 font-semibold"><i class="fas fa-star mr-1"></i>Capability</div>
+                    <div class="text-sm text-indigo-900">The Agent does more than execute: it <b>selects skills</b> at create, <b>previews</b> before land, and <b>aggregates</b> while running.</div>
+                </div>
+                <div class="p-5 rounded-xl bg-gradient-to-br from-pink-50 to-white border border-pink-100">
+                    <div class="text-xs text-pink-600 mb-1 font-semibold"><i class="fas fa-user-check mr-1"></i>Standardized ways of working</div>
+                    <div class="text-sm text-pink-900">The default Excellent Employee Protocol gives every digital employee stable reporting, proactive checks, handoffs, evidence, escalation, and collaboration as baseline habits.</div>
+                </div>
+                <div class="p-5 rounded-xl bg-gradient-to-br from-emerald-50 to-white border border-emerald-100">
+                    <div class="text-xs text-emerald-600 mb-1 font-semibold"><i class="fas fa-rocket mr-1"></i>Next</div>
+                    <div class="text-sm text-emerald-900">1) Expand ClawHub scenario coverage; 2) wire transcript + auto daily report in multi-Docker runs; 3) a live demo path for mentors.</div>
+                </div>
+            </div>
+        </section>
+
+        <footer class="text-center text-xs text-gray-400 pt-4 pb-8">
+            Sources: git log (2026-04-22) · Feishu group oc_b29a28b615a9f00af8229c733210ca88 · five openhire-nanobot Docker containers, nanobot session jsonl
+        </footer>
+
+    </div>
+
+    <script>
+        if (window.mermaid) {
+            mermaid.initialize({ startOnLoad: true, theme: 'default', securityLevel: 'loose' });
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,1189 @@
+{
+  "generated_at": "2026-04-21T21:31:56+00:00",
+  "min_count": 20,
+  "max_count": 50,
+  "count": 27,
+  "candidates": [
+    {
+      "name": "Gmail",
+      "owner": "byungkyu",
+      "source_url": "https://clawhub.ai/byungkyu/gmail",
+      "scenario": "邮箱与消息分诊",
+      "scenarios": [
+        "邮箱与消息分诊"
+      ],
+      "reason": "Matched query 'gmail' for 邮箱与消息分诊.",
+      "stars": 64,
+      "downloads": 31000,
+      "risk": "unknown",
+      "markdown_status": "ok",
+      "markdown_error": "",
+      "download_url": "https://wry-manatee-359.convex.site/api/v1/download?slug=gmail",
+      "updated_at": "",
+      "score": 0,
+      "tags": [
+        "scenario:邮箱与消息分诊",
+        "query:gmail",
+        "tool:gmail",
+        "risk:unknown",
+        "popular:high-downloads",
+        "scenario:行政日程"
+      ],
+      "skill": {
+        "source": "clawhub",
+        "external_id": "gmail",
+        "name": "Gmail",
+        "description": "Gmail API integration with managed OAuth. Read, send, and manage emails, threads, labels, and drafts. Use this skill when users want to interact with Gmail. For other third party apps, use the api-gateway skill (https://clawhub.ai/byungkyu/api-gateway).",
+        "version": "1.0.6",
+        "author": "byungkyu",
+        "license": "",
+        "source_url": "https://clawhub.ai/byungkyu/gmail",
+        "safety_status": "",
+        "tags": [
+          "scenario:邮箱与消息分诊",
+          "query:gmail",
+          "tool:gmail",
+          "risk:unknown",
+          "popular:high-downloads",
+          "scenario:行政日程"
+        ]
+      }
+    },
+    {
+      "name": "Arxiv Watcher Hardened",
+      "owner": "snazar-faberlens",
+      "source_url": "https://clawhub.ai/snazar-faberlens/arxiv-watcher-hardened",
+      "scenario": "日报周报",
+      "scenarios": [
+        "日报周报"
+      ],
+      "reason": "Matched query 'search' for 日报周报.",
+      "stars": 0,
+      "downloads": 0,
+      "risk": "suspicious",
+      "markdown_status": "ok",
+      "markdown_error": "",
+      "download_url": "https://wry-manatee-359.convex.site/api/v1/download?slug=arxiv-watcher-hardened",
+      "updated_at": "",
+      "score": 0,
+      "tags": [
+        "scenario:日报周报",
+        "query:search",
+        "tool:arxiv-watcher-hardened",
+        "risk:suspicious",
+        "popularity:unknown"
+      ],
+      "skill": {
+        "source": "clawhub",
+        "external_id": "arxiv-watcher-hardened",
+        "name": "Arxiv Watcher Hardened",
+        "description": "Search and summarize papers from ArXiv. Use when the user asks for the latest research, specific topics on ArXiv, or a daily summary of AI papers.",
+        "version": "1.0.0",
+        "author": "snazar-faberlens",
+        "license": "",
+        "source_url": "https://clawhub.ai/snazar-faberlens/arxiv-watcher-hardened",
+        "safety_status": "",
+        "tags": [
+          "scenario:日报周报",
+          "query:search",
+          "tool:arxiv-watcher-hardened",
+          "risk:suspicious",
+          "popularity:unknown"
+        ]
+      }
+    },
+    {
+      "name": "Github",
+      "owner": "steipete",
+      "source_url": "https://clawhub.ai/steipete/github",
+      "scenario": "工单分派",
+      "scenarios": [
+        "工单分派"
+      ],
+      "reason": "Matched query 'github' for 工单分派.",
+      "stars": 527,
+      "downloads": 162000,
+      "risk": "unknown",
+      "markdown_status": "ok",
+      "markdown_error": "",
+      "download_url": "https://wry-manatee-359.convex.site/api/v1/download?slug=github",
+      "updated_at": "",
+      "score": 0,
+      "tags": [
+        "scenario:工单分派",
+        "query:github",
+        "tool:github",
+        "risk:unknown",
+        "popular:high-downloads"
+      ],
+      "skill": {
+        "source": "clawhub",
+        "external_id": "github",
+        "name": "Github",
+        "description": "Interact with GitHub using the `gh` CLI. Use `gh issue`, `gh pr`, `gh run`, and `gh api` for issues, PRs, CI runs, and advanced queries.",
+        "version": "1.0.0",
+        "author": "steipete",
+        "license": "",
+        "source_url": "https://clawhub.ai/steipete/github",
+        "safety_status": "",
+        "tags": [
+          "scenario:工单分派",
+          "query:github",
+          "tool:github",
+          "risk:unknown",
+          "popular:high-downloads"
+        ]
+      }
+    },
+    {
+      "name": "Auto Monitor Hardened",
+      "owner": "snazar-faberlens",
+      "source_url": "https://clawhub.ai/snazar-faberlens/auto-monitor-hardened",
+      "scenario": "日报周报",
+      "scenarios": [
+        "日报周报"
+      ],
+      "reason": "Matched query 'monitor' for 日报周报.",
+      "stars": 0,
+      "downloads": 0,
+      "risk": "suspicious",
+      "markdown_status": "ok",
+      "markdown_error": "",
+      "download_url": "https://wry-manatee-359.convex.site/api/v1/download?slug=auto-monitor-hardened",
+      "updated_at": "",
+      "score": 0,
+      "tags": [
+        "scenario:日报周报",
+        "query:monitor",
+        "tool:auto-monitor-hardened",
+        "risk:suspicious",
+        "popularity:unknown",
+        "scenario:运营巡检"
+      ],
+      "skill": {
+        "source": "clawhub",
+        "external_id": "auto-monitor-hardened",
+        "name": "Auto Monitor Hardened",
+        "description": "主动监控系统状态。定期检查服务器健康，主动汇报，无需等待指令。",
+        "version": "1.0.0",
+        "author": "snazar-faberlens",
+        "license": "",
+        "source_url": "https://clawhub.ai/snazar-faberlens/auto-monitor-hardened",
+        "safety_status": "",
+        "tags": [
+          "scenario:日报周报",
+          "query:monitor",
+          "tool:auto-monitor-hardened",
+          "risk:suspicious",
+          "popularity:unknown",
+          "scenario:运营巡检"
+        ]
+      }
+    },
+    {
+      "name": "Autoicd Hardened",
+      "owner": "snazar-faberlens",
+      "source_url": "https://clawhub.ai/snazar-faberlens/autoicd-hardened",
+      "scenario": "日报周报",
+      "scenarios": [
+        "日报周报"
+      ],
+      "reason": "Matched query 'search' for 日报周报.",
+      "stars": 0,
+      "downloads": 0,
+      "risk": "suspicious",
+      "markdown_status": "ok",
+      "markdown_error": "",
+      "download_url": "https://wry-manatee-359.convex.site/api/v1/download?slug=autoicd-hardened",
+      "updated_at": "",
+      "score": 0,
+      "tags": [
+        "scenario:日报周报",
+        "query:search",
+        "tool:autoicd-hardened",
+        "risk:suspicious",
+        "popularity:unknown",
+        "scenario:行政日程"
+      ],
+      "skill": {
+        "source": "clawhub",
+        "external_id": "autoicd-hardened",
+        "name": "Autoicd Hardened",
+        "description": "Generate professional clinical decision support (CDS) documents for pharmaceutical and clinical research settings, including patient cohort analyses (biomark...",
+        "version": "1.0.0",
+        "author": "snazar-faberlens",
+        "license": "",
+        "source_url": "https://clawhub.ai/snazar-faberlens/autoicd-hardened",
+        "safety_status": "",
+        "tags": [
+          "scenario:日报周报",
+          "query:search",
+          "tool:autoicd-hardened",
+          "risk:suspicious",
+          "popularity:unknown",
+          "scenario:行政日程"
+        ]
+      }
+    },
+    {
+      "name": "Browser",
+      "owner": "pshotts",
+      "source_url": "https://clawhub.ai/pshotts/browser",
+      "scenario": "日报周报",
+      "scenarios": [
+        "日报周报"
+      ],
+      "reason": "Matched query 'browser' for 日报周报.",
+      "stars": 2,
+      "downloads": 11400,
+      "risk": "unknown",
+      "markdown_status": "error",
+      "markdown_error": "Invalid frontmatter format in SKILL.md.",
+      "download_url": "https://wry-manatee-359.convex.site/api/v1/download?slug=browser",
+      "updated_at": "",
+      "score": 0,
+      "tags": [
+        "scenario:日报周报",
+        "query:browser",
+        "tool:browser",
+        "risk:unknown",
+        "popular:high-downloads",
+        "scenario:运营巡检"
+      ],
+      "skill": {
+        "source": "clawhub",
+        "external_id": "browser",
+        "name": "Browser",
+        "description": "Uses a headless browser to navigate web pages, interact with elements, and extract clean, readable text content from URLs.",
+        "version": "1.0.0",
+        "author": "pshotts",
+        "license": "",
+        "source_url": "https://clawhub.ai/pshotts/browser",
+        "safety_status": "",
+        "tags": [
+          "scenario:日报周报",
+          "query:browser",
+          "tool:browser",
+          "risk:unknown",
+          "popular:high-downloads",
+          "scenario:运营巡检"
+        ]
+      }
+    },
+    {
+      "name": "Calendar",
+      "owner": "ndcccccc",
+      "source_url": "https://clawhub.ai/ndcccccc/calendar",
+      "scenario": "行政日程",
+      "scenarios": [
+        "行政日程"
+      ],
+      "reason": "Matched query 'calendar' for 行政日程.",
+      "stars": 3,
+      "downloads": 16700,
+      "risk": "suspicious",
+      "markdown_status": "ok",
+      "markdown_error": "",
+      "download_url": "https://wry-manatee-359.convex.site/api/v1/download?slug=calendar",
+      "updated_at": "",
+      "score": 0,
+      "tags": [
+        "scenario:行政日程",
+        "query:calendar",
+        "tool:calendar",
+        "risk:suspicious",
+        "popular:high-downloads"
+      ],
+      "skill": {
+        "source": "clawhub",
+        "external_id": "calendar",
+        "name": "Calendar",
+        "description": "Calendar management and scheduling. Create events, manage meetings, and sync across calendar providers.",
+        "version": "1.0.0",
+        "author": "ndcccccc",
+        "license": "",
+        "source_url": "https://clawhub.ai/ndcccccc/calendar",
+        "safety_status": "",
+        "tags": [
+          "scenario:行政日程",
+          "query:calendar",
+          "tool:calendar",
+          "risk:suspicious",
+          "popular:high-downloads"
+        ]
+      }
+    },
+    {
+      "name": "Granola Api",
+      "owner": "gtkumar777",
+      "source_url": "https://clawhub.ai/gtkumar777/granola-direct-api",
+      "scenario": "行政日程",
+      "scenarios": [
+        "行政日程"
+      ],
+      "reason": "Matched query 'meeting' for 行政日程.",
+      "stars": 0,
+      "downloads": 0,
+      "risk": "suspicious",
+      "markdown_status": "ok",
+      "markdown_error": "",
+      "download_url": "https://wry-manatee-359.convex.site/api/v1/download?slug=granola-direct-api",
+      "updated_at": "",
+      "score": 0,
+      "tags": [
+        "scenario:行政日程",
+        "query:meeting",
+        "tool:granola-direct-api",
+        "risk:suspicious",
+        "popularity:unknown"
+      ],
+      "skill": {
+        "source": "clawhub",
+        "external_id": "granola-direct-api",
+        "name": "Granola Api",
+        "description": "Access Granola meeting notes, summaries, transcripts, and attendees via the official Granola public REST API (public-api.granola.ai/v1). Use this skill when...",
+        "version": "1.0.2",
+        "author": "gtkumar777",
+        "license": "",
+        "source_url": "https://clawhub.ai/gtkumar777/granola-direct-api",
+        "safety_status": "",
+        "tags": [
+          "scenario:行政日程",
+          "query:meeting",
+          "tool:granola-direct-api",
+          "risk:suspicious",
+          "popularity:unknown"
+        ]
+      }
+    },
+    {
+      "name": "HubSpot",
+      "owner": "kwall1",
+      "source_url": "https://clawhub.ai/kwall1/hubspot",
+      "scenario": "邮箱与消息分诊",
+      "scenarios": [
+        "邮箱与消息分诊"
+      ],
+      "reason": "Matched query 'hubspot' for 邮箱与消息分诊.",
+      "stars": 5,
+      "downloads": 6000,
+      "risk": "unknown",
+      "markdown_status": "ok",
+      "markdown_error": "",
+      "download_url": "https://wry-manatee-359.convex.site/api/v1/download?slug=hubspot",
+      "updated_at": "",
+      "score": 0,
+      "tags": [
+        "scenario:邮箱与消息分诊",
+        "query:hubspot",
+        "tool:hubspot",
+        "risk:unknown",
+        "popular:high-downloads",
+        "scenario:运营巡检"
+      ],
+      "skill": {
+        "source": "clawhub",
+        "external_id": "hubspot",
+        "name": "HubSpot",
+        "description": "HubSpot CRM and CMS API integration for contacts, companies, deals, owners, and content management.",
+        "version": "1.0.1",
+        "author": "kwall1",
+        "license": "",
+        "source_url": "https://clawhub.ai/kwall1/hubspot",
+        "safety_status": "",
+        "tags": [
+          "scenario:邮箱与消息分诊",
+          "query:hubspot",
+          "tool:hubspot",
+          "risk:unknown",
+          "popular:high-downloads",
+          "scenario:运营巡检"
+        ]
+      }
+    },
+    {
+      "name": "JIRA",
+      "owner": "jdrhyne",
+      "source_url": "https://clawhub.ai/jdrhyne/jira",
+      "scenario": "工单分派",
+      "scenarios": [
+        "工单分派"
+      ],
+      "reason": "Matched query 'jira' for 工单分派.",
+      "stars": 12,
+      "downloads": 7200,
+      "risk": "suspicious",
+      "markdown_status": "ok",
+      "markdown_error": "",
+      "download_url": "https://wry-manatee-359.convex.site/api/v1/download?slug=jira",
+      "updated_at": "",
+      "score": 0,
+      "tags": [
+        "scenario:工单分派",
+        "query:jira",
+        "tool:jira",
+        "risk:suspicious",
+        "popular:high-downloads"
+      ],
+      "skill": {
+        "source": "clawhub",
+        "external_id": "jira",
+        "name": "JIRA",
+        "description": "Use when the user mentions Jira issues (e.g., \"PROJ-123\"), asks about tickets, wants to create/view/update issues, check sprint status, or manage their Jira...",
+        "version": "1.3.3",
+        "author": "jdrhyne",
+        "license": "",
+        "source_url": "https://clawhub.ai/jdrhyne/jira",
+        "safety_status": "",
+        "tags": [
+          "scenario:工单分派",
+          "query:jira",
+          "tool:jira",
+          "risk:suspicious",
+          "popular:high-downloads"
+        ]
+      }
+    },
+    {
+      "name": "Linear",
+      "owner": "manuelhettich",
+      "source_url": "https://clawhub.ai/manuelhettich/linear",
+      "scenario": "工单分派",
+      "scenarios": [
+        "工单分派"
+      ],
+      "reason": "Matched query 'linear' for 工单分派.",
+      "stars": 19,
+      "downloads": 11500,
+      "risk": "unknown",
+      "markdown_status": "ok",
+      "markdown_error": "",
+      "download_url": "https://wry-manatee-359.convex.site/api/v1/download?slug=linear",
+      "updated_at": "",
+      "score": 0,
+      "tags": [
+        "scenario:工单分派",
+        "query:linear",
+        "tool:linear",
+        "risk:unknown",
+        "popular:high-downloads"
+      ],
+      "skill": {
+        "source": "clawhub",
+        "external_id": "linear",
+        "name": "Linear",
+        "description": "Query and manage Linear issues, projects, and team workflows.",
+        "version": "1.0.0",
+        "author": "manuelhettich",
+        "license": "",
+        "source_url": "https://clawhub.ai/manuelhettich/linear",
+        "safety_status": "",
+        "tags": [
+          "scenario:工单分派",
+          "query:linear",
+          "tool:linear",
+          "risk:unknown",
+          "popular:high-downloads"
+        ]
+      }
+    },
+    {
+      "name": "Meeting",
+      "owner": "agisearch",
+      "source_url": "https://clawhub.ai/agisearch/meeting",
+      "scenario": "行政日程",
+      "scenarios": [
+        "行政日程"
+      ],
+      "reason": "Matched query 'meeting' for 行政日程.",
+      "stars": 0,
+      "downloads": 480,
+      "risk": "suspicious",
+      "markdown_status": "ok",
+      "markdown_error": "",
+      "download_url": "https://wry-manatee-359.convex.site/api/v1/download?slug=meeting",
+      "updated_at": "",
+      "score": 0,
+      "tags": [
+        "scenario:行政日程",
+        "query:meeting",
+        "tool:meeting",
+        "risk:suspicious",
+        "popularity:unknown"
+      ],
+      "skill": {
+        "source": "clawhub",
+        "external_id": "meeting",
+        "name": "Meeting",
+        "description": "A Meeting Execution Operator. Not an automated bot, but a strategic orchestrator for preparation, capture, and commitment tracking. Operates on a \"Draft-Firs...",
+        "version": "2.0.0",
+        "author": "agisearch",
+        "license": "",
+        "source_url": "https://clawhub.ai/agisearch/meeting",
+        "safety_status": "",
+        "tags": [
+          "scenario:行政日程",
+          "query:meeting",
+          "tool:meeting",
+          "risk:suspicious",
+          "popularity:unknown"
+        ]
+      }
+    },
+    {
+      "name": "Monitor",
+      "owner": "ivangdavila",
+      "source_url": "https://clawhub.ai/ivangdavila/monitor",
+      "scenario": "日报周报",
+      "scenarios": [
+        "日报周报"
+      ],
+      "reason": "Matched query 'monitor' for 日报周报.",
+      "stars": 2,
+      "downloads": 1600,
+      "risk": "suspicious",
+      "markdown_status": "ok",
+      "markdown_error": "",
+      "download_url": "https://wry-manatee-359.convex.site/api/v1/download?slug=monitor",
+      "updated_at": "",
+      "score": 0,
+      "tags": [
+        "scenario:日报周报",
+        "query:monitor",
+        "tool:monitor",
+        "risk:suspicious",
+        "popular:high-downloads",
+        "scenario:运营巡检"
+      ],
+      "skill": {
+        "source": "clawhub",
+        "external_id": "monitor",
+        "name": "Monitor",
+        "description": "Create monitors for anything. User defines what to check, skill handles scheduling and alerts.",
+        "version": "1.0.2",
+        "author": "ivangdavila",
+        "license": "",
+        "source_url": "https://clawhub.ai/ivangdavila/monitor",
+        "safety_status": "",
+        "tags": [
+          "scenario:日报周报",
+          "query:monitor",
+          "tool:monitor",
+          "risk:suspicious",
+          "popular:high-downloads",
+          "scenario:运营巡检"
+        ]
+      }
+    },
+    {
+      "name": "News",
+      "owner": "ivangdavila",
+      "source_url": "https://clawhub.ai/ivangdavila/news",
+      "scenario": "日报周报",
+      "scenarios": [
+        "日报周报"
+      ],
+      "reason": "Matched query 'news' for 日报周报.",
+      "stars": 5,
+      "downloads": 5000,
+      "risk": "unknown",
+      "markdown_status": "ok",
+      "markdown_error": "",
+      "download_url": "https://wry-manatee-359.convex.site/api/v1/download?slug=news",
+      "updated_at": "",
+      "score": 0,
+      "tags": [
+        "scenario:日报周报",
+        "query:news",
+        "tool:news",
+        "risk:unknown",
+        "popular:high-downloads"
+      ],
+      "skill": {
+        "source": "clawhub",
+        "external_id": "news",
+        "name": "News",
+        "description": "Personalized news briefings that learn your interests, formats, and timing preferences.",
+        "version": "1.0.1",
+        "author": "ivangdavila",
+        "license": "",
+        "source_url": "https://clawhub.ai/ivangdavila/news",
+        "safety_status": "",
+        "tags": [
+          "scenario:日报周报",
+          "query:news",
+          "tool:news",
+          "risk:unknown",
+          "popular:high-downloads"
+        ]
+      }
+    },
+    {
+      "name": "Notion",
+      "owner": "steipete",
+      "source_url": "https://clawhub.ai/steipete/notion",
+      "scenario": "邮箱与消息分诊",
+      "scenarios": [
+        "邮箱与消息分诊"
+      ],
+      "reason": "Matched query 'notion' for 邮箱与消息分诊.",
+      "stars": 231,
+      "downloads": 78600,
+      "risk": "suspicious",
+      "markdown_status": "ok",
+      "markdown_error": "",
+      "download_url": "https://wry-manatee-359.convex.site/api/v1/download?slug=notion",
+      "updated_at": "",
+      "score": 0,
+      "tags": [
+        "scenario:邮箱与消息分诊",
+        "query:notion",
+        "tool:notion",
+        "risk:suspicious",
+        "popular:high-downloads",
+        "scenario:行政日程"
+      ],
+      "skill": {
+        "source": "clawhub",
+        "external_id": "notion",
+        "name": "Notion",
+        "description": "Notion API for creating and managing pages, databases, and blocks.",
+        "version": "1.0.0",
+        "author": "steipete",
+        "license": "",
+        "source_url": "https://clawhub.ai/steipete/notion",
+        "safety_status": "",
+        "tags": [
+          "scenario:邮箱与消息分诊",
+          "query:notion",
+          "tool:notion",
+          "risk:suspicious",
+          "popular:high-downloads",
+          "scenario:行政日程"
+        ]
+      }
+    },
+    {
+      "name": "OpenWeb",
+      "owner": "imoonkey",
+      "source_url": "https://clawhub.ai/imoonkey/openweb",
+      "scenario": "日报周报",
+      "scenarios": [
+        "日报周报"
+      ],
+      "reason": "Matched query 'news' for 日报周报.",
+      "stars": 0,
+      "downloads": 0,
+      "risk": "suspicious",
+      "markdown_status": "ok",
+      "markdown_error": "",
+      "download_url": "https://wry-manatee-359.convex.site/api/v1/download?slug=openweb",
+      "updated_at": "",
+      "score": 0,
+      "tags": [
+        "scenario:日报周报",
+        "query:news",
+        "tool:openweb",
+        "risk:suspicious",
+        "popularity:unknown"
+      ],
+      "skill": {
+        "source": "clawhub",
+        "external_id": "openweb",
+        "name": "OpenWeb",
+        "description": "Get structured data from real websites — search, shopping, travel, finance, social, news, dev tools, and more. 90+ sites including Google, Amazon, Reddit, Yo...",
+        "version": "0.1.3",
+        "author": "imoonkey",
+        "license": "",
+        "source_url": "https://clawhub.ai/imoonkey/openweb",
+        "safety_status": "",
+        "tags": [
+          "scenario:日报周报",
+          "query:news",
+          "tool:openweb",
+          "risk:suspicious",
+          "popularity:unknown"
+        ]
+      }
+    },
+    {
+      "name": "Pagerduty",
+      "owner": "aiwithabidi",
+      "source_url": "https://clawhub.ai/aiwithabidi/pagerduty",
+      "scenario": "工单分派",
+      "scenarios": [
+        "工单分派"
+      ],
+      "reason": "Matched query 'pagerduty' for 工单分派.",
+      "stars": 0,
+      "downloads": 320,
+      "risk": "unknown",
+      "markdown_status": "ok",
+      "markdown_error": "",
+      "download_url": "https://wry-manatee-359.convex.site/api/v1/download?slug=pagerduty",
+      "updated_at": "",
+      "score": 0,
+      "tags": [
+        "scenario:工单分派",
+        "query:pagerduty",
+        "tool:pagerduty",
+        "risk:unknown",
+        "popularity:unknown"
+      ],
+      "skill": {
+        "source": "clawhub",
+        "external_id": "pagerduty",
+        "name": "Pagerduty",
+        "description": "PagerDuty incident management — manage incidents, services, schedules, escalation policies, and on-call via REST API",
+        "version": "1.0.0",
+        "author": "aiwithabidi",
+        "license": "",
+        "source_url": "https://clawhub.ai/aiwithabidi/pagerduty",
+        "safety_status": "",
+        "tags": [
+          "scenario:工单分派",
+          "query:pagerduty",
+          "tool:pagerduty",
+          "risk:unknown",
+          "popularity:unknown"
+        ]
+      }
+    },
+    {
+      "name": "Pdf",
+      "owner": "awspace",
+      "source_url": "https://clawhub.ai/awspace/pdf",
+      "scenario": "行政日程",
+      "scenarios": [
+        "行政日程"
+      ],
+      "reason": "Matched query 'pdf' for 行政日程.",
+      "stars": 44,
+      "downloads": 30600,
+      "risk": "suspicious",
+      "markdown_status": "ok",
+      "markdown_error": "",
+      "download_url": "https://wry-manatee-359.convex.site/api/v1/download?slug=pdf",
+      "updated_at": "",
+      "score": 0,
+      "tags": [
+        "scenario:行政日程",
+        "query:pdf",
+        "tool:pdf",
+        "risk:suspicious",
+        "popular:high-downloads"
+      ],
+      "skill": {
+        "source": "clawhub",
+        "external_id": "pdf",
+        "name": "Pdf",
+        "description": "Comprehensive PDF manipulation toolkit for extracting text and tables, creating new PDFs, merging/splitting documents, and handling forms. When Claude needs to fill in a PDF form or programmatically process, generate, or analyze PDF documents at scale.",
+        "version": "0.1.0",
+        "author": "awspace",
+        "license": "",
+        "source_url": "https://clawhub.ai/awspace/pdf",
+        "safety_status": "",
+        "tags": [
+          "scenario:行政日程",
+          "query:pdf",
+          "tool:pdf",
+          "risk:suspicious",
+          "popular:high-downloads"
+        ]
+      }
+    },
+    {
+      "name": "Report",
+      "owner": "ivangdavila",
+      "source_url": "https://clawhub.ai/ivangdavila/report",
+      "scenario": "日报周报",
+      "scenarios": [
+        "日报周报"
+      ],
+      "reason": "Matched query 'report' for 日报周报.",
+      "stars": 2,
+      "downloads": 1200,
+      "risk": "suspicious",
+      "markdown_status": "ok",
+      "markdown_error": "",
+      "download_url": "https://wry-manatee-359.convex.site/api/v1/download?slug=report",
+      "updated_at": "",
+      "score": 0,
+      "tags": [
+        "scenario:日报周报",
+        "query:report",
+        "tool:report",
+        "risk:suspicious",
+        "popular:high-downloads"
+      ],
+      "skill": {
+        "source": "clawhub",
+        "external_id": "report",
+        "name": "Report",
+        "description": "Configure custom recurring reports. User defines data sources, skill handles scheduling and formatting.",
+        "version": "1.0.3",
+        "author": "ivangdavila",
+        "license": "",
+        "source_url": "https://clawhub.ai/ivangdavila/report",
+        "safety_status": "",
+        "tags": [
+          "scenario:日报周报",
+          "query:report",
+          "tool:report",
+          "risk:suspicious",
+          "popular:high-downloads"
+        ]
+      }
+    },
+    {
+      "name": "Salesforce Skill",
+      "owner": "arvorco",
+      "source_url": "https://clawhub.ai/arvorco/salesforce",
+      "scenario": "邮箱与消息分诊",
+      "scenarios": [
+        "邮箱与消息分诊"
+      ],
+      "reason": "Matched query 'salesforce' for 邮箱与消息分诊.",
+      "stars": 0,
+      "downloads": 2700,
+      "risk": "suspicious",
+      "markdown_status": "ok",
+      "markdown_error": "",
+      "download_url": "https://wry-manatee-359.convex.site/api/v1/download?slug=salesforce",
+      "updated_at": "",
+      "score": 0,
+      "tags": [
+        "scenario:邮箱与消息分诊",
+        "query:salesforce",
+        "tool:salesforce",
+        "risk:suspicious",
+        "popular:high-downloads",
+        "scenario:运营巡检"
+      ],
+      "skill": {
+        "source": "clawhub",
+        "external_id": "salesforce",
+        "name": "Salesforce Skill",
+        "description": "Query and manage Salesforce CRM data via the Salesforce CLI (`sf`). Run SOQL/SOSL queries, inspect object schemas, create/update/delete records, bulk import/export, execute Apex, deploy metadata, and make raw REST API calls.",
+        "version": "1.0.0",
+        "author": "arvorco",
+        "license": "",
+        "source_url": "https://clawhub.ai/arvorco/salesforce",
+        "safety_status": "",
+        "tags": [
+          "scenario:邮箱与消息分诊",
+          "query:salesforce",
+          "tool:salesforce",
+          "risk:suspicious",
+          "popular:high-downloads",
+          "scenario:运营巡检"
+        ]
+      }
+    },
+    {
+      "name": "Slack",
+      "owner": "steipete",
+      "source_url": "https://clawhub.ai/steipete/slack",
+      "scenario": "邮箱与消息分诊",
+      "scenarios": [
+        "邮箱与消息分诊"
+      ],
+      "reason": "Matched query 'slack' for 邮箱与消息分诊.",
+      "stars": 119,
+      "downloads": 39800,
+      "risk": "suspicious",
+      "markdown_status": "ok",
+      "markdown_error": "",
+      "download_url": "https://wry-manatee-359.convex.site/api/v1/download?slug=slack",
+      "updated_at": "",
+      "score": 0,
+      "tags": [
+        "scenario:邮箱与消息分诊",
+        "query:slack",
+        "tool:slack",
+        "risk:suspicious",
+        "popular:high-downloads"
+      ],
+      "skill": {
+        "source": "clawhub",
+        "external_id": "slack",
+        "name": "Slack",
+        "description": "Use when you need to control Slack from Clawdbot via the slack tool, including reacting to messages or pinning/unpinning items in Slack channels or DMs.",
+        "version": "1.0.0",
+        "author": "steipete",
+        "license": "",
+        "source_url": "https://clawhub.ai/steipete/slack",
+        "safety_status": "",
+        "tags": [
+          "scenario:邮箱与消息分诊",
+          "query:slack",
+          "tool:slack",
+          "risk:suspicious",
+          "popular:high-downloads"
+        ]
+      }
+    },
+    {
+      "name": "Spreadsheet",
+      "owner": "ivangdavila",
+      "source_url": "https://clawhub.ai/ivangdavila/spreadsheet",
+      "scenario": "日报周报",
+      "scenarios": [
+        "日报周报"
+      ],
+      "reason": "Matched query 'spreadsheet' for 日报周报.",
+      "stars": 2,
+      "downloads": 2300,
+      "risk": "suspicious",
+      "markdown_status": "ok",
+      "markdown_error": "",
+      "download_url": "https://wry-manatee-359.convex.site/api/v1/download?slug=spreadsheet",
+      "updated_at": "",
+      "score": 0,
+      "tags": [
+        "scenario:日报周报",
+        "query:spreadsheet",
+        "tool:spreadsheet",
+        "risk:suspicious",
+        "popular:high-downloads",
+        "scenario:运营巡检"
+      ],
+      "skill": {
+        "source": "clawhub",
+        "external_id": "spreadsheet",
+        "name": "Spreadsheet",
+        "description": "Read, write, and analyze tabular data with schema memory, format preservation, and multi-platform support.",
+        "version": "1.0.0",
+        "author": "ivangdavila",
+        "license": "",
+        "source_url": "https://clawhub.ai/ivangdavila/spreadsheet",
+        "safety_status": "",
+        "tags": [
+          "scenario:日报周报",
+          "query:spreadsheet",
+          "tool:spreadsheet",
+          "risk:suspicious",
+          "popular:high-downloads",
+          "scenario:运营巡检"
+        ]
+      }
+    },
+    {
+      "name": "TicketClaw - Buy tickets to any event",
+      "owner": "jononovo",
+      "source_url": "https://clawhub.ai/jononovo/ticket",
+      "scenario": "工单分派",
+      "scenarios": [
+        "工单分派"
+      ],
+      "reason": "Matched query 'ticket' for 工单分派.",
+      "stars": 0,
+      "downloads": 272,
+      "risk": "suspicious",
+      "markdown_status": "ok",
+      "markdown_error": "",
+      "download_url": "https://wry-manatee-359.convex.site/api/v1/download?slug=ticket",
+      "updated_at": "",
+      "score": 0,
+      "tags": [
+        "scenario:工单分派",
+        "query:ticket",
+        "tool:ticket",
+        "risk:suspicious",
+        "popularity:unknown"
+      ],
+      "skill": {
+        "source": "clawhub",
+        "external_id": "ticket",
+        "name": "TicketClaw - Buy tickets to any event",
+        "description": "Let your agent shop online with guardrailed wallets, multiple payment methods, and owner approval.",
+        "version": "1.0.0",
+        "author": "jononovo",
+        "license": "",
+        "source_url": "https://clawhub.ai/jononovo/ticket",
+        "safety_status": "",
+        "tags": [
+          "scenario:工单分派",
+          "query:ticket",
+          "tool:ticket",
+          "risk:suspicious",
+          "popularity:unknown"
+        ]
+      }
+    },
+    {
+      "name": "Web Development",
+      "owner": "ivangdavila",
+      "source_url": "https://clawhub.ai/ivangdavila/web",
+      "scenario": "日报周报",
+      "scenarios": [
+        "日报周报"
+      ],
+      "reason": "Matched query 'web' for 日报周报.",
+      "stars": 12,
+      "downloads": 8100,
+      "risk": "unknown",
+      "markdown_status": "ok",
+      "markdown_error": "",
+      "download_url": "https://wry-manatee-359.convex.site/api/v1/download?slug=web",
+      "updated_at": "",
+      "score": 0,
+      "tags": [
+        "scenario:日报周报",
+        "query:web",
+        "tool:web",
+        "risk:unknown",
+        "popular:high-downloads"
+      ],
+      "skill": {
+        "source": "clawhub",
+        "external_id": "web",
+        "name": "Web Development",
+        "description": "Build, debug, and deploy websites using HTML, CSS, JavaScript, and modern frameworks following production best practices.",
+        "version": "1.0.0",
+        "author": "ivangdavila",
+        "license": "",
+        "source_url": "https://clawhub.ai/ivangdavila/web",
+        "safety_status": "",
+        "tags": [
+          "scenario:日报周报",
+          "query:web",
+          "tool:web",
+          "risk:unknown",
+          "popular:high-downloads"
+        ]
+      }
+    },
+    {
+      "name": "Wip Release",
+      "owner": "parkertoddbrooks",
+      "source_url": "https://clawhub.ai/parkertoddbrooks/wip-release",
+      "scenario": "工单分派",
+      "scenarios": [
+        "工单分派"
+      ],
+      "reason": "Matched query 'github' for 工单分派.",
+      "stars": 0,
+      "downloads": 720,
+      "risk": "suspicious",
+      "markdown_status": "ok",
+      "markdown_error": "",
+      "download_url": "https://wry-manatee-359.convex.site/api/v1/download?slug=wip-release",
+      "updated_at": "",
+      "score": 0,
+      "tags": [
+        "scenario:工单分派",
+        "query:github",
+        "tool:wip-release",
+        "risk:suspicious",
+        "popularity:unknown"
+      ],
+      "skill": {
+        "source": "clawhub",
+        "external_id": "wip-release",
+        "name": "Wip Release",
+        "description": "One-command release pipeline. Bumps version, updates changelog + SKILL.md, publishes to npm + GitHub.",
+        "version": "1.9.72",
+        "author": "parkertoddbrooks",
+        "license": "",
+        "source_url": "https://clawhub.ai/parkertoddbrooks/wip-release",
+        "safety_status": "",
+        "tags": [
+          "scenario:工单分派",
+          "query:github",
+          "tool:wip-release",
+          "risk:suspicious",
+          "popularity:unknown"
+        ]
+      }
+    },
+    {
+      "name": "Zendesk",
+      "owner": "ivangdavila",
+      "source_url": "https://clawhub.ai/ivangdavila/zendesk",
+      "scenario": "工单分派",
+      "scenarios": [
+        "工单分派"
+      ],
+      "reason": "Matched query 'zendesk' for 工单分派.",
+      "stars": 1,
+      "downloads": 548,
+      "risk": "suspicious",
+      "markdown_status": "ok",
+      "markdown_error": "",
+      "download_url": "https://wry-manatee-359.convex.site/api/v1/download?slug=zendesk",
+      "updated_at": "",
+      "score": 0,
+      "tags": [
+        "scenario:工单分派",
+        "query:zendesk",
+        "tool:zendesk",
+        "risk:suspicious",
+        "popularity:unknown"
+      ],
+      "skill": {
+        "source": "clawhub",
+        "external_id": "zendesk",
+        "name": "Zendesk",
+        "description": "Manage Zendesk tickets, users, and support workflows with API integration and automation.",
+        "version": "1.0.0",
+        "author": "ivangdavila",
+        "license": "",
+        "source_url": "https://clawhub.ai/ivangdavila/zendesk",
+        "safety_status": "",
+        "tags": [
+          "scenario:工单分派",
+          "query:zendesk",
+          "tool:zendesk",
+          "risk:suspicious",
+          "popularity:unknown"
+        ]
+      }
+    },
+    {
+      "name": "org-cli",
+      "owner": "dcprevere",
+      "source_url": "https://clawhub.ai/dcprevere/org-cli",
+      "scenario": "日报周报",
+      "scenarios": [
+        "日报周报"
+      ],
+      "reason": "Matched query 'search' for 日报周报.",
+      "stars": 0,
+      "downloads": 42,
+      "risk": "suspicious",
+      "markdown_status": "ok",
+      "markdown_error": "",
+      "download_url": "https://wry-manatee-359.convex.site/api/v1/download?slug=org-cli",
+      "updated_at": "",
+      "score": 0,
+      "tags": [
+        "scenario:日报周报",
+        "query:search",
+        "tool:org-cli",
+        "risk:suspicious",
+        "popularity:unknown",
+        "scenario:运营巡检"
+      ],
+      "skill": {
+        "source": "clawhub",
+        "external_id": "org-cli",
+        "name": "org-cli",
+        "description": "Task capture, scheduling, and linked knowledge in org-mode files via the `org` CLI. Query, mutate, link, and search the user's org files and org-roam database.",
+        "version": "1.0.1",
+        "author": "dcprevere",
+        "license": "",
+        "source_url": "https://clawhub.ai/dcprevere/org-cli",
+        "safety_status": "",
+        "tags": [
+          "scenario:日报周报",
+          "query:search",
+          "tool:org-cli",
+          "risk:suspicious",
+          "popularity:unknown",
+          "scenario:运营巡检"
+        ]
+      }
+    }
+  ]
+}

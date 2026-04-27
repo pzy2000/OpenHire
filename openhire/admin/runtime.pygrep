@@ -1,0 +1,109 @@
+"""Runtime snapshot builders for the admin dashboard."""
+
+from __future__ import annotations
+
+import shlex
+import time
+from datetime import datetime, timezone
+from typing import Any
+
+from loguru import logger
+
+from openhire.adapters import build_default_registry
+from openhire.adapters.base import inspect_container_status
+from openhire.utils.helpers import estimate_message_tokens
+
+
+def _utc_now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def _status_percent(used_tokens: int, total_tokens: int) -> int:
+    if total_tokens <= 0 or used_tokens <= 0:
+        return 0
+    return max(1, min(100, int((used_tokens / total_tokens) * 100)))
+
+
+def _active_task_count(loop: Any) -> int:
+    count = 0
+    for tasks in getattr(loop, "_active_tasks", {}).values():
+        count += sum(1 for task in tasks if not task.done())
+    return count
+
+
+def _dump_cfg(cfg_obj: Any) -> dict[str, Any]:
+    if hasattr(cfg_obj, "model_dump"):
+        return cfg_obj.model_dump()
+    if isinstance(cfg_obj, dict):
+        return dict(cfg_obj)
+    return dict(vars(cfg_obj))
+
+
+class DockerAgentRuntimeTracker:
+    """Track current docker-agent execution metadata for the admin dashboard."""
+
+    def __init__(self) -> None:
+        self._entries: dict[str, dict[str, Any]] = {}
+
+    def register_start(
+        self,
+        *,
+        agent_key: str,
+        command: list[str],
+        prompt_text: str,
+        context_window_tokens: int,
+    ) -> None:
+        prompt_tokens = estimate_message_tokens({"role": "user", "content": prompt_text}) if prompt_text else 0
+        self._entries[agent_key] = {
+            **self._entries.get(agent_key, {}),
+            "currentCommand": shlex.join(command),
+            "startedAt": _utc_now_iso(),
+            "lastPromptTokensEstimate": prompt_tokens,
+            "lastPromptContextPercentEstimate": _status_percent(prompt_tokens, context_window_tokens),
+            "lastTaskSummary": prompt_text[:240],
+        }
+
+    def register_finish(self, agent_key: str) -> None:
+        entry = self._entries.setdefault(agent_key, {})
+        entry["currentCommand"] = None
+        entry["startedAt"] = None
+
+    def snapshot(self, agent_key: str) -> dict[str, Any]:
+        entry = self._entries.get(agent_key, {})
+        return {
+            "currentCommand": entry.get("currentCommand"),
+            "startedAt": entry.get("startedAt"),
+            "lastPromptTokensEstimate": int(entry.get("lastPromptTokensEstimate") or 0),
+            "lastPromptContextPercentEstimate": int(entry.get("lastPromptContextPercentEstimate") or 0),
+            "lastTaskSummary": entry.get("lastTaskSummary"),
+        }
+
+
+async def build_admin_snapshot(loop: Any) -> dict[str, Any]:
+    """Build the full admin runtime snapshot."""
+    active_task_count = _active_task_count(loop)
+    main_status = "processing" if active_task_count > 0 else "idle"
+    if main_status == "idle" and getattr(loop, "_last_admin_stop_reason", None) == "error":
+        main_status = "error"
+
+    total_context_tokens = int(getattr(loop, "context_window_tokens", 0) or 0)
+    used_context_tokens = int(getattr(loop, "_last_admin_context_tokens", 0) or 0)
+    main_context_source = getattr(loop, "_last_admin_context_source", "unknown") or "unknown"
+    last_usage = dict(getattr(loop, "_last_usage", {}) or {})
+
+    snapshot = {
+        "generatedAt": _utc_now_iso(),
+        "mainAgent": {
+            "status": main_status,
+            "model": getattr(loop, "model", ""),
+            "uptimeSeconds": max(0, int(time.time() - float(getattr(loop, "_start_time", time.time())))),
+            "activeTaskCount": active_task_count,
+            "lastSessionKey": getattr(loop, "_last_admin_session_key", None),
+            "context": {
+                "usedTokens": used_context_tokens,
+                "totalTokens": total_context_tokens,
+                "percent": _status_percent(used_context_tokens, total_context_tokens),
+                "source": main_context_source,
+            },
+            "lastUsage": {
+                "promptTokens": int(last_usage.g
