@@ -37,6 +37,17 @@ try {
   );
   assert(JSON.stringify(menuActions) === JSON.stringify(["pat", "feed", "chat"]), "Companion menu should expose Pat, Feed, Chat only.");
 
+  await page.hover("[data-companion-hotspot]");
+  await page.waitForFunction(() => document.querySelector("[data-companion-menu]")?.hidden === false);
+  await page.keyboard.press("Escape");
+
+  const hotspotBox = await page.locator("[data-companion-hotspot]").boundingBox();
+  assert(hotspotBox && hotspotBox.width > 0 && hotspotBox.height > 0, "Companion hotspot should have a clickable bounding box.");
+  await page.mouse.click(hotspotBox.x + hotspotBox.width * 0.5, hotspotBox.y + hotspotBox.height * 0.35);
+  await page.mouse.click(hotspotBox.x + hotspotBox.width * 0.5, hotspotBox.y + hotspotBox.height * 0.68);
+  await page.hover("[data-companion-hotspot]");
+  await page.waitForFunction(() => document.querySelector("[data-companion-menu]")?.hidden === false);
+
   await page.click("[data-companion-preferences-toggle]");
   await page.waitForSelector("[data-companion-preferences-panel]:not([hidden])");
   await page.waitForSelector('[data-companion-intensity="calm"]');

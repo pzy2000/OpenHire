@@ -242,7 +242,16 @@ def test_companion_static_assets_expose_reaction_context_controls() -> None:
     assert "data-companion-preference" in companion_js
     assert "data-companion-intensity" in companion_js
     assert 'hotspot.addEventListener("click"' in companion_js
-    assert "if (event.detail > 1) return;\n    toggleMenu();" in companion_js
+    assert 'hotspot.addEventListener("mouseenter"' in companion_js
+    assert 'hotspot.addEventListener("pointerenter"' in companion_js
+    assert "scheduleMenuClose" in companion_js
+    assert "cancelMenuClose" in companion_js
+    assert 'menu.addEventListener("mouseenter"' in companion_js
+    assert "const areas = hitAreasFromPointer(event)" in companion_js
+    assert 'areas.includes("head")' in companion_js
+    assert 'react({ type: "pat", motion: "flick_head", expression: "f02", fx: "sparkle" });' in companion_js
+    assert 'react({ type: "feed", motion: "tap_body", expression: "f03", fx: "heart" });' in companion_js
+    assert "if (event.detail > 1) return;\n    toggleMenu();" not in companion_js
     assert 'panel.addEventListener("click", (event) => {\n    event.stopPropagation();' in companion_js
     assert "react," in companion_js
     assert "setExpression," in companion_js
@@ -285,6 +294,8 @@ def test_companion_static_assets_expose_reaction_context_controls() -> None:
     assert "OPENHIRE_ADMIN_URL" in smoke_js
     assert "data-companion-hotspot" in smoke_js
     assert "data-companion-action" in smoke_js
+    assert "page.hover(\"[data-companion-hotspot]\")" in smoke_js
+    assert "boundingBox()" in smoke_js
     assert "data-companion-preferences-toggle" in smoke_js
     assert "data-companion-intensity" in smoke_js
     assert "data-companion-chat-chip" in smoke_js

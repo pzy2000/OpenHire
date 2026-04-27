@@ -37,6 +37,7 @@ const DEFAULT_REACTION_DURATION_MS = 4200;
 const DEFAULT_BUBBLE_DURATION_MS = 3600;
 const CONTEXT_MAX_CHARS = 3600;
 const REACTION_INTENSITIES = ["calm", "normal", "expressive"];
+const MENU_CLOSE_DELAY_MS = 180;
 const EXPRESSION_BY_REACTION = {
   idle: "f01",
   pat: "f02",
@@ -222,6 +223,7 @@ const STATE = {
   moodTimer: null,
   lastInteractionAt: 0,
   menuOpen: false,
+  menuCloseTimer: null,
   chatOpen: false,
   busy: false,
   expressionNames: [],
@@ -822,6 +824,7 @@ function syncPreferencesToggle() {
 function openPreferences() {
   const panel = $("[data-companion-preferences-panel]");
   if (!panel) return;
+  closeMenu();
   renderPreferencesPanel();
   panel.hidden = false;
   STATE.preferencesOpen = true;
@@ -893,12 +896,25 @@ function bindHotspot() {
   const hotspot = $("[data-companion-hotspot]");
   if (!hotspot) return;
 
+  const enterHotspot = () => {
+    STATE.lastInteractionAt = Date.now();
+    cancelMenuClose();
+    openMenu();
+  };
+  hotspot.addEventListener("mouseenter", enterHotspot);
+  hotspot.addEventListener("pointerenter", enterHotspot);
+
   hotspot.addEventListener("click", (event) => {
     event.preventDefault();
     event.stopPropagation();
     STATE.lastInteractionAt = Date.now();
     if (event.detail > 1) return;
-    toggleMenu();
+    const areas = hitAreasFromPointer(event);
+    if (areas.includes("head")) {
+      react({ type: "pat", motion: "flick_head", expression: "f02", fx: "sparkle" });
+      return;
+    }
+    react({ type: "feed", motion: "tap_body", expression: "f03", fx: "heart" });
   });
 
   hotspot.addEventListener("dblclick", (event) => {
@@ -935,14 +951,18 @@ function bindHotspot() {
     }
   });
 
-  hotspot.addEventListener("mouseleave", () => {
-    if (!STATE.model || typeof STATE.model.focus !== "function") return;
-    try {
-      STATE.model.focus(0, 0);
-    } catch (_err) {
-      // ignore
+  const leaveHotspot = () => {
+    scheduleMenuClose();
+    if (STATE.model && typeof STATE.model.focus === "function") {
+      try {
+        STATE.model.focus(0, 0);
+      } catch (_err) {
+        // ignore
+      }
     }
-  });
+  };
+  hotspot.addEventListener("mouseleave", leaveHotspot);
+  hotspot.addEventListener("pointerleave", leaveHotspot);
 }
 
 function hitAreasFromPointer(event) {
@@ -966,6 +986,8 @@ function hitAreasFromPointer(event) {
 function bindMenu() {
   const menu = $("[data-companion-menu]");
   if (!menu) return;
+  menu.addEventListener("mouseenter", cancelMenuClose);
+  menu.addEventListener("mouseleave", scheduleMenuClose);
   menu.addEventListener("click", (event) => {
     const button = event.target.closest("[data-companion-action]");
     if (!button) return;
@@ -1007,9 +1029,24 @@ function toggleMenu() {
   STATE.menuOpen ? closeMenu() : openMenu();
 }
 
+function cancelMenuClose() {
+  if (!STATE.menuCloseTimer) return;
+  clearTimeout(STATE.menuCloseTimer);
+  STATE.menuCloseTimer = null;
+}
+
+function scheduleMenuClose() {
+  cancelMenuClose();
+  STATE.menuCloseTimer = setTimeout(() => {
+    STATE.menuCloseTimer = null;
+    closeMenu();
+  }, MENU_CLOSE_DELAY_MS);
+}
+
 function openMenu() {
   const menu = $("[data-companion-menu]");
   if (!menu) return;
+  cancelMenuClose();
   if (STATE.preferencesOpen) closePreferences();
   menu.hidden = false;
   STATE.menuOpen = true;
@@ -1018,6 +1055,7 @@ function openMenu() {
 function closeMenu() {
   const menu = $("[data-companion-menu]");
   if (!menu) return;
+  cancelMenuClose();
   menu.hidden = true;
   STATE.menuOpen = false;
 }
@@ -1327,6 +1365,7 @@ function destroy() {
   if (STATE.idleTimer) clearInterval(STATE.idleTimer);
   if (STATE.moodTimer) clearTimeout(STATE.moodTimer);
   if (STATE.bubbleTimer) clearTimeout(STATE.bubbleTimer);
+  if (STATE.menuCloseTimer) clearTimeout(STATE.menuCloseTimer);
   STATE.resizeObserver?.disconnect();
   STATE.pixiApp?.destroy?.(true, { children: true, texture: true });
   STATE.pixiApp = null;
@@ -1334,6 +1373,7 @@ function destroy() {
   STATE.idleTimer = null;
   STATE.moodTimer = null;
   STATE.bubbleTimer = null;
+  STATE.menuCloseTimer = null;
 }
 
 async function mount(opts) {
