@@ -1615,7 +1615,15 @@ async def handle_companion_chat(request: web.Request) -> web.Response:
         logger.exception("Companion chat failed")
         return _error_json(500, "Companion chat failed", err_type="server_error")
 
-    text_out = (response.content or "").strip() or "..."
+    _raw = (response.content or "").strip()
+    _reason = getattr(response, "reasoning_content", None)
+    if isinstance(_reason, str):
+        _reason = _reason.strip()
+    elif _reason is not None:
+        _reason = str(_reason).strip()
+    else:
+        _reason = ""
+    text_out = _raw or _reason or "..."
     usage = response.usage or {}
     return web.json_response({
         "content": text_out,
