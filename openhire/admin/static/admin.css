@@ -6198,9 +6198,235 @@ html[data-theme="light"] .companion-chat-send {
   box-shadow: none;
 }
 
+.organization-head,
+.organization-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.organization-actions {
+  flex-wrap: wrap;
+}
+
+.organization-panel {
+  min-height: 360px;
+}
+
+.organization-workbench {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 360px);
+  gap: 18px;
+  align-items: start;
+}
+
+.organization-canvas-wrap {
+  overflow: hidden;
+}
+
+.organization-status,
+.organization-toggle,
+.organization-field,
+.organization-report-list,
+.organization-skill-list {
+  display: flex;
+  gap: 10px;
+}
+
+.organization-status {
+  align-items: center;
+  flex-wrap: wrap;
+  margin: 12px 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.organization-toggle {
+  align-items: center;
+  color: var(--text);
+  font-size: 13px;
+}
+
+.organization-toggle input,
+.organization-skill-option input {
+  accent-color: var(--neon-cyan);
+}
+
+.organization-canvas {
+  position: relative;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background:
+    linear-gradient(rgba(255,255,255,0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.035) 1px, transparent 1px),
+    rgba(5, 8, 17, 0.48);
+  background-size: 32px 32px;
+  min-height: 520px;
+}
+
+html[data-theme="light"] .organization-canvas {
+  background:
+    linear-gradient(rgba(15, 23, 42, 0.055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(15, 23, 42, 0.055) 1px, transparent 1px),
+    rgba(248, 250, 252, 0.88);
+}
+
+.organization-edge-layer,
+.organization-node-layer {
+  position: absolute;
+  inset: 0;
+}
+
+.organization-edge-layer {
+  pointer-events: none;
+  overflow: visible;
+}
+
+.organization-edge {
+  fill: none;
+  stroke: var(--neon-cyan);
+  stroke-width: 2;
+  stroke-linecap: round;
+  opacity: 0.8;
+}
+
+.organization-edge-layer marker path {
+  fill: var(--neon-cyan);
+}
+
+.organization-node {
+  position: absolute;
+  width: 224px;
+  min-height: 112px;
+  border: 1px solid rgba(109, 247, 255, 0.24);
+  border-radius: 8px;
+  background: rgba(10, 16, 32, 0.92);
+  box-shadow: var(--shadow-soft);
+  cursor: grab;
+  user-select: none;
+}
+
+.organization-node:active {
+  cursor: grabbing;
+}
+
+html[data-theme="light"] .organization-node {
+  background: rgba(255, 255, 255, 0.94);
+}
+
+.organization-node.is-selected,
+.organization-node.is-connecting {
+  border-color: var(--neon-cyan);
+  box-shadow: 0 0 0 1px rgba(109, 247, 255, 0.28), var(--shadow-soft);
+}
+
+.organization-node-body {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  gap: 10px;
+  width: 100%;
+  min-height: 100%;
+  padding: 12px 40px 12px 12px;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  cursor: inherit;
+}
+
+.organization-node-body strong,
+.organization-node-body small,
+.organization-node-body em {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.organization-node-body small,
+.organization-node-body em {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
+  font-style: normal;
+}
+
+.organization-connector {
+  position: absolute;
+  top: 38px;
+  right: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: 1px solid rgba(109, 247, 255, 0.45);
+  border-radius: 50%;
+  background: rgba(109, 247, 255, 0.12);
+  color: var(--neon-cyan);
+  cursor: pointer;
+}
+
+.organization-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.organization-field {
+  flex-direction: column;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.organization-field select,
+.organization-field input {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-strong);
+  color: var(--text);
+  padding: 10px 12px;
+}
+
+.organization-remove-manager {
+  width: fit-content;
+}
+
+.organization-report-list,
+.organization-skill-list {
+  flex-direction: column;
+}
+
+.organization-skill-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text);
+  font-size: 13px;
+}
+
+.organization-empty {
+  min-height: 320px;
+}
+
 @media (max-width: 760px) {
   .companion {
     display: none;
+  }
+  .organization-head,
+  .organization-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .organization-workbench {
+    grid-template-columns: 1fr;
+  }
+  .organization-actions .primary-button,
+  .organization-actions .secondary-button {
+    width: 100%;
   }
   .companion-chat {
     left: 16px;

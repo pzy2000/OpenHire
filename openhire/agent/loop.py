@@ -302,7 +302,23 @@ class AgentLoop:
                 WebSearchTool(config=self.web_config.search, proxy=self.web_config.proxy)
             )
             self.tools.register(WebFetchTool(proxy=self.web_config.proxy))
-        self.tools.register(MessageTool(send_callback=self.bus.publish_outbound))
+        organization_policy = None
+        if self._openhire_config and self._openhire_config.enabled:
+            from openhire.workforce.organization import OrganizationPolicy, OrganizationStore
+            from openhire.workforce.registry import AgentRegistry
+            from openhire.workforce.store import OpenHireStore
+
+            organization_policy = OrganizationPolicy(
+                AgentRegistry(OpenHireStore(self.workspace)),
+                OrganizationStore(self.workspace),
+                default_allow_skip_level_reporting=bool(
+                    getattr(self._openhire_config, "allow_skip_level_reporting", False)
+                ),
+            )
+        self.tools.register(MessageTool(
+            send_callback=self.bus.publish_outbound,
+            organization_policy=organization_policy,
+        ))
         if self.cron_service:
             self.tools.register(
                 CronTool(self.cron_service, default_timezone=self.context.timezone or "UTC")

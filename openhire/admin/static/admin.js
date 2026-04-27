@@ -48,6 +48,7 @@ const TRANSLATIONS = {
     "nav.subtitle": "Digital employee orchestration console",
     "nav.command_center": "Command Center",
     "nav.control_center": "Control Center",
+    "nav.organization": "Organization",
     "nav.employee_studio": "Digital Employees",
     "nav.resource_hub": "Resource Hub",
     "nav.agent_skills": "Agent Skills",
@@ -78,6 +79,8 @@ const TRANSLATIONS = {
     "companion.hotspot.aria": "Tap the companion",
     "section.control.title": "Control Center",
     "section.control.copy": "Track live runtime health, context pressure, and primary orchestration actions.",
+    "section.organization.title": "Organization",
+    "section.organization.copy": "Arrange reporting lines, validate hierarchy, and adjust employee capabilities from one canvas.",
     "section.employees.title": "Digital Employees",
     "section.employees.copy": "Create digital employees backed by Docker workers and preview roles, settings, skills, and tools.",
     "section.resource.title": "Resource Hub",
@@ -168,6 +171,31 @@ const TRANSLATIONS = {
     "button.creating": "Creating...",
     "button.collapse": "Collapse",
     "button.show_more": "Show More (+{count})",
+    "organization.refresh": "Refresh",
+    "organization.save": "Save Organization",
+    "organization.saving": "Saving...",
+    "organization.loading": "Loading organization...",
+    "organization.empty": "Create digital employees before arranging reporting lines.",
+    "organization.canvas": "Reporting Canvas",
+    "organization.detail": "Employee Capabilities",
+    "organization.no_selection": "Select an employee node to edit reporting and capabilities.",
+    "organization.global_skip": "Allow skip-level reporting globally",
+    "organization.employee_skip": "Allow this employee to skip levels",
+    "organization.manager": "Direct manager",
+    "organization.no_manager": "No direct manager",
+    "organization.reports": "Direct reports",
+    "organization.no_reports": "No direct reports",
+    "organization.skills": "Local skills",
+    "organization.tools": "Tools",
+    "organization.tools_placeholder": "message, github",
+    "organization.start_line": "Start report line",
+    "organization.complete_line": "Connect manager",
+    "organization.remove_manager": "Remove manager",
+    "organization.valid": "Organization graph is valid.",
+    "organization.invalid": "{count} issue(s) must be fixed before saving.",
+    "organization.dirty": "Unsaved organization changes.",
+    "organization.saved": "Organization saved.",
+    "organization.connect_hint": "Click a node connector, then click its manager.",
     "button.delete_skill": "Delete skill",
     "button.delete_employee": "Delete Employee",
     "button.delete_docker": "Delete Docker",
@@ -510,6 +538,7 @@ const TRANSLATIONS = {
     "nav.subtitle": "数字员工编排控制台",
     "nav.command_center": "指挥台",
     "nav.control_center": "控制中心",
+    "nav.organization": "组织架构",
     "nav.employee_studio": "数字员工",
     "nav.resource_hub": "资源中心",
     "nav.agent_skills": "技能工作台",
@@ -540,6 +569,8 @@ const TRANSLATIONS = {
     "companion.hotspot.aria": "点一下小伙伴",
     "section.control.title": "控制中心",
     "section.control.copy": "集中查看运行态健康、上下文压力和主智能体关键操作。",
+    "section.organization.title": "组织架构",
+    "section.organization.copy": "通过画布编排汇报关系、自动校验层级，并调整员工能力。",
     "section.employees.title": "数字员工",
     "section.employees.copy": "创建由 Docker worker 驱动的数字员工，并预览角色、设定、技能和工具。",
     "section.resource.title": "资源中心",
@@ -630,6 +661,31 @@ const TRANSLATIONS = {
     "button.creating": "创建中...",
     "button.collapse": "收起",
     "button.show_more": "展开 (+{count})",
+    "organization.refresh": "刷新",
+    "organization.save": "保存组织架构",
+    "organization.saving": "保存中...",
+    "organization.loading": "正在加载组织架构...",
+    "organization.empty": "先创建数字员工，再编排汇报关系。",
+    "organization.canvas": "汇报关系画布",
+    "organization.detail": "员工能力",
+    "organization.no_selection": "选择一个员工节点后编辑汇报关系和能力。",
+    "organization.global_skip": "全局允许越级汇报",
+    "organization.employee_skip": "允许该员工越级汇报",
+    "organization.manager": "直属上级",
+    "organization.no_manager": "无直属上级",
+    "organization.reports": "直属下级",
+    "organization.no_reports": "无直属下级",
+    "organization.skills": "本地技能",
+    "organization.tools": "工具",
+    "organization.tools_placeholder": "message, github",
+    "organization.start_line": "开始连线",
+    "organization.complete_line": "连接上级",
+    "organization.remove_manager": "移除上级",
+    "organization.valid": "组织架构合法。",
+    "organization.invalid": "保存前需修复 {count} 个问题。",
+    "organization.dirty": "组织架构有未保存变更。",
+    "organization.saved": "组织架构已保存。",
+    "organization.connect_hint": "先点击员工节点连接点，再点击直属上级节点。",
     "button.delete_skill": "删除技能",
     "button.delete_employee": "删除员工",
     "button.delete_docker": "删除 Docker",
@@ -1063,6 +1119,7 @@ function normalizeResourceHubTab(value) {
 const NAV_SECTIONS = [
   { key: "hero-command-center", labelKey: "nav.command_center", targetId: "hero-command-center" },
   { key: "control-center", labelKey: "nav.control_center", targetId: "control-center" },
+  { key: "organization-shell", labelKey: "nav.organization", targetId: "organization-shell" },
   { key: "employee-studio", labelKey: "nav.employee_studio", targetId: "employee-studio" },
   { key: "resource-hub", labelKey: "nav.resource_hub", targetId: "resource-hub" },
   { key: "agent-skills-workbench", labelKey: "nav.agent_skills", targetId: "agent-skills-workbench" },
@@ -1414,6 +1471,20 @@ const employeeState = {
   smartSkillRecommendEnabled: readSmartSkillRecommendEnabled(),
 };
 
+const organizationState = {
+  server: null,
+  draft: null,
+  selectedEmployeeId: null,
+  connectFromId: null,
+  drag: null,
+  validation: { valid: true, errors: [], warnings: [] },
+  error: "",
+  saveStatus: "",
+  isLoading: false,
+  isSaving: false,
+  isDirty: false,
+};
+
 const skillState = {
   localSkills: [],
   selectedDeleteIds: [],
@@ -1561,6 +1632,7 @@ const DOCKER_DAEMON_REPAIR_ENDPOINT = "/admin/api/docker-daemon/repair";
 const RUNTIME_HISTORY_ENDPOINT = "/admin/api/runtime/history";
 const EMPLOYEE_ADMIN_ENDPOINT = "/admin/api/employees/";
 const EMPLOYEE_EXPORT_ENDPOINT = "/admin/api/employees/export";
+const ORGANIZATION_ENDPOINT = "/admin/api/organization";
 const CASES_ENDPOINT = "/admin/api/cases";
 const CASE_OPS_ENDPOINT = "/admin/api/cases/ops";
 const CASE_OPS_SCAN_ENDPOINT = "/admin/api/cases/ops/scan";
@@ -2937,6 +3009,7 @@ function rerenderAdminContent() {
   renderStaticTranslations();
   renderCaseCarousel();
   renderEmployees();
+  renderOrganization();
   renderEmployeeModal();
   renderSkillCatalog();
   if (adminState.generatedAt) {
@@ -3378,6 +3451,7 @@ function normalizePersistedEmployee(employee) {
     system_prompt: text(employee.system_prompt, ""),
     agent_type: text(employee.agent_type, "openclaw"),
     agent_config: employee.agent_config && typeof employee.agent_config === "object" ? employee.agent_config : {},
+    tools: Array.isArray(employee.tools) ? employee.tools.map((item) => text(item, "")).filter(Boolean) : [],
     container_name: text(employee.container_name, ""),
     status: text(employee.status, "active"),
     created_at: text(employee.created_at, ""),
@@ -3912,6 +3986,499 @@ function ensureSelectedEmployee() {
       employeeState.isEmployeeDetailExpanded = false;
     }
   }
+}
+
+function normalizeOrganizationNode(rawNode, employee, index) {
+  const employeeId = text(rawNode?.employee_id || rawNode?.employeeId || employee?.id, "");
+  const hasX = Number.isFinite(Number(rawNode?.x));
+  const hasY = Number.isFinite(Number(rawNode?.y));
+  const column = index % 3;
+  const row = Math.floor(index / 3);
+  return {
+    employee_id: employeeId,
+    x: hasX ? Number(rawNode.x) : 40 + column * 260,
+    y: hasY ? Number(rawNode.y) : 40 + row * 180,
+    allow_skip_level_reporting: Boolean(rawNode?.allow_skip_level_reporting || rawNode?.allowSkipLevelReporting),
+    skill_ids: normalizeSkillIds(employee?.skill_ids || []),
+    tools: Array.isArray(employee?.tools) ? employee.tools.map((item) => text(item, "")).filter(Boolean) : [],
+  };
+}
+
+function normalizeOrganizationPayload(payload) {
+  const employees = Array.isArray(payload?.employees)
+    ? payload.employees.map(normalizePersistedEmployee)
+    : [...employeeState.employees];
+  const employeeById = new Map(employees.map((employee) => [employee.id, employee]));
+  const rawNodesById = new Map((Array.isArray(payload?.nodes) ? payload.nodes : [])
+    .map((node) => [text(node?.employee_id || node?.employeeId, ""), node])
+    .filter(([employeeId]) => Boolean(employeeId)));
+  const nodes = employees.map((employee, index) => normalizeOrganizationNode(rawNodesById.get(employee.id), employee, index));
+  const edges = (Array.isArray(payload?.edges) ? payload.edges : [])
+    .map((edge) => ({
+      reporter_id: text(edge?.reporter_id || edge?.reporterId, ""),
+      manager_id: text(edge?.manager_id || edge?.managerId, ""),
+    }))
+    .filter((edge) => edge.reporter_id && edge.manager_id && employeeById.has(edge.reporter_id) && employeeById.has(edge.manager_id));
+  return {
+    settings: {
+      allow_skip_level_reporting: Boolean(payload?.settings?.allow_skip_level_reporting),
+    },
+    nodes,
+    edges,
+    validation: payload?.validation || { valid: true, errors: [], warnings: [] },
+  };
+}
+
+function cloneOrganizationDraft(draft) {
+  return {
+    settings: { ...(draft?.settings || { allow_skip_level_reporting: false }) },
+    nodes: (draft?.nodes || []).map((node) => ({
+      ...node,
+      skill_ids: normalizeSkillIds(node.skill_ids),
+      tools: Array.isArray(node.tools) ? [...node.tools] : [],
+    })),
+    edges: (draft?.edges || []).map((edge) => ({ ...edge })),
+  };
+}
+
+function organizationNodeMap() {
+  return new Map((organizationState.draft?.nodes || []).map((node) => [node.employee_id, node]));
+}
+
+function organizationEmployeeMap() {
+  return new Map(employeeState.employees.map((employee) => [employee.id, employee]));
+}
+
+function organizationNode(employeeId) {
+  return organizationNodeMap().get(text(employeeId, ""));
+}
+
+function organizationEmployee(employeeId) {
+  return organizationEmployeeMap().get(text(employeeId, ""));
+}
+
+function organizationManagerId(employeeId, edges = organizationState.draft?.edges || []) {
+  const edge = edges.find((item) => item.reporter_id === employeeId);
+  return edge?.manager_id || "";
+}
+
+function organizationReports(employeeId, edges = organizationState.draft?.edges || []) {
+  return edges.filter((edge) => edge.manager_id === employeeId).map((edge) => edge.reporter_id);
+}
+
+function organizationWouldCreateCycle(reporterId, managerId, edges) {
+  let current = managerId;
+  const seen = new Set([reporterId]);
+  const managerByReporter = new Map(edges.map((edge) => [edge.reporter_id, edge.manager_id]));
+  while (current) {
+    if (seen.has(current)) return true;
+    seen.add(current);
+    current = managerByReporter.get(current) || "";
+  }
+  return false;
+}
+
+function validateOrganizationDraft() {
+  const draft = organizationState.draft;
+  const errors = [];
+  if (!draft) {
+    organizationState.validation = { valid: true, errors: [], warnings: [] };
+    return organizationState.validation;
+  }
+  const employeeIds = new Set(employeeState.employees.map((employee) => employee.id));
+  const managerByReporter = new Map();
+  for (const edge of draft.edges) {
+    if (!employeeIds.has(edge.reporter_id) || !employeeIds.has(edge.manager_id)) {
+      errors.push({ code: "unknown_employee", message: "Organization relationship references an unknown employee." });
+    }
+    if (edge.reporter_id === edge.manager_id) {
+      errors.push({ code: "self_report", message: "An employee cannot report to itself." });
+    }
+    const existingManager = managerByReporter.get(edge.reporter_id);
+    if (existingManager && existingManager !== edge.manager_id) {
+      errors.push({ code: "multiple_managers", message: "An employee cannot have multiple direct managers." });
+    }
+    managerByReporter.set(edge.reporter_id, edge.manager_id);
+  }
+  for (const edge of draft.edges) {
+    if (organizationWouldCreateCycle(edge.reporter_id, edge.manager_id, draft.edges)) {
+      errors.push({ code: "cycle", message: "Reporting lines cannot form a cycle." });
+      break;
+    }
+  }
+  organizationState.validation = { valid: errors.length === 0, errors, warnings: [] };
+  return organizationState.validation;
+}
+
+function markOrganizationDirty(message = "") {
+  organizationState.isDirty = true;
+  organizationState.saveStatus = message || t("organization.dirty");
+  validateOrganizationDraft();
+  const saveButton = document.getElementById("organization-save-button");
+  if (saveButton) {
+    saveButton.textContent = organizationState.isSaving ? t("organization.saving") : t("organization.save");
+    saveButton.disabled = organizationState.isSaving || !organizationState.isDirty || !organizationState.validation.valid;
+  }
+}
+
+function selectOrganizationEmployee(employeeId) {
+  organizationState.selectedEmployeeId = text(employeeId, "");
+  organizationState.saveStatus = "";
+  renderOrganization();
+}
+
+function updateOrganizationNode(employeeId, updates) {
+  const node = organizationNode(employeeId);
+  if (!node) return;
+  Object.assign(node, updates);
+  markOrganizationDirty();
+  renderOrganization();
+}
+
+function setOrganizationManager(employeeId, managerId) {
+  const reporterId = text(employeeId, "");
+  const nextManagerId = text(managerId, "");
+  if (!organizationState.draft || !reporterId) return;
+  const nextEdges = organizationState.draft.edges.filter((edge) => edge.reporter_id !== reporterId);
+  if (nextManagerId) {
+    if (reporterId === nextManagerId) {
+      organizationState.error = "An employee cannot report to itself.";
+      renderOrganization();
+      return;
+    }
+    if (organizationWouldCreateCycle(reporterId, nextManagerId, [...nextEdges, { reporter_id: reporterId, manager_id: nextManagerId }])) {
+      organizationState.error = "Reporting lines cannot form a cycle.";
+      renderOrganization();
+      return;
+    }
+    nextEdges.push({ reporter_id: reporterId, manager_id: nextManagerId });
+  }
+  organizationState.draft.edges = nextEdges;
+  organizationState.error = "";
+  markOrganizationDirty();
+  renderOrganization();
+}
+
+function startOrganizationConnection(employeeId) {
+  const normalized = text(employeeId, "");
+  if (!normalized) return;
+  if (!organizationState.connectFromId) {
+    organizationState.connectFromId = normalized;
+    organizationState.saveStatus = t("organization.connect_hint");
+    renderOrganization();
+    return;
+  }
+  const reporterId = organizationState.connectFromId;
+  organizationState.connectFromId = null;
+  setOrganizationManager(reporterId, normalized);
+}
+
+function toggleOrganizationSkill(employeeId, skillId, checked) {
+  const node = organizationNode(employeeId);
+  if (!node) return;
+  const normalizedSkillId = text(skillId, "");
+  if (!normalizedSkillId || normalizedSkillId === REQUIRED_EMPLOYEE_SKILL_ID) return;
+  const next = new Set(normalizeSkillIds(node.skill_ids));
+  if (checked) {
+    next.add(normalizedSkillId);
+  } else {
+    next.delete(normalizedSkillId);
+  }
+  node.skill_ids = [REQUIRED_EMPLOYEE_SKILL_ID, ...[...next].filter((item) => item !== REQUIRED_EMPLOYEE_SKILL_ID)];
+  markOrganizationDirty();
+  renderOrganization();
+}
+
+function updateOrganizationTools(employeeId, value) {
+  const node = organizationNode(employeeId);
+  if (!node) return;
+  node.tools = parseTagInput(value);
+  markOrganizationDirty();
+}
+
+function organizationCanvasBounds() {
+  const nodes = organizationState.draft?.nodes || [];
+  const maxX = Math.max(900, ...nodes.map((node) => Number(node.x || 0) + 240));
+  const maxY = Math.max(520, ...nodes.map((node) => Number(node.y || 0) + 150));
+  return { width: maxX + 80, height: maxY + 80 };
+}
+
+function renderOrganizationStatus() {
+  const validation = validateOrganizationDraft();
+  const status = validation.valid
+    ? t("organization.valid")
+    : t("organization.invalid", { count: validation.errors.length });
+  const statusClass = validation.valid ? "status-ok" : "status-error";
+  const extra = organizationState.error || organizationState.saveStatus;
+  return `
+    <div class="organization-status">
+      <span class="badge ${statusClass}">${html(status)}</span>
+      ${extra ? `<span>${html(extra)}</span>` : ""}
+    </div>
+  `;
+}
+
+function renderOrganizationCanvas() {
+  const draft = organizationState.draft;
+  if (!draft || draft.nodes.length === 0) {
+    return `<section class="panel organization-empty"><div class="empty-state">${html(t("organization.empty"))}</div></section>`;
+  }
+  const bounds = organizationCanvasBounds();
+  const nodeById = organizationNodeMap();
+  const edges = draft.edges.map((edge) => {
+    const reporter = nodeById.get(edge.reporter_id);
+    const manager = nodeById.get(edge.manager_id);
+    if (!reporter || !manager) return "";
+    const x1 = Number(reporter.x || 0) + 220;
+    const y1 = Number(reporter.y || 0) + 54;
+    const x2 = Number(manager.x || 0) + 20;
+    const y2 = Number(manager.y || 0) + 54;
+    const mid = Math.max(x1 + 24, (x1 + x2) / 2);
+    return `<path class="organization-edge" d="M ${x1} ${y1} C ${mid} ${y1}, ${mid} ${y2}, ${x2} ${y2}" marker-end="url(#organization-arrow)" />`;
+  }).join("");
+  const nodes = draft.nodes.map((node) => {
+    const employee = organizationEmployee(node.employee_id);
+    const selected = organizationState.selectedEmployeeId === node.employee_id;
+    const connecting = organizationState.connectFromId === node.employee_id;
+    const manager = organizationEmployee(organizationManagerId(node.employee_id));
+    return `
+      <article
+        class="organization-node ${selected ? "is-selected" : ""} ${connecting ? "is-connecting" : ""}"
+        style="transform: translate(${Number(node.x || 0)}px, ${Number(node.y || 0)}px)"
+        data-organization-node="${html(node.employee_id)}"
+      >
+        <button class="organization-node-body" type="button" data-organization-select="${html(node.employee_id)}">
+          <span>${renderEmployeeAvatar(employee || { avatar: "", name: "employee" })}</span>
+          <span>
+            <strong>${html(employee?.name, node.employee_id)}</strong>
+            <small>${html(employee?.role, "role")}</small>
+            <em>${html(manager?.name || t("organization.no_manager"))}</em>
+          </span>
+        </button>
+        <button
+          class="organization-connector"
+          type="button"
+          data-organization-connect="${html(node.employee_id)}"
+          title="${html(organizationState.connectFromId ? t("organization.complete_line") : t("organization.start_line"))}"
+          aria-label="${html(organizationState.connectFromId ? t("organization.complete_line") : t("organization.start_line"))}"
+        >→</button>
+      </article>
+    `;
+  }).join("");
+  return `
+    <section class="organization-canvas-wrap panel">
+      <div class="panel-head">
+        <div>
+          <h3>${html(t("organization.canvas"))}</h3>
+          <div class="panel-meta">${html(t("organization.connect_hint"))}</div>
+        </div>
+        <label class="organization-toggle">
+          <input type="checkbox" data-organization-global-skip="true" ${draft.settings.allow_skip_level_reporting ? "checked" : ""}>
+          <span>${html(t("organization.global_skip"))}</span>
+        </label>
+      </div>
+      ${renderOrganizationStatus()}
+      <div class="organization-canvas" style="min-width:${bounds.width}px; min-height:${bounds.height}px" data-organization-canvas="true">
+        <svg class="organization-edge-layer" viewBox="0 0 ${bounds.width} ${bounds.height}" aria-hidden="true" focusable="false">
+          <defs>
+            <marker id="organization-arrow" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto">
+              <path d="M0,0 L10,4 L0,8 Z"></path>
+            </marker>
+          </defs>
+          ${edges}
+        </svg>
+        <div class="organization-node-layer">${nodes}</div>
+      </div>
+    </section>
+  `;
+}
+
+function renderOrganizationDetail() {
+  const draft = organizationState.draft;
+  const selectedId = organizationState.selectedEmployeeId;
+  const node = selectedId ? organizationNode(selectedId) : null;
+  const employee = selectedId ? organizationEmployee(selectedId) : null;
+  if (!draft || !node || !employee) {
+    return `<section class="panel organization-detail"><div class="empty-state">${html(t("organization.no_selection"))}</div></section>`;
+  }
+  const managerId = organizationManagerId(selectedId);
+  const reports = organizationReports(selectedId).map((employeeId) => organizationEmployee(employeeId)?.name || employeeId);
+  const selectedSkills = new Set(normalizeSkillIds(node.skill_ids));
+  return `
+    <section class="panel organization-detail" data-organization-detail="true">
+      <div class="panel-head">
+        <div>
+          <h3>${html(t("organization.detail"))}</h3>
+          <div class="panel-meta">${html(employee.name)} · ${html(employee.agent_type)}</div>
+        </div>
+        <span class="${badgeClass(employee.status)}">${html(employee.status)}</span>
+      </div>
+      <label class="organization-field">
+        <span>${html(t("organization.manager"))}</span>
+        <select data-organization-manager="${html(selectedId)}">
+          <option value="">${html(t("organization.no_manager"))}</option>
+          ${employeeState.employees.filter((item) => item.id !== selectedId).map((item) => `
+            <option value="${html(item.id)}" ${item.id === managerId ? "selected" : ""}>${html(item.name)} · ${html(item.role)}</option>
+          `).join("")}
+        </select>
+      </label>
+      <button class="secondary-button organization-remove-manager" type="button" data-organization-remove-manager="${html(selectedId)}" ${managerId ? "" : "disabled"}>${html(t("organization.remove_manager"))}</button>
+      <label class="organization-toggle">
+        <input type="checkbox" data-organization-employee-skip="${html(selectedId)}" ${node.allow_skip_level_reporting ? "checked" : ""}>
+        <span>${html(t("organization.employee_skip"))}</span>
+      </label>
+      <div class="organization-report-list">
+        <div class="agent-section-title">${html(t("organization.reports"))}</div>
+        <div>${reports.length ? reports.map((name) => `<span class="tag">${html(name)}</span>`).join("") : `<span class="tag">${html(t("organization.no_reports"))}</span>`}</div>
+      </div>
+      <div class="organization-skill-list">
+        <div class="agent-section-title">${html(t("organization.skills"))}</div>
+        ${(skillState.localSkills || []).map((skill) => {
+          const required = isRequiredLocalSkill(skill);
+          const checked = required || selectedSkills.has(skill.id);
+          return `
+            <label class="organization-skill-option">
+              <input
+                type="checkbox"
+                data-organization-skill="${html(selectedId)}"
+                data-skill-id="${html(skill.id)}"
+                ${checked ? "checked" : ""}
+                ${required ? "disabled" : ""}
+              >
+              <span>${html(skill.name)}</span>
+            </label>
+          `;
+        }).join("") || `<span class="tag">none</span>`}
+      </div>
+      <label class="organization-field">
+        <span>${html(t("organization.tools"))}</span>
+        <input type="text" data-organization-tools="${html(selectedId)}" value="${html((node.tools || []).join(", "))}" placeholder="${html(t("organization.tools_placeholder"))}">
+      </label>
+    </section>
+  `;
+}
+
+function renderOrganization() {
+  const panel = document.getElementById("organization-panel");
+  if (!panel) return;
+  if (organizationState.isLoading) {
+    panel.innerHTML = `<section class="panel"><div class="empty-state">${html(t("organization.loading"))}</div></section>`;
+    return;
+  }
+  panel.innerHTML = `
+    <div class="organization-workbench">
+      ${renderOrganizationCanvas()}
+      ${renderOrganizationDetail()}
+    </div>
+  `;
+  const saveButton = document.getElementById("organization-save-button");
+  if (saveButton) {
+    saveButton.textContent = organizationState.isSaving ? t("organization.saving") : t("organization.save");
+    saveButton.disabled = organizationState.isSaving || !organizationState.isDirty || !validateOrganizationDraft().valid;
+  }
+}
+
+async function loadOrganization() {
+  organizationState.isLoading = true;
+  organizationState.error = "";
+  renderOrganization();
+  const response = await fetch(ORGANIZATION_ENDPOINT, { headers: { Accept: "application/json" } });
+  if (!response.ok) {
+    throw new Error(`Failed to load organization: HTTP ${response.status}`);
+  }
+  const payload = await response.json();
+  if (Array.isArray(payload.employees)) {
+    employeeState.employees = payload.employees.map(normalizePersistedEmployee);
+  }
+  organizationState.server = normalizeOrganizationPayload(payload);
+  organizationState.draft = cloneOrganizationDraft(organizationState.server);
+  organizationState.selectedEmployeeId = organizationState.selectedEmployeeId || organizationState.draft.nodes[0]?.employee_id || null;
+  organizationState.connectFromId = null;
+  organizationState.validation = payload.validation || { valid: true, errors: [], warnings: [] };
+  organizationState.isDirty = false;
+  organizationState.isLoading = false;
+  organizationState.saveStatus = "";
+  renderEmployees();
+  renderOrganization();
+}
+
+async function saveOrganization() {
+  if (!organizationState.draft || organizationState.isSaving) return;
+  const validation = validateOrganizationDraft();
+  if (!validation.valid) {
+    organizationState.error = t("organization.invalid", { count: validation.errors.length });
+    renderOrganization();
+    return;
+  }
+  organizationState.isSaving = true;
+  renderOrganization();
+  try {
+    const payload = {
+      settings: organizationState.draft.settings,
+      nodes: organizationState.draft.nodes.map((node) => ({
+        employee_id: node.employee_id,
+        x: Number(node.x || 0),
+        y: Number(node.y || 0),
+        allow_skip_level_reporting: Boolean(node.allow_skip_level_reporting),
+      })),
+      edges: organizationState.draft.edges.map((edge) => ({ ...edge })),
+      capabilities: organizationState.draft.nodes.map((node) => ({
+        employee_id: node.employee_id,
+        skill_ids: normalizeSkillIds(node.skill_ids),
+        tools: Array.isArray(node.tools) ? node.tools : [],
+      })),
+    };
+    const response = await fetch(ORGANIZATION_ENDPOINT, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(text(body?.error?.message, `HTTP ${response.status}`));
+    }
+    if (Array.isArray(body.employees)) {
+      employeeState.employees = body.employees.map(normalizePersistedEmployee);
+    }
+    organizationState.server = normalizeOrganizationPayload(body);
+    organizationState.draft = cloneOrganizationDraft(organizationState.server);
+    organizationState.isDirty = false;
+    organizationState.error = "";
+    organizationState.saveStatus = t("organization.saved");
+    renderEmployees();
+  } finally {
+    organizationState.isSaving = false;
+    renderOrganization();
+  }
+}
+
+function startOrganizationDrag(event, nodeElement) {
+  const employeeId = nodeElement.getAttribute("data-organization-node");
+  const node = organizationNode(employeeId);
+  if (!node) return;
+  organizationState.drag = {
+    employeeId,
+    startX: event.clientX,
+    startY: event.clientY,
+    x: Number(node.x || 0),
+    y: Number(node.y || 0),
+  };
+  nodeElement.setPointerCapture?.(event.pointerId);
+}
+
+function moveOrganizationDrag(event) {
+  if (!organizationState.drag) return;
+  const drag = organizationState.drag;
+  const node = organizationNode(drag.employeeId);
+  if (!node) return;
+  node.x = Math.max(0, drag.x + event.clientX - drag.startX);
+  node.y = Math.max(0, drag.y + event.clientY - drag.startY);
+  markOrganizationDirty();
+  renderOrganization();
+}
+
+function endOrganizationDrag() {
+  organizationState.drag = null;
 }
 
 function employeeTimeCandidate(employee, mode) {
@@ -7865,6 +8432,7 @@ function setEmployeeSortMode(mode) {
   ensureSelectedEmployee();
   revealSelectedEmployeeInList();
   renderEmployees();
+  renderOrganization();
 }
 
 function renderSmartSkillRecommendToggle() {
@@ -9415,9 +9983,12 @@ async function createEmployeeFromForm(form) {
     employeeState.createDraft = null;
     employeeState.lastCreateSkillSummary = employeeCreateSkillSummary(skillIds);
     await loadEmployees();
+    await loadOrganization();
     employeeState.selectedEmployeeId = created.id;
+    organizationState.selectedEmployeeId = created.id;
     revealSelectedEmployeeInList();
     renderEmployees();
+    renderOrganization();
   } finally {
     stopCreateEmployeeProgress();
     clearBusyAction();
@@ -9435,6 +10006,7 @@ async function deleteEmployee(employeeId) {
     }
     employeeState.selectedDeleteIds = employeeState.selectedDeleteIds.filter((id) => id !== employeeId);
     await loadEmployees();
+    await loadOrganization();
   } finally {
     clearBusyAction();
   }
@@ -9645,6 +10217,20 @@ function initEmployeeInteractions() {
   renderDreamPanel();
   document.getElementById("create-employee-button")?.addEventListener("click", openCreateEmployee);
   document.getElementById("smart-skill-recommend-toggle")?.addEventListener("click", toggleSmartSkillRecommend);
+  document.querySelector("[data-organization-refresh]")?.addEventListener("click", () => {
+    loadOrganization().catch((error) => {
+      organizationState.error = text(error.message, "Failed to refresh organization");
+      organizationState.isLoading = false;
+      renderOrganization();
+    });
+  });
+  document.querySelector("[data-organization-save]")?.addEventListener("click", () => {
+    saveOrganization().catch((error) => {
+      organizationState.error = text(error.message, "Failed to save organization");
+      organizationState.isSaving = false;
+      renderOrganization();
+    });
+  });
   document.getElementById("admin-language-zh")?.addEventListener("click", () => applyLanguage("zh"));
   document.getElementById("admin-language-en")?.addEventListener("click", () => applyLanguage("en"));
   document.getElementById("admin-theme-toggle")?.addEventListener("click", () => applyTheme(currentTheme() === "dark" ? "light" : "dark"));
@@ -9679,6 +10265,21 @@ function initEmployeeInteractions() {
     const runtimeHistoryRefreshButton = event.target.closest("[data-runtime-history-refresh]");
     if (runtimeHistoryRefreshButton) {
       loadRuntimeHistory();
+      return;
+    }
+    const organizationSelectButton = event.target.closest("[data-organization-select]");
+    if (organizationSelectButton) {
+      selectOrganizationEmployee(organizationSelectButton.getAttribute("data-organization-select"));
+      return;
+    }
+    const organizationConnectButton = event.target.closest("[data-organization-connect]");
+    if (organizationConnectButton) {
+      startOrganizationConnection(organizationConnectButton.getAttribute("data-organization-connect"));
+      return;
+    }
+    const organizationRemoveManagerButton = event.target.closest("[data-organization-remove-manager]");
+    if (organizationRemoveManagerButton) {
+      setOrganizationManager(organizationRemoveManagerButton.getAttribute("data-organization-remove-manager"), "");
       return;
     }
     const dreamRefreshButton = event.target.closest("[data-dream-refresh]");
@@ -10586,6 +11187,10 @@ function initEmployeeInteractions() {
       updateEmployeeExportDraft(target.getAttribute("data-employee-export-field"), target.value);
       return;
     }
+    if (target.matches("[data-organization-tools]")) {
+      updateOrganizationTools(target.getAttribute("data-organization-tools"), target.value);
+      return;
+    }
     if (target.matches("[data-employee-cron-name]")) {
       updateEmployeeCronDraft("name", target.value);
       return;
@@ -10637,6 +11242,28 @@ function initEmployeeInteractions() {
       setEmployeeSortMode(target.value);
       return;
     }
+    if (target instanceof HTMLSelectElement && target.matches("[data-organization-manager]")) {
+      setOrganizationManager(target.getAttribute("data-organization-manager"), target.value);
+      return;
+    }
+    if (target instanceof HTMLInputElement && target.matches("[data-organization-global-skip]")) {
+      organizationState.draft.settings.allow_skip_level_reporting = target.checked;
+      markOrganizationDirty();
+      renderOrganization();
+      return;
+    }
+    if (target instanceof HTMLInputElement && target.matches("[data-organization-employee-skip]")) {
+      updateOrganizationNode(target.getAttribute("data-organization-employee-skip"), { allow_skip_level_reporting: target.checked });
+      return;
+    }
+    if (target instanceof HTMLInputElement && target.matches("[data-organization-skill]")) {
+      toggleOrganizationSkill(
+        target.getAttribute("data-organization-skill"),
+        target.getAttribute("data-skill-id"),
+        target.checked,
+      );
+      return;
+    }
     if (target instanceof HTMLSelectElement && target.matches("[data-employee-cron-kind]")) {
       updateEmployeeCronDraft("kind", target.value);
       renderEmployeeDetail();
@@ -10662,6 +11289,21 @@ function initEmployeeInteractions() {
     }
     revealSelectedSkillSearchResults();
     renderSkillCatalog();
+  });
+  document.addEventListener("pointerdown", (event) => {
+    if (!(event.target instanceof Element)) return;
+    if (event.target.closest("[data-organization-connect]")) return;
+    const node = event.target.closest("[data-organization-node]");
+    if (!node) return;
+    event.preventDefault();
+    selectOrganizationEmployee(node.getAttribute("data-organization-node"));
+    startOrganizationDrag(event, node);
+  });
+  document.addEventListener("pointermove", (event) => {
+    moveOrganizationDrag(event);
+  });
+  document.addEventListener("pointerup", () => {
+    endOrganizationDrag();
   });
   document.addEventListener("keydown", (event) => {
     if (!(event.target instanceof Element)) return;
@@ -10999,6 +11641,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     await loadSkills();
     await loadAgentSkills();
     await loadEmployees();
+    await loadOrganization();
     await loadCaseOps();
     await loadSkillGovernance();
     await loadDream();

@@ -86,9 +86,12 @@ from openhire.skill_governance import SkillGovernanceService, SkillGovernanceSto
 from openhire.utils.helpers import safe_filename
 from openhire.utils.runtime import EMPTY_FINAL_RESPONSE_MESSAGE
 from openhire.workforce.lifecycle import AgentLifecycle
+from openhire.workforce.organization import OrganizationStore, OrganizationValidationError, OrganizationValidator
 from openhire.workforce.registry import AgentEntry, AgentRegistry
 from openhire.workforce.required_skill import (
     RequiredEmployeeSkillError,
+    ensure_required_employee_skill_ids,
+    ensure_required_employee_skill_names,
     replace_required_employee_skill_prompt_block,
 )
 from openhire.workforce.skill_selection import EmployeeSkillSelector
@@ -144,6 +147,10 @@ def _employee_lifecycle(request: web.Request) -> AgentLifecycle:
 
 def _skill_catalog(request: web.Request) -> SkillCatalogService:
     return request.app["skill_catalog"]
+
+
+def _organization_store(request: web.Request) -> OrganizationStore:
+    return OrganizationStore(Path(request.app["workspace"]))
 
 
 def _skill_governance(request: web.Request) -> SkillGovernanceService:
@@ -926,6 +933,15 @@ def _admin_html() -> str:
           <li>
             <a
               class="nav-chip nav-section-link"
+              href="#organization-shell"
+              data-nav-target="organization-shell"
+              data-nav-key="organization-shell"
+              data-i18n="nav.organization"
+            >Organization</a>
+          </li>
+          <li>
+            <a
+              class="nav-chip nav-section-link"
               href="#employee-studio"
               data-nav-target="employee-studio"
               data-nav-key="employee-studio"
@@ -1111,6 +1127,20 @@ def _admin_html() -> str:
             <section id="process-panel"></section>
             <section id="main-agent-panel"></section>
           </div>
+        </section>
+
+        <section id="organization-shell" class="section-shell organization-shell nav-anchor-section" data-nav-section="organization-shell">
+          <section class="section-head organization-head">
+            <div>
+              <h3 data-i18n="section.organization.title">Organization</h3>
+              <p class="section-copy" data-i18n="section.organization.copy">Arrange reporting lines, validate hierarchy, and adjust employee capabilities from one canvas.</p>
+            </div>
+            <div class="organization-actions">
+              <button id="organization-refresh-button" class="secondary-button" type="button" data-organization-refresh="true" data-i18n="organization.refresh">Refresh</button>
+              <button id="organization-save-button" class="primary-button" type="button" data-organization-save="true" data-i18n="organization.save">Save Organization</button>
+            </div>
+          </section>
+          <section id="organization-panel" class="organization-panel" aria-label="Organization management"></section>
         </section>
 
         <section id="employee-studio" class="section-shell employee-studio-shell nav-anchor-section" data-nav-section="employee-studio">
@@ -2333,6 +2363,127 @@ async def handle_admin_asset(request: web.Request) -> web.Response:
     return web.Response(text=body, content_type=content_type)
 
 
+def _default_allow_skip_level_reporting(request: web.Request) -> bool:
+    config = getattr(request.app.get("agent_loop"), "_openhire_config", None)
+    return bool(getattr(config, "allow_skip_level_reporting", False))
+
+
+def _organization_entries(request: web.Request) -> list[AgentEntry]:
+    return sorted(_employee_registry(request).all(), key=lambda entry: entry.agent_id)
+
+
+def _organization_payload(request: web.Request) -> dict[str, Any]:
+    entries = _organization_entries(request)
+    employee_ids = [entry.agent_id for entry in entries]
+    graph = _organization_store(request).load(
+        employee_ids=employee_ids,
+        clean=True,
+        default_allow_skip_level_reporting=_default_allow_skip_level_reporting(request),
+    )
+    validation = OrganizationValidator.validate(graph, employee_ids)
+    return {
+        **graph,
+        "employees": [entry.to_public_dict() for entry in entries],
+        "validation": validation,
+    }
+
+
+def _organization_error_json(status: int, message: str, validation: dict[str, Any]) -> web.Response:
+    return web.json_response(
+        {
+            "error": {"message": message, "type": "invalid_request_error", "code": status},
+            "validation": validation,
+        },
+        status=status,
+    )
+
+
+def _prepare_organization_capability_updates(
+    request: web.Request,
+    capabilities: Any,
+) -> tuple[list[tuple[str, dict[str, Any]]], str | None]:
+    if capabilities is None:
+        return [], None
+    if not isinstance(capabilities, list):
+        return [], "capabilities must be an array."
+
+    registry = _employee_registry(request)
+    catalog = _skill_catalog(request)
+    updates: list[tuple[str, dict[str, Any]]] = []
+    for index, item in enumerate(capabilities):
+        if not isinstance(item, dict):
+            return [], f"Capability at index {index} must be an object."
+        employee_id = str(item.get("employee_id") or item.get("employeeId") or "").strip()
+        if not employee_id:
+            return [], f"Capability at index {index} must include employee_id."
+        if registry.get(employee_id) is None:
+            return [], f"Capability references unknown employee '{employee_id}'."
+
+        fields: dict[str, Any] = {}
+        if "skill_ids" in item or "skillIds" in item:
+            requested_skill_ids = _normalize_string_list(item.get("skill_ids", item.get("skillIds")))
+            skill_ids = ensure_required_employee_skill_ids(requested_skill_ids)
+            selected_skills = catalog.get_by_ids(skill_ids)
+            if len(selected_skills) != len(skill_ids):
+                return [], f"Invalid skill_ids for employee '{employee_id}': one or more local skills were not found."
+            fields["skill_ids"] = skill_ids
+            fields["skills"] = ensure_required_employee_skill_names([skill.name for skill in selected_skills])
+        if "tools" in item:
+            fields["tools"] = _normalize_string_list(item.get("tools"))
+        if fields:
+            updates.append((employee_id, fields))
+    return updates, None
+
+
+async def handle_admin_organization(request: web.Request) -> web.Response:
+    """GET /admin/api/organization"""
+    return web.json_response(_organization_payload(request))
+
+
+async def handle_admin_update_organization(request: web.Request) -> web.Response:
+    """PUT /admin/api/organization"""
+    try:
+        payload = await request.json()
+    except Exception:
+        return _error_json(400, "Invalid JSON body")
+    if not isinstance(payload, dict):
+        return _error_json(400, "JSON body must be an object")
+
+    entries = _organization_entries(request)
+    employee_ids = [entry.agent_id for entry in entries]
+    graph = {
+        "version": 1,
+        "settings": payload.get("settings") or {},
+        "nodes": payload.get("nodes") or [],
+        "edges": payload.get("edges") or [],
+    }
+    validation = OrganizationValidator.validate(graph, employee_ids)
+    if not validation["valid"]:
+        message = "; ".join(error["message"] for error in validation["errors"]) or "Invalid organization graph."
+        return _organization_error_json(400, message, validation)
+
+    capability_updates, capability_error = _prepare_organization_capability_updates(
+        request,
+        payload.get("capabilities"),
+    )
+    if capability_error:
+        return _organization_error_json(400, capability_error, validation)
+
+    try:
+        _organization_store(request).save(
+            graph,
+            employee_ids=employee_ids,
+            default_allow_skip_level_reporting=_default_allow_skip_level_reporting(request),
+        )
+    except OrganizationValidationError as exc:
+        return _organization_error_json(400, str(exc), exc.validation)
+
+    registry = _employee_registry(request)
+    for employee_id, fields in capability_updates:
+        registry.update(employee_id, **fields)
+    return web.json_response(_organization_payload(request))
+
+
 async def handle_create_employee(request: web.Request) -> web.Response:
     try:
         payload = await request.json()
@@ -3178,6 +3329,8 @@ def _add_admin_routes(app: web.Application) -> None:
     app.router.add_post("/admin/api/employees/export", handle_admin_employee_export)
     app.router.add_post("/admin/api/context/clear", handle_admin_clear_context)
     app.router.add_post("/admin/api/context/compact", handle_admin_compact_context)
+    app.router.add_get("/admin/api/organization", handle_admin_organization)
+    app.router.add_put("/admin/api/organization", handle_admin_update_organization)
     app.router.add_post("/admin/api/employees/{employee_id}/context/clear", handle_admin_employee_clear_context)
     app.router.add_post("/admin/api/employees/{employee_id}/context/compact", handle_admin_employee_compact_context)
     app.router.add_post("/admin/api/docker-daemon/repair", handle_admin_repair_docker_daemon)

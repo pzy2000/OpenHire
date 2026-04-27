@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
@@ -30,6 +31,13 @@ class _FakeProvider:
     def estimate_prompt_tokens(self, messages, tools, model):
         token_total = sum(len(str(message.get("content", ""))) for message in messages)
         return max(1, token_total), "test_counter"
+
+    async def chat(self, **kwargs):
+        self.last_chat_kwargs = kwargs
+        return SimpleNamespace(
+            content="companion reply",
+            usage={"prompt_tokens": 11, "completion_tokens": 3},
+        )
 
     async def chat_with_retry(self, **kwargs):
         return SimpleNamespace(content="压缩摘要", tool_calls=[])
@@ -137,6 +145,8 @@ async def test_admin_page_contains_mount_points(aiohttp_client) -> None:
     assert 'id="action-center"' in body
     assert 'id="control-center"' in body
     assert 'id="runtime-timeline"' in body
+    assert 'id="organization-shell"' in body
+    assert 'id="organization-panel"' in body
     assert 'id="employee-studio"' in body
     assert 'id="resource-hub"' in body
     assert 'id="agent-skills-workbench"' in body
@@ -150,15 +160,24 @@ async def test_admin_page_contains_mount_points(aiohttp_client) -> None:
     assert 'id="skill-ops-panel"' in body
     assert 'id="employee-list"' in body
     assert 'id="main-agent-panel"' in body
+    assert 'id="companion"' in body
+    assert 'data-companion-bubble="true"' in body
+    assert 'data-companion-action="pat"' in body
+    assert 'data-companion-action="feed"' in body
+    assert 'data-companion-action="chat"' in body
+    assert 'data-companion-action="mute"' in body
+    assert 'data-companion-action="debug"' in body
+    assert 'id="companion-chat-root"' in body
     assert 'id="subagent-list"' not in body
     assert "Background agents spawned by the main loop." not in body
     assert 'id="docker-agent-list"' in body
     assert 'id="soul-library-panel"' in body
     assert 'id="skill-local-list"' in body
     assert 'id="skill-search-panel"' in body
-    assert body.count('data-nav-target="') == 7
+    assert body.count('data-nav-target="') == 8
     assert 'data-nav-target="hero-command-center"' in body
     assert 'data-nav-target="control-center"' in body
+    assert 'data-nav-target="organization-shell"' in body
     assert 'data-nav-target="employee-studio"' in body
     assert 'data-nav-target="resource-hub"' in body
     assert 'data-nav-target="agent-skills-workbench"' in body
@@ -170,7 +189,7 @@ async def test_admin_page_contains_mount_points(aiohttp_client) -> None:
     assert 'data-resource-tab="personas"' in body
     assert 'data-resource-tab="skills"' in body
     assert 'role="tablist"' in body
-    assert body.index('id="hero-command-center"') < body.index('id="control-center"') < body.index('id="employee-studio"') < body.index('id="resource-hub"') < body.index('id="agent-skills-workbench"') < body.index('id="infrastructure-shell"') < body.index('id="dream-shell"')
+    assert body.index('id="hero-command-center"') < body.index('id="control-center"') < body.index('id="organization-shell"') < body.index('id="employee-studio"') < body.index('id="resource-hub"') < body.index('id="agent-skills-workbench"') < body.index('id="infrastructure-shell"') < body.index('id="dream-shell"')
     assert "Import From Local Skills" in body
     assert "Import From Web" in body
     assert body.index("Import From Local Skills") < body.index("Import From Web")
@@ -189,6 +208,26 @@ async def test_admin_page_contains_mount_points(aiohttp_client) -> None:
     assert "smart-skill-switch" in body
     assert 'id="local-skill-file-input"' in body
     assert "/admin/assets/admin.js" in body
+    assert "/admin/assets/companion.js" in body
+
+
+def test_companion_static_assets_expose_reaction_context_controls() -> None:
+    root = Path(__file__).resolve().parents[1]
+    companion_js = (root / "openhire/admin/static/companion.js").read_text()
+    admin_js = (root / "openhire/admin/static/admin.js").read_text()
+
+    assert "function react(" in companion_js
+    assert "function setExpression(" in companion_js
+    assert "function setBubble(" in companion_js
+    assert "function playMotion(" in companion_js
+    assert "data-companion-chat-chip" in companion_js
+    assert "OpenHireCompanionContext" in companion_js
+    assert "react," in companion_js
+    assert "setExpression," in companion_js
+    assert "setBubble," in companion_js
+    assert "playMotion," in companion_js
+    assert "publishCompanionContext" in admin_js
+    assert "syncCompanionRuntimeReaction" in admin_js
 
 
 @pytest.mark.skipif(not HAS_AIOHTTP, reason="aiohttp not installed")
@@ -210,6 +249,49 @@ async def test_admin_runtime_endpoint_returns_snapshot(aiohttp_client) -> None:
     assert "dockerContainers" in body
     assert "dockerAgents" in body
     assert "env" not in str(body)
+
+
+@pytest.mark.skipif(not HAS_AIOHTTP, reason="aiohttp not installed")
+@pytest.mark.asyncio
+async def test_companion_chat_accepts_optional_admin_context(aiohttp_client) -> None:
+    agent = _make_admin_agent()
+    app = create_app(agent, model_name="test-model")
+    client = await aiohttp_client(app)
+
+    resp = await client.post(
+        "/admin/api/companion/chat",
+        json={
+            "messages": [{"role": "user", "content": "summarize"}],
+            "context": {"mainStatus": "running", "dockerIssueCount": 1},
+        },
+    )
+
+    assert resp.status == 200
+    body = await resp.json()
+    assert body["content"] == "companion reply"
+    composed = agent.provider.last_chat_kwargs["messages"]
+    assert composed[0]["role"] == "system"
+    assert any("mainStatus" in message["content"] for message in composed)
+    assert composed[-1] == {"role": "user", "content": "summarize"}
+
+
+@pytest.mark.skipif(not HAS_AIOHTTP, reason="aiohttp not installed")
+@pytest.mark.asyncio
+async def test_companion_chat_rejects_oversized_context(aiohttp_client) -> None:
+    app = create_app(_make_admin_agent(), model_name="test-model")
+    client = await aiohttp_client(app)
+
+    resp = await client.post(
+        "/admin/api/companion/chat",
+        json={
+            "messages": [{"role": "user", "content": "summarize"}],
+            "context": "x" * 5001,
+        },
+    )
+
+    assert resp.status == 400
+    body = await resp.json()
+    assert "context" in body["error"]["message"].lower()
 
 
 @pytest.mark.skipif(not HAS_AIOHTTP, reason="aiohttp not installed")
@@ -709,6 +791,13 @@ async def test_admin_js_asset_matches_main_polling_and_sse(aiohttp_client) -> No
     assert "renderEmployeeRuntimeDetail" in body
     assert "dockerAgentSourceLabel" in body
     assert "agent?.employeeName" in body
+    assert 'const ORGANIZATION_ENDPOINT = "/admin/api/organization"' in body
+    assert "organizationState" in body
+    assert "renderOrganization" in body
+    assert "saveOrganization" in body
+    assert "validateOrganizationDraft" in body
+    assert "data-organization-connect" in body
+    assert "data-organization-save" in body
     assert 'fetch("/employees"' in body
     assert "Delete Employee" in body
     assert "data-delete-employee-card" in body
@@ -1235,6 +1324,12 @@ async def test_admin_css_keeps_scrolled_modal_close_buttons_outside_scroll(aioht
     assert ".employee-ops-diagnostics" in body
     assert ".employee-ops-diagnostic" in body
     assert ".employee-ops-metric" in body
+    assert ".organization-workbench" in body
+    assert ".organization-canvas" in body
+    assert ".organization-node" in body
+    assert ".organization-edge" in body
+    assert ".organization-detail" in body
+    assert ".organization-connector" in body
     assert ".transcript-modal-shell" in body
     assert ".transcript-modal-close" in body
     assert ".skill-content-modal-shell" in body

@@ -24,6 +24,7 @@ from openhire.workforce.outbound_bridge import (
     clean_docker_agent_output,
     parse_docker_outbound_output,
 )
+from openhire.workforce.organization import OrganizationPolicy, OrganizationStore
 from openhire.workforce.skill_selection import EmployeeSkillSelector, EmployeeSkillSelection
 from openhire.workforce.workspace import initialize_employee_workspace
 
@@ -45,6 +46,8 @@ from openhire.workforce.workspace import initialize_employee_workspace
         ),
         target_id=StringSchema("Target agent ID (for merge)", nullable=True),
         group_id=StringSchema("Group/chat ID (for setup_group/close_group/group_roster/route)", nullable=True),
+        requester_agent_id=StringSchema("Requester employee ID for organization policy checks", nullable=True),
+        target_agent_id=StringSchema("Explicit target employee ID for organization policy checks", nullable=True),
         name=StringSchema("Display name (for register/get/delegate)", nullable=True),
         owner_id=StringSchema("Owner's user ID (for register)", nullable=True),
         role=StringSchema("Role description (for register/update)", nullable=True),
@@ -113,6 +116,13 @@ class OpenHireTool(Tool):
         self._router = MessageRouter(
             self._registry,
             llm_threshold=openhire_config.llm_route_threshold if openhire_config else 0.7,
+        )
+        self._organization_policy = OrganizationPolicy(
+            self._registry,
+            OrganizationStore(workspace),
+            default_allow_skip_level_reporting=bool(
+                getattr(openhire_config, "allow_skip_level_reporting", False)
+            ),
         )
         self._config = openhire_config
         self._send_callback = send_callback
@@ -341,7 +351,7 @@ class OpenHireTool(Tool):
 
     async def _action_route(
         self, group_id: str = "", message: str = "",
-        mentions: list | None = None, **kw,
+        mentions: list | None = None, requester_agent_id: str = "", **kw,
     ) -> str:
         if not group_id or not message:
             return "Error: 'group_id' and 'message' are required."
@@ -350,6 +360,21 @@ class OpenHireTool(Tool):
         )
         if not decision.target_agents:
             return f"No agent matched. Strategy: {decision.strategy}. Reason: {decision.reason}"
+        if requester_agent_id:
+            allowed_targets: list[str] = []
+            blocked_reasons: list[str] = []
+            for target_agent_id in decision.target_agents:
+                policy_decision = self._organization_policy.can_communicate(requester_agent_id, target_agent_id)
+                if policy_decision.allowed:
+                    allowed_targets.append(target_agent_id)
+                else:
+                    blocked_reasons.append(policy_decision.reason)
+            if not allowed_targets:
+                return (
+                    "No agent matched. Strategy: organization_policy. "
+                    f"Reason: {'; '.join(blocked_reasons) or 'all targets were blocked'}"
+                )
+            decision.target_agents = allowed_targets
         agents_str = ", ".join(decision.target_agents)
         return f"Route to: {agents_str} | Strategy: {decision.strategy} | Reason: {decision.reason}"
 
@@ -359,6 +384,7 @@ class OpenHireTool(Tool):
         name: str = "",
         task: str = "",
         timeout: int = 300,
+        requester_agent_id: str = "",
         **kw,
     ) -> str:
         normalized_task = str(task or "").strip()
@@ -371,6 +397,10 @@ class OpenHireTool(Tool):
         assert entry is not None
         if entry.status != "active":
             return f"Agent '{entry.agent_id}' is not active."
+
+        policy_decision = self._organization_policy.can_communicate(requester_agent_id, entry.agent_id)
+        if not policy_decision.allowed:
+            return f"Organization policy blocked delegate: {policy_decision.reason}"
 
         adapter = self._adapter_registry.get(entry.agent_type)
         if not adapter:

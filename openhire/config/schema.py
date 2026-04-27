@@ -256,6 +256,7 @@ class OpenHireConfig(Base):
     enabled: bool = True                   # enabled by default; can be explicitly disabled
     auto_route: bool = True                # auto-route group messages to agents
     llm_route_threshold: float = 0.7       # LLM routing confidence threshold
+    allow_skip_level_reporting: bool = False  # allow employees to bypass direct reporting lines
     auto_setup_group: bool = False         # auto-assign agents when new group created
     auto_select_skills: bool = True        # auto-select local skills for new employees
     skill_selection_max: int = Field(default=5, ge=1, le=20)

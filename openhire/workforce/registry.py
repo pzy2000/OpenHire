@@ -55,6 +55,7 @@ class AgentEntry:
             "system_prompt": self.system_prompt,
             "agent_type": self.agent_type,
             "agent_config": dict(self.agent_config),
+            "tools": list(self.tools),
             "container_name": self.container_name,
             "status": self.status,
             "created_at": self.created_at,
