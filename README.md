@@ -22,6 +22,10 @@ The project is still moving fast. It fits local R&D, internal automation experim
 
 It is not a thin chatbot shell, a pile of disconnected prompts, or “drop an agent in a group chat and hope.” OpenHire wires roles, tools, skills, memory, containerized workers, and reusable cases into a digital-employee surface you can run, review, and extend.
 
+The overview below shows how the control agent, Admin console, channels, skills, cases, memory, and Docker workers fit into one governed runtime.
+
+![OpenHire system overview](assets/OpenHire_overview.png)
+
 ## Example scenario
 
 ```text

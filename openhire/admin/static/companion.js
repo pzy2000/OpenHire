@@ -775,6 +775,7 @@ function bindPreferences() {
     togglePreferences();
   });
   panel.addEventListener("change", (event) => {
+    event.stopPropagation();
     const control = event.target.closest("[data-companion-preference]");
     if (!control) return;
     const enabled = Boolean(control.checked);
@@ -784,6 +785,7 @@ function bindPreferences() {
     else if (key === "runtime") setRuntimeReactionsEnabled(enabled);
   });
   panel.addEventListener("click", (event) => {
+    event.stopPropagation();
     const action = event.target.closest("[data-companion-preference-action]");
     if (!action) return;
     event.preventDefault();
@@ -815,12 +817,7 @@ function bindHotspot() {
     event.stopPropagation();
     STATE.lastInteractionAt = Date.now();
     if (event.detail > 1) return;
-    const areas = hitAreasFromPointer(event);
-    if (areas.includes("head")) {
-      react({ type: "pat", motion: "flick_head", expression: "f02", fx: "sparkle" });
-      return;
-    }
-    react({ type: "feed", motion: "tap_body", expression: "f03", fx: "heart" });
+    toggleMenu();
   });
 
   hotspot.addEventListener("dblclick", (event) => {
@@ -932,6 +929,7 @@ function toggleMenu() {
 function openMenu() {
   const menu = $("[data-companion-menu]");
   if (!menu) return;
+  if (STATE.preferencesOpen) closePreferences();
   menu.hidden = false;
   STATE.menuOpen = true;
 }

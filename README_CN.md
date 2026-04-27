@@ -20,6 +20,10 @@ OpenHire 是一个数字员工编排平台（Digital Employee Orchestration Plat
 
 不是 chatbot 壳子，不是 prompt 拼盘，也不是把 agent 扔进群里自生自灭。OpenHire 要做的是：把角色、工具、技能、记忆、容器 worker 和可复用案例，编排成一套能被管理、能被复盘、能被继续扩展的数字员工运行面。
 
+下图展示了主控 agent、Admin 控制台、渠道、技能、案例、记忆和 Docker worker 如何组成一个可治理的统一运行面。
+
+![OpenHire 系统概览](assets/OpenHire_overview.png)
+
 ## 效果示例
 
 ```text

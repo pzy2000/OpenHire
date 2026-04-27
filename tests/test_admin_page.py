@@ -231,6 +231,9 @@ def test_companion_static_assets_expose_reaction_context_controls() -> None:
     assert "function runtimeReactionsEnabled(" in companion_js
     assert "function bubblesEnabled(" in companion_js
     assert "data-companion-preference" in companion_js
+    assert 'hotspot.addEventListener("click"' in companion_js
+    assert "if (event.detail > 1) return;\n    toggleMenu();" in companion_js
+    assert 'panel.addEventListener("click", (event) => {\n    event.stopPropagation();' in companion_js
     assert "react," in companion_js
     assert "setExpression," in companion_js
     assert "setBubble," in companion_js
@@ -1371,6 +1374,11 @@ async def test_admin_css_keeps_scrolled_modal_close_buttons_outside_scroll(aioht
     assert ".skill-ops-opportunity" in body
     assert ".agent-skills-grid" in body
     assert ".agent-skill-row-meta" in body
+    assert "grid-template-columns: minmax(0, 1fr) max-content" in body
+    assert "justify-items: end" in body
+    assert "min-height: 26px" in body
+    assert "font-size: 10px" in body
+    assert "pointer-events: none" in body
     assert "overflow-wrap: anywhere" in body
     assert ".agent-skill-detail-panel" in body
     assert ".agent-skill-editor" in body

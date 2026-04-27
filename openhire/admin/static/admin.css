@@ -2462,7 +2462,10 @@ html[data-theme="dark"] .dream-diff-preview {
 }
 
 .agent-skill-row-meta .tag {
-  flex: 0 0 auto;
+  min-height: 26px;
+  padding: 5px 7px;
+  font-size: 10px;
+  letter-spacing: 0.08em;
   white-space: nowrap;
   overflow-wrap: normal;
 }
@@ -4289,9 +4292,11 @@ html[data-theme="dark"] .case-import-result.is-partial {
   min-width: 0;
 }
 .agent-skill-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  align-items: start;
   width: 100%;
   min-width: 0;
-  justify-content: space-between;
   gap: 12px;
   text-align: left;
   border: 1px solid var(--border);
@@ -4312,9 +4317,10 @@ html[data-theme="dark"] .case-import-result.is-partial {
   overflow-wrap: anywhere;
 }
 .agent-skill-row-meta {
-  flex: 0 1 auto;
-  flex-wrap: wrap;
-  justify-content: flex-end;
+  display: grid;
+  gap: 6px;
+  justify-items: end;
+  align-self: start;
   min-width: 0;
 }
 .agent-skill-row span:first-child span,
@@ -4470,6 +4476,12 @@ html[data-theme="dark"] .case-import-result.is-partial {
 @media (max-width: 560px) {
   .admin-nav-list {
     grid-template-columns: 1fr;
+  }
+  .agent-skill-row {
+    grid-template-columns: 1fr;
+  }
+  .agent-skill-row-meta {
+    justify-items: start;
   }
 }
 
@@ -5950,11 +5962,13 @@ html[data-theme="light"] .companion-menu-item {
 .companion-preference-control input {
   position: absolute;
   inset: 0;
+  z-index: 1;
   opacity: 0;
   cursor: pointer;
 }
 
 .companion-preference-track {
+  pointer-events: none;
   width: 34px;
   height: 18px;
   border-radius: 999px;
