@@ -68,6 +68,9 @@ const TRANSLATIONS = {
     "companion.action.pat": "Pat",
     "companion.action.feed": "Feed",
     "companion.action.chat": "Chat",
+    "companion.action.sound_on": "Sound On",
+    "companion.action.sound_off": "Sound Off",
+    "companion.action.debug": "Inspect",
     "companion.chat.title": "Talk to the companion",
     "companion.chat.placeholder": "Say something to the companion...",
     "companion.chat.send": "Send",
@@ -558,6 +561,9 @@ const TRANSLATIONS = {
     "companion.action.pat": "摸摸",
     "companion.action.feed": "投喂",
     "companion.action.chat": "对话",
+    "companion.action.sound_on": "开声音",
+    "companion.action.sound_off": "关声音",
+    "companion.action.debug": "检查",
     "companion.chat.title": "和小伙伴聊聊",
     "companion.chat.placeholder": "对小伙伴说点什么...",
     "companion.chat.send": "发送",
@@ -1573,6 +1579,8 @@ const adminState = {
   process: {},
   dockerDaemon: {},
   dockerAgents: [],
+  demoMode: { enabled: false },
+  demoTodos: [],
   employeeContextAction: null,
   generatedAt: "",
   confirmAction: null,
@@ -1718,6 +1726,136 @@ const employeeExportState = {
     description: "",
   },
 };
+
+const companionRuntimeState = {
+  hasSnapshot: false,
+  lastMainStatus: "",
+  lastBusy: false,
+  lastDockerIssueCount: 0,
+  lastContextLevel: "ok",
+};
+
+function companionPhrase(en, zh) {
+  return currentLanguage() === "zh" ? zh : en;
+}
+
+function companionReact(options) {
+  try {
+    window.OpenHireCompanion?.react?.(options);
+  } catch (error) {
+    console.warn("[companion] reaction skipped", error);
+  }
+}
+
+function dockerIssueCount(rows = []) {
+  return (Array.isArray(rows) ? rows : []).filter((agent) => {
+    const status = text(agent?.status, "").toLowerCase();
+    return /error|failed|exited|unhealthy|unknown|dead/.test(status);
+  }).length;
+}
+
+function companionContextLevel(value) {
+  const current = percent(value);
+  if (current >= 90) return "error";
+  if (current >= 75) return "warning";
+  return "ok";
+}
+
+function publishCompanionContext(payload = {}) {
+  const mainAgent = payload.mainAgent || adminState.mainAgent || {};
+  const dockerRows = payload.dockerContainers || payload.dockerAgents || adminState.dockerAgents || [];
+  const context = mainAgent.context || {};
+  try {
+    window.OpenHireCompanionContext = {
+      generatedAt: text(payload.generatedAt || adminState.generatedAt, ""),
+      activeSection: currentActiveNavSection(),
+      resourceTab: currentResourceHubTab(),
+      mainStatus: text(mainAgent.status, "unknown"),
+      mainStage: text(mainAgent.stage, "idle"),
+      activeTaskCount: Number(mainAgent.activeTaskCount || 0),
+      contextPercent: percent(context.percent),
+      contextSource: text(context.source, "unknown"),
+      dockerDaemonStatus: text((payload.dockerDaemon || adminState.dockerDaemon || {}).status, "unknown"),
+      dockerWorkerCount: Array.isArray(dockerRows) ? dockerRows.length : 0,
+      dockerIssueCount: dockerIssueCount(dockerRows),
+      employeeCount: employeeState.employees.length,
+      runtimeEmployeeCount: employeeState.runtimeEmployees.length,
+      localSkillCount: skillState.localSkills.length,
+      caseCount: caseState.cases.length,
+      lastCaseImportStatus: text(caseState.importResult?.status, ""),
+      lastSkillImportCount: skillState.lastImportedSkillIds.length,
+      selectedEmployeeId: text(employeeState.selectedEmployeeId, ""),
+    };
+  } catch (error) {
+    console.warn("[companion] context skipped", error);
+  }
+}
+
+function syncCompanionRuntimeReaction(payload = {}) {
+  const mainAgent = payload.mainAgent || {};
+  const dockerRows = payload.dockerContainers || payload.dockerAgents || [];
+  const status = text(mainAgent.status, "unknown").toLowerCase();
+  const busy = /running|busy|working|processing|active/.test(status) || Number(mainAgent.activeTaskCount || 0) > 0;
+  const issueCount = dockerIssueCount(dockerRows);
+  const contextLevel = companionContextLevel(mainAgent.context?.percent);
+  const statusIsError = /error|failed|crash|stuck/.test(status);
+
+  if (!companionRuntimeState.hasSnapshot) {
+    companionRuntimeState.hasSnapshot = true;
+    companionRuntimeState.lastMainStatus = status;
+    companionRuntimeState.lastBusy = busy;
+    companionRuntimeState.lastDockerIssueCount = issueCount;
+    companionRuntimeState.lastContextLevel = contextLevel;
+    if (statusIsError || issueCount > 0) {
+      companionReact({
+        type: "error",
+        bubble: companionPhrase(
+          `${issueCount || 1} runtime issue needs attention.`,
+          `检测到 ${issueCount || 1} 个运行态异常。`,
+        ),
+      });
+    }
+    return;
+  }
+
+  if (statusIsError && status !== companionRuntimeState.lastMainStatus) {
+    companionReact({
+      type: "error",
+      bubble: companionPhrase("Main agent reported an error.", "主控状态进入异常。"),
+    });
+  } else if (issueCount > companionRuntimeState.lastDockerIssueCount) {
+    companionReact({
+      type: "error",
+      bubble: companionPhrase(
+        `${issueCount} Docker worker issue(s) visible.`,
+        `有 ${issueCount} 个 Docker worker 需要处理。`,
+      ),
+    });
+  } else if (contextLevel !== companionRuntimeState.lastContextLevel && contextLevel !== "ok") {
+    companionReact({
+      type: contextLevel,
+      bubble: companionPhrase(
+        `Context pressure is ${percent(mainAgent.context?.percent)}%.`,
+        `上下文压力达到 ${percent(mainAgent.context?.percent)}%。`,
+      ),
+    });
+  } else if (busy && !companionRuntimeState.lastBusy) {
+    companionReact({
+      type: "thinking",
+      bubble: companionPhrase("Main agent is working.", "主控开始处理任务。"),
+    });
+  } else if (!busy && companionRuntimeState.lastBusy) {
+    companionReact({
+      type: "ready",
+      bubble: companionPhrase("Runtime settled back to idle.", "运行态已回到空闲。"),
+    });
+  }
+
+  companionRuntimeState.lastMainStatus = status;
+  companionRuntimeState.lastBusy = busy;
+  companionRuntimeState.lastDockerIssueCount = issueCount;
+  companionRuntimeState.lastContextLevel = contextLevel;
+}
 
 function badgeClass(status) {
   return `badge status-${String(status || "unknown").replace(/[^a-z_]/g, "_")}`;
@@ -1946,11 +2084,16 @@ function renderHeroBar() {
 }
 
 function dockerDaemonIssue() {
+  if (isDemoMode()) return null;
   const daemon = adminState.dockerDaemon || {};
   if (daemon.ok !== false) return null;
   const status = text(daemon.status, "").toLowerCase();
   if (!status || status === "running") return null;
   return daemon;
+}
+
+function isDemoMode() {
+  return adminState.demoMode?.enabled === true;
 }
 
 function dockerDaemonMessage(daemon) {
@@ -2042,6 +2185,16 @@ function pendingAgentSkillProposals() {
 
 function collectActionItems() {
   const items = [];
+  if (isDemoMode() && Array.isArray(adminState.demoTodos) && adminState.demoTodos.length) {
+    items.push(...adminState.demoTodos.map((item) => ({
+      key: text(item?.key, "demo-todo"),
+      level: text(item?.level, "idle"),
+      title: text(item?.title, "Demo task"),
+      body: text(item?.body, ""),
+      actions: Array.isArray(item?.actions) ? item.actions : [],
+      demo: true,
+    })));
+  }
   const pendingProposals = pendingAgentSkillProposals();
   if (pendingProposals.length) {
     items.push({
@@ -3456,7 +3609,9 @@ function normalizePersistedEmployee(employee) {
     status: text(employee.status, "active"),
     created_at: text(employee.created_at, ""),
     updated_at: text(employee.updated_at, ""),
-    persisted: true,
+    demo: employee.demo === true,
+    readOnly: employee.readOnly === true || employee.read_only === true,
+    persisted: employee.persisted !== false,
   };
 }
 
@@ -3474,6 +3629,8 @@ function normalizeLocalSkill(skill) {
     safety_status: text(skill.safety_status, ""),
     tags: Array.isArray(skill.tags) ? skill.tags.map((item) => text(item, "")).filter(Boolean) : [],
     imported_at: text(skill.imported_at, ""),
+    demo: skill.demo === true,
+    readOnly: skill.readOnly === true || skill.read_only === true,
   };
 }
 
@@ -3490,6 +3647,8 @@ function normalizeAgentSkill(skill) {
     editable: skill?.editable === true,
     deletable: skill?.deletable === true,
     bound_employee_count: Number.isFinite(Number(skill?.bound_employee_count)) ? Number(skill.bound_employee_count) : 0,
+    demo: skill?.demo === true,
+    readOnly: skill?.readOnly === true || skill?.read_only === true,
   };
 }
 
@@ -3931,7 +4090,7 @@ function employeeItems() {
 }
 
 function selectableEmployees() {
-  return [...employeeState.employees];
+  return employeeState.employees.filter((employee) => !employee.readOnly && employee.persisted !== false);
 }
 
 function selectableEmployeeIds() {
@@ -3939,7 +4098,7 @@ function selectableEmployeeIds() {
 }
 
 function selectableSkills() {
-  return skillState.localSkills.filter((skill) => !isRequiredLocalSkill(skill));
+  return skillState.localSkills.filter((skill) => !isRequiredLocalSkill(skill) && !skill.readOnly);
 }
 
 function selectableSkillIds() {
@@ -4569,6 +4728,8 @@ function createEmployeeFromDocker(agent) {
     skills: ["Docker runtime", text(agent.source, "docker")],
     tools: Array.isArray(agent.processes) && agent.processes.length ? agent.processes : [command],
     exampleTasks: [text(agent.ports, "no exposed ports")],
+    demo: agent.demo === true,
+    readOnly: agent.demo === true || agent.readOnly === true || agent.read_only === true,
     runtime: {
       kind: "docker",
       source: text(agent.source, "docker"),
@@ -4677,8 +4838,8 @@ function renderEmployeeList() {
         const owner = employeeConfigTarget(employee);
         const sourceLabel = employee.runtime?.kind === "docker"
           ? `${t("employees.belongs_to")}: ${text(owner?.name, t("employees.unassigned"))}`
-          : (employee.runtime?.source || employee.agent_type || "persisted");
-        const canBatchDelete = !employee.runtime;
+          : (employee.demo ? "demo" : (employee.runtime?.source || employee.agent_type || "persisted"));
+        const canBatchDelete = !employee.runtime && !employee.readOnly && employee.persisted !== false;
         const deleteChecked = employeeState.selectedDeleteIds.includes(employee.id);
         return `
         <article
@@ -4687,7 +4848,7 @@ function renderEmployeeList() {
           tabindex="0"
           role="button"
         >
-          ${employee.runtime?.kind === "docker" ? `
+          ${employee.runtime?.kind === "docker" && !employee.demo ? `
             <span class="employee-card-controls">
               <span
                 class="mini-icon-button ${isBusy(`delete-docker:${employee.docker.name}`) ? "is-busy" : ""}"
@@ -4698,7 +4859,7 @@ function renderEmployeeList() {
                 title="${html(t("button.delete_docker"))}"
               >${isBusy(`delete-docker:${employee.docker.name}`) ? "..." : "×"}</span>
             </span>
-          ` : (!employee.runtime ? `
+          ` : (!employee.runtime && !employee.readOnly ? `
             <span class="employee-card-controls">
               ${canBatchDelete ? `
                 <label class="batch-checkbox compact-batch-checkbox" data-employee-delete-toggle="${html(employee.id)}">
@@ -4724,7 +4885,8 @@ function renderEmployeeList() {
             </span>
           </span>
           <span class="employee-card-foot">
-            <span>${html(sourceLabel)}</span>
+              <span>${html(sourceLabel)}</span>
+            ${employee.demo || employee.readOnly ? `<span class="tag demo-badge" data-demo-badge="true">Demo</span>` : ""}
             <span class="${badgeClass(employee.status)}">${html(employee.status)}</span>
           </span>
         </article>
@@ -6491,9 +6653,10 @@ function renderCatalogSkillCard(skill) {
   const isRequired = isRequiredLocalSkill(skill);
   const deleteChecked = skillState.selectedDeleteIds.includes(skill.id);
   const labelsExpanded = localSkillLabelsExpanded(skill.id);
+  const readOnlyDemo = skill.demo || skill.readOnly;
   return `
-    <article class="skill-card ${isRequired ? "is-required" : ""}" data-skill-card-id="${html(skill.id)}" tabindex="0" role="button">
-      ${isRequired ? "" : `
+    <article class="skill-card ${isRequired ? "is-required" : ""} ${readOnlyDemo ? "is-demo" : ""}" data-skill-card-id="${html(skill.id)}" tabindex="0" role="button">
+      ${(isRequired || readOnlyDemo) ? "" : `
         <label class="batch-checkbox compact-batch-checkbox skill-batch-checkbox" data-skill-delete-toggle="${html(skill.id)}">
           <input type="checkbox" ${deleteChecked ? "checked" : ""}>
           <span class="visually-hidden">${html(`${t("button.select")} ${skill.name}`)}</span>
@@ -6511,7 +6674,7 @@ function renderCatalogSkillCard(skill) {
           <strong>${html(skill.name)}</strong>
           <div class="panel-meta">${html(skill.author || "community")} · ${html(skill.version || t("skills.source_unknown_version"))}</div>
         </div>
-        ${isRequired ? `<span class="tag">${t("skills.required")}</span>` : (skill.safety_status ? `<span class="tag">${html(skill.safety_status)}</span>` : "")}
+        ${readOnlyDemo ? `<span class="tag demo-badge" data-demo-badge="true">Demo</span>` : (isRequired ? `<span class="tag">${t("skills.required")}</span>` : (skill.safety_status ? `<span class="tag">${html(skill.safety_status)}</span>` : ""))}
       </div>
       <p class="skill-summary">${html(skill.description || t("skills.source_empty_description"))}</p>
       <div
@@ -6952,6 +7115,7 @@ function renderAgentSkillListItem(skill) {
         <span>${html(skill.description || skill.path)}</span>
       </span>
       <span class="agent-skill-row-meta">
+        ${skill.demo || skill.readOnly ? `<span class="tag demo-badge" data-demo-badge="true">Demo</span>` : ""}
         <span class="tag">${html(skill.source)}</span>
         <span class="tag">${html(status)}</span>
       </span>
@@ -7009,6 +7173,7 @@ function renderAgentSkillDetail() {
   const draft = agentSkillState.isEditing ? agentSkillState.draft : detail.markdown;
   const canEdit = skill.editable && !agentSkillState.isEditing;
   const canSave = skill.editable && agentSkillState.isEditing && agentSkillState.draft !== detail.markdown;
+  const readOnlyDemo = skill.demo || skill.readOnly;
   return `
     <section class="agent-skill-detail-panel">
       <div class="agent-skill-detail-head">
@@ -7017,7 +7182,7 @@ function renderAgentSkillDetail() {
           <div class="panel-meta">${html(skill.source)} · ${html(skill.path)}</div>
         </div>
         <div class="agent-skills-actions">
-          <button class="secondary-button" type="button" data-agent-skill-package="${html(skill.name)}">${t("agent_skills.package")}</button>
+          ${readOnlyDemo ? `<span class="tag demo-badge" data-demo-badge="true">Demo</span>` : `<button class="secondary-button" type="button" data-agent-skill-package="${html(skill.name)}">${t("agent_skills.package")}</button>`}
           ${canEdit ? `<button class="secondary-button" type="button" data-agent-skill-edit="true">${t("agent_skills.edit")}</button>` : ""}
           ${agentSkillState.isEditing ? `<button class="secondary-button" type="button" data-agent-skill-cancel-edit="true">${t("agent_skills.cancel")}</button>` : ""}
           ${agentSkillState.isEditing ? `<button class="primary-button" type="button" data-agent-skill-save="true" ${canSave ? "" : "disabled"}>${t("agent_skills.save")}</button>` : ""}
@@ -7420,7 +7585,7 @@ function renderCaseCarousel() {
                   <strong>${html(item.title)}</strong>
                   <span>${html(item.subtitle || item.description || t("case.default_subtitle"))}</span>
                 </span>
-                <span class="${item.is_imported ? "badge status-ok" : "badge status-idle"}">${item.is_imported ? t("case.imported") : t("case.ready")}</span>
+                <span class="${item.is_imported ? "badge status-ok" : "badge status-idle"}">${item.demo ? "Demo" : (item.is_imported ? t("case.imported") : t("case.ready"))}</span>
               </span>
               <span class="case-card-body">${html(item.description || t("case.default_body"))}</span>
               <span class="case-metrics">
@@ -7428,7 +7593,7 @@ function renderCaseCarousel() {
                 <span class="case-metric"><strong>${html(item.employee_count, "0")}</strong><span>${t("case.employees")}</span></span>
                 <span class="case-metric"><strong>${html(item.skill_count, "0")}</strong><span>${t("case.skills")}</span></span>
               </span>
-              <span class="tag-cloud">${(item.tags || []).slice(0, 5).map((tag) => `<span class="tag">${html(tag)}</span>`).join("")}</span>
+              <span class="tag-cloud">${item.demo ? `<span class="tag demo-badge" data-demo-badge="true">Demo</span>` : ""}${(item.tags || []).slice(0, 5).map((tag) => `<span class="tag">${html(tag)}</span>`).join("")}</span>
             </button>
           `).join("")}
         </div>
@@ -7896,6 +8061,16 @@ async function previewCaseConfigFile(file) {
     caseState.detailSource = "upload";
     caseState.detailSourceLabel = text(file?.name, "Imported JSON");
     renderEmployeeModal();
+    companionReact({
+      type: "ready",
+      bubble: companionPhrase("Case config preview is ready.", "案例配置预览已就绪。"),
+    });
+  } catch (error) {
+    companionReact({
+      type: "error",
+      bubble: companionPhrase("Case config preview failed.", "案例配置预览失败。"),
+    });
+    throw error;
   } finally {
     clearBusyAction();
   }
@@ -8005,6 +8180,13 @@ async function confirmCaseImport(caseId) {
       throw new Error(text(error?.error?.message, `HTTP ${response.status}`));
     }
     caseState.importResult = await response.json();
+    const failedCount = Number(caseState.importResult?.failed_count || 0);
+    companionReact({
+      type: failedCount > 0 || caseState.importResult?.status === "partial" ? "warning" : "ready",
+      bubble: failedCount > 0
+        ? companionPhrase(`Case import completed with ${failedCount} warning(s).`, `案例导入完成，但有 ${failedCount} 个告警。`)
+        : companionPhrase("Case imported and team setup refreshed.", "案例已导入，团队配置已刷新。"),
+    });
     completeCaseImportProgress();
     await sleep(250);
     caseState.preview = null;
@@ -8032,6 +8214,12 @@ async function confirmCaseImport(caseId) {
       return;
     }
     renderEmployeeModal();
+  } catch (error) {
+    companionReact({
+      type: "error",
+      bubble: companionPhrase("Case import failed.", "案例导入失败。"),
+    });
+    throw error;
   } finally {
     stopCaseImportProgress();
     clearBusyAction();
@@ -9461,6 +9649,16 @@ async function importSearchSkillFromModal() {
     skillState.lastImportedSkillIds = importedSkillIdsFromPayload(await response.json());
     resetSkillContentModal();
     await loadSkills();
+    companionReact({
+      type: "ready",
+      bubble: companionPhrase("Skill imported into the local catalog.", "技能已导入本地技能库。"),
+    });
+  } catch (error) {
+    companionReact({
+      type: "error",
+      bubble: companionPhrase("Skill import failed.", "技能导入失败。"),
+    });
+    throw error;
   } finally {
     clearBusyAction();
   }
@@ -9662,6 +9860,16 @@ async function importSelectedSoulBannerSkills() {
     skillState.lastImportedSkillIds = importedSkillIdsFromPayload(await response.json());
     skillState.selectedSoulBannerKeys = [];
     await loadSkills();
+    companionReact({
+      type: "ready",
+      bubble: companionPhrase(`${selected.length} persona skill(s) imported.`, `已导入 ${selected.length} 个人格技能。`),
+    });
+  } catch (error) {
+    companionReact({
+      type: "error",
+      bubble: companionPhrase("SoulBanner import failed.", "SoulBanner 导入失败。"),
+    });
+    throw error;
   } finally {
     clearBusyAction();
   }
@@ -9725,6 +9933,16 @@ async function importSelectedMbtiSbtiSkills() {
     skillState.lastImportedSkillIds = importedSkillIdsFromPayload(await response.json());
     skillState.selectedMbtiSbtiKeys = [];
     await loadSkills();
+    companionReact({
+      type: "ready",
+      bubble: companionPhrase(`${selected.length} Mbti/Sbti skill(s) imported.`, `已导入 ${selected.length} 个 Mbti/Sbti 技能。`),
+    });
+  } catch (error) {
+    companionReact({
+      type: "error",
+      bubble: companionPhrase("Mbti/Sbti import failed.", "Mbti/Sbti 导入失败。"),
+    });
+    throw error;
   } finally {
     clearBusyAction();
   }
@@ -9791,6 +10009,16 @@ async function importSelectedSkills() {
     skillState.lastImportedSkillIds = importedSkillIdsFromPayload(await response.json());
     skillState.selectedImportKeys = [];
     await loadSkills();
+    companionReact({
+      type: "ready",
+      bubble: companionPhrase(`${selected.length} ClawHub skill(s) imported.`, `已导入 ${selected.length} 个 ClawHub 技能。`),
+    });
+  } catch (error) {
+    companionReact({
+      type: "error",
+      bubble: companionPhrase("ClawHub skill import failed.", "ClawHub 技能导入失败。"),
+    });
+    throw error;
   } finally {
     clearBusyAction();
   }
@@ -9884,6 +10112,16 @@ async function importPreviewedSkill() {
     skillState.lastImportedSkillIds = importedSkillIdsFromPayload(await response.json());
     clearSkillPreview({ resetFileInput: true, clearWebUrl: previewSource === "web" });
     await loadSkills();
+    companionReact({
+      type: "ready",
+      bubble: companionPhrase("Previewed skill imported.", "预览技能已导入。"),
+    });
+  } catch (error) {
+    companionReact({
+      type: "error",
+      bubble: companionPhrase("Previewed skill import failed.", "预览技能导入失败。"),
+    });
+    throw error;
   } finally {
     clearBusyAction();
   }
@@ -9989,6 +10227,19 @@ async function createEmployeeFromForm(form) {
     revealSelectedEmployeeInList();
     renderEmployees();
     renderOrganization();
+    companionReact({
+      type: "ready",
+      bubble: companionPhrase(
+        `${text(created.name, "Employee")} is ready.`,
+        `${text(created.name, "数字员工")} 已就绪。`,
+      ),
+    });
+  } catch (error) {
+    companionReact({
+      type: "error",
+      bubble: companionPhrase("Employee creation failed.", "数字员工创建失败。"),
+    });
+    throw error;
   } finally {
     stopCreateEmployeeProgress();
     clearBusyAction();
@@ -11451,6 +11702,7 @@ function renderMainAgent(mainAgent) {
 
 function renderProcess(process) {
   adminState.process = process || {};
+  const connectedProcesses = Array.isArray(process.connectedProcesses) ? process.connectedProcesses : [];
   document.getElementById("process-panel").innerHTML = `
     <section class="panel control-panel control-process-panel">
       <div class="panel-head">
@@ -11464,6 +11716,16 @@ function renderProcess(process) {
         <div><dt>${t("process.pid")}</dt><dd>${text(process.pid)}</dd></div>
         <div><dt>${t("process.uptime")}</dt><dd>${formatUptime(process.uptimeSeconds)}</dd></div>
       </dl>
+      ${connectedProcesses.length ? `
+        <div class="agent-section demo-connected-processes" data-demo-connected-processes="true">
+          <div class="agent-section-title">Connected Processes</div>
+          <div class="tag-cloud">
+            ${connectedProcesses.map((item) => `
+              <span class="tag">${html(text(item.role, "process"))} · ${html(text(item.status, "connected"))}</span>
+            `).join("")}
+          </div>
+        </div>
+      ` : ""}
     </section>
   `;
 }
@@ -11535,16 +11797,18 @@ function renderDockerAgents(agents) {
     const current = percent(context.percent);
     const dockerName = text(agent.name || agent.containerName || agent.agentKey, "");
     const sourceLabel = dockerAgentSourceLabel(agent);
+    const readOnlyDemo = agent.demo === true || agent.readOnly === true || agent.read_only === true;
     return `
-      <article class="agent-card">
+      <article class="agent-card ${readOnlyDemo ? "is-demo" : ""}">
         <div class="agent-card-top docker-agent-card-top">
           <div class="docker-agent-head">
             <h4>${html(dockerName, "docker")}</h4>
             <div class="agent-meta">${text(agent.image)} · ${text(agent.ports, "no ports")}</div>
           </div>
           <div class="agent-card-actions docker-agent-card-actions">
+            ${readOnlyDemo ? `<span class="tag demo-badge" data-demo-badge="true">Demo</span>` : ""}
             <span class="${badgeClass(agent.status)}">${text(agent.status)}</span>
-            <button class="icon-button chat-history-button" type="button" data-transcript-docker="${html(dockerName)}" title="Chat history" aria-label="Open Docker Agent chat history">${renderChatHistoryIcon()}</button>
+            ${readOnlyDemo ? "" : `<button class="icon-button chat-history-button" type="button" data-transcript-docker="${html(dockerName)}" title="Chat history" aria-label="Open Docker Agent chat history">${renderChatHistoryIcon()}</button>`}
           </div>
         </div>
         <div class="agent-section">
@@ -11584,6 +11848,8 @@ function renderPayload(payload) {
   payload = payload || {};
   adminState.generatedAt = text(payload.generatedAt, "");
   adminState.dockerDaemon = payload.dockerDaemon || {};
+  adminState.demoMode = payload.demoMode || { enabled: false };
+  adminState.demoTodos = Array.isArray(payload.demoTodos) ? payload.demoTodos : [];
   appendRuntimeHistorySample(runtimeHistorySampleFromPayload(payload));
   syncEmployeesFromRuntime(payload);
   renderEmployees();
@@ -11597,6 +11863,8 @@ function renderPayload(payload) {
   renderActionCenter();
   renderResourceHubTabs();
   renderDreamPanel();
+  publishCompanionContext(payload);
+  syncCompanionRuntimeReaction(payload);
   requestNavSectionSync();
 }
 

@@ -29,12 +29,39 @@ const MAX_HISTORY = 24;
 const MAX_DISPLAY_MESSAGES = 60;
 const IDLE_INTERVAL_MS = 12000;
 const MAIN_AGENT_SESSION_ID = "live2d-companion";
+const MUTE_STORAGE_KEY = "openhire.companion.muted.v1";
+const DEFAULT_REACTION_DURATION_MS = 4200;
+const DEFAULT_BUBBLE_DURATION_MS = 3600;
+const CONTEXT_MAX_CHARS = 3600;
+const EXPRESSION_BY_REACTION = {
+  idle: "f01",
+  pat: "f02",
+  feed: "f03",
+  chat: "f02",
+  thinking: "f04",
+  error: "f04",
+  warning: "f04",
+  ready: "f01",
+};
+const MOTION_BY_REACTION = {
+  idle: ["idle"],
+  pat: ["flick_head", "tap_body"],
+  feed: ["pinch_in", "pinch_out", "tap_body"],
+  chat: ["tap_body", "flick_head"],
+  thinking: [],
+  error: ["shake"],
+  warning: ["shake"],
+  ready: ["idle"],
+};
 
 const I18N = {
   zh: {
     "companion.action.pat": "摸摸",
     "companion.action.feed": "投喂",
     "companion.action.chat": "对话",
+    "companion.action.sound_on": "开声音",
+    "companion.action.sound_off": "关声音",
+    "companion.action.debug": "检查",
     "companion.chat.title": "和小伙伴聊聊",
     "companion.chat.placeholder": "对小伙伴说点什么...",
     "companion.chat.send": "发送",
@@ -43,6 +70,9 @@ const I18N = {
     "companion.chat.toggle.main": "主控（吃 context）",
     "companion.chat.warning.main":
       "主控通道开启：对话会写入主 agent session，注意 context 占用与延迟。",
+    "companion.chat.quick.runtime": "总结运行态",
+    "companion.chat.quick.error": "解释异常",
+    "companion.chat.quick.next": "建议下一步",
     "companion.chat.clear": "清空对话",
     "companion.chat.empty": "和小伙伴打个招呼吧。",
     "companion.chat.error": "网络抽风了，要不再试一次？",
@@ -52,6 +82,19 @@ const I18N = {
     "companion.mood.feed": "好好吃！",
     "companion.mood.thinking": "嗯嗯...",
     "companion.mood.error": "出错啦...",
+    "companion.mood.warning": "注意看...",
+    "companion.mood.ready": "已就绪",
+    "companion.bubble.pat": "摸摸收到，头部传感器发光中。",
+    "companion.bubble.feed": "补给到账，能量回路稳定。",
+    "companion.bubble.chat": "我在，发射一条短讯吧。",
+    "companion.bubble.thinking": "我在读后台信号。",
+    "companion.bubble.error": "检测到异常，需要看一眼。",
+    "companion.bubble.warning": "有信号接近阈值。",
+    "companion.bubble.ready": "后台状态已稳定。",
+    "companion.bubble.muted": "声音已关闭。",
+    "companion.bubble.unmuted": "声音已开启。",
+    "companion.bubble.inventory_empty": "模型清单还没加载完成。",
+    "companion.inventory.label": "动作 {motions} · 表情 {expressions}",
     "companion.fallback.body": "Live2D 引擎未就绪，先用霓虹版陪你聊。",
     "companion.hotspot.aria": "点一下小伙伴",
   },
@@ -59,6 +102,9 @@ const I18N = {
     "companion.action.pat": "Pat",
     "companion.action.feed": "Feed",
     "companion.action.chat": "Chat",
+    "companion.action.sound_on": "Sound On",
+    "companion.action.sound_off": "Sound Off",
+    "companion.action.debug": "Inspect",
     "companion.chat.title": "Talk to the companion",
     "companion.chat.placeholder": "Say something to the companion...",
     "companion.chat.send": "Send",
@@ -67,6 +113,9 @@ const I18N = {
     "companion.chat.toggle.main": "Main agent (uses context)",
     "companion.chat.warning.main":
       "Main agent channel is on: replies will be written to the main agent session and may use context budget.",
+    "companion.chat.quick.runtime": "Summarize Runtime",
+    "companion.chat.quick.error": "Explain Issue",
+    "companion.chat.quick.next": "Next Step",
     "companion.chat.clear": "Clear chat",
     "companion.chat.empty": "Say hi to your sidebar buddy.",
     "companion.chat.error": "Network hiccup. Mind giving it another try?",
@@ -76,6 +125,19 @@ const I18N = {
     "companion.mood.feed": "Yum!",
     "companion.mood.thinking": "Hmm...",
     "companion.mood.error": "Glitching...",
+    "companion.mood.warning": "Watching...",
+    "companion.mood.ready": "Ready",
+    "companion.bubble.pat": "Head sensors acknowledged the pat.",
+    "companion.bubble.feed": "Snack accepted. Energy loop stable.",
+    "companion.bubble.chat": "I am here. Send a short signal.",
+    "companion.bubble.thinking": "Reading the console signal.",
+    "companion.bubble.error": "An issue surfaced. Worth a look.",
+    "companion.bubble.warning": "A signal is near the threshold.",
+    "companion.bubble.ready": "Runtime looks settled again.",
+    "companion.bubble.muted": "Sound is off.",
+    "companion.bubble.unmuted": "Sound is on.",
+    "companion.bubble.inventory_empty": "Model inventory is still loading.",
+    "companion.inventory.label": "Motions {motions} · Expressions {expressions}",
     "companion.fallback.body": "Live2D runtime offline; chatting with neon outline mode.",
     "companion.hotspot.aria": "Tap the companion",
   },
@@ -134,6 +196,9 @@ const STATE = {
   menuOpen: false,
   chatOpen: false,
   busy: false,
+  expressionNames: [],
+  bubbleTimer: null,
+  muted: true,
 };
 
 // ------------------------------- Utilities ---------------------------------
@@ -173,6 +238,31 @@ function saveHistory(history) {
   } catch (_err) {
     // best-effort persistence
   }
+}
+
+function loadMuted() {
+  try {
+    const raw = window.localStorage?.getItem(MUTE_STORAGE_KEY);
+    return raw === null ? true : raw !== "false";
+  } catch (_err) {
+    return true;
+  }
+}
+
+function saveMuted(muted) {
+  try {
+    window.localStorage?.setItem(MUTE_STORAGE_KEY, muted ? "true" : "false");
+  } catch (_err) {
+    // best-effort persistence
+  }
+}
+
+function tFormat(key, replacements = {}, lang = STATE.language()) {
+  let value = t(key, lang);
+  Object.entries(replacements || {}).forEach(([name, replacement]) => {
+    value = value.replaceAll(`{${name}}`, String(replacement ?? ""));
+  });
+  return value;
 }
 
 function $(selector, root = document) {
@@ -267,6 +357,7 @@ async function bootLive2D() {
     live2d: typeof window.Live2D,
     cubismVersion: window.PIXI?.live2d?.VERSION,
   });
+  syncMuteState();
 
   const stage = $("[data-companion-stage]");
   const canvas = $("[data-companion-canvas]");
@@ -311,6 +402,8 @@ async function bootLive2D() {
   }
 
   collectMotionGroups(model);
+  collectExpressions(model);
+  react({ type: "idle", expression: EXPRESSION_BY_REACTION.idle, bubble: "" });
   startIdleLoop();
   console.info(LOG_PREFIX, "boot complete");
 }
@@ -351,6 +444,29 @@ function collectMotionGroups(model) {
   if (!STATE.motionGroups.chat.length) STATE.motionGroups.chat = nonIdle;
 }
 
+function collectExpressions(model) {
+  const definitions = model?.internalModel?.settings?.expressions || [];
+  STATE.expressionNames = Array.isArray(definitions)
+    ? definitions.map((item, index) => textOrEmpty(item?.name) || String(index)).filter(Boolean)
+    : Object.keys(definitions || {});
+}
+
+function textOrEmpty(value) {
+  return String(value ?? "").trim();
+}
+
+function availableMotionGroups() {
+  return Object.keys(STATE.model?.internalModel?.settings?.motions || {});
+}
+
+function pickAvailableMotion(candidates = []) {
+  const groups = availableMotionGroups();
+  for (const candidate of candidates) {
+    if (groups.includes(candidate)) return candidate;
+  }
+  return "";
+}
+
 function pickMotion(category) {
   const groups = STATE.motionGroups[category];
   if (groups && groups.length) {
@@ -359,14 +475,42 @@ function pickMotion(category) {
   return null;
 }
 
-function playMotion(category) {
+function resolveMotionGroup(groupOrCategory) {
+  const requested = textOrEmpty(groupOrCategory);
+  if (!requested) return "";
+  if (availableMotionGroups().includes(requested)) return requested;
+  const candidate = pickMotion(requested);
+  return candidate || "";
+}
+
+function playMotion(group, index) {
   if (!STATE.model) return;
-  const name = pickMotion(category);
+  const name = resolveMotionGroup(group);
   if (!name) return;
   try {
-    STATE.model.motion(name);
+    STATE.model.motion(name, typeof index === "number" ? index : undefined);
   } catch (err) {
-    console.warn("[companion] motion failed", category, err);
+    console.warn("[companion] motion failed", group, err);
+  }
+}
+
+function resolveExpression(expression) {
+  if (!STATE.expressionNames.length) return undefined;
+  if (typeof expression === "number") return expression;
+  const requested = textOrEmpty(expression);
+  if (requested && STATE.expressionNames.includes(requested)) return requested;
+  if (requested && /^\d+$/.test(requested)) return Number(requested);
+  return STATE.expressionNames[0];
+}
+
+function setExpression(expression) {
+  if (!STATE.model || typeof STATE.model.expression !== "function") return;
+  const resolved = resolveExpression(expression);
+  if (resolved === undefined) return;
+  try {
+    STATE.model.expression(resolved);
+  } catch (err) {
+    console.warn("[companion] expression failed", expression, err);
   }
 }
 
@@ -376,7 +520,7 @@ function startIdleLoop() {
     if (document.hidden) return;
     if (STATE.lastInteractionAt && Date.now() - STATE.lastInteractionAt < 5000) return;
     if (STATE.busy) return;
-    playMotion("idle");
+    react({ type: "idle", bubble: "" });
   }, IDLE_INTERVAL_MS);
 }
 
@@ -394,6 +538,93 @@ function showFallback(error) {
   if (canvas) canvas.style.display = "none";
 }
 
+function syncMuteState() {
+  const config = window.PIXI?.live2d?.config;
+  if (config && "sound" in config) {
+    config.sound = !STATE.muted;
+  }
+  refreshLanguage();
+}
+
+function setMuted(muted) {
+  STATE.muted = Boolean(muted);
+  saveMuted(STATE.muted);
+  syncMuteState();
+  setBubble(t(STATE.muted ? "companion.bubble.muted" : "companion.bubble.unmuted", STATE.language()));
+}
+
+function toggleMuted() {
+  setMuted(!STATE.muted);
+}
+
+function setBubble(content, durationMs = DEFAULT_BUBBLE_DURATION_MS) {
+  const bubble = $("[data-companion-bubble]");
+  if (!bubble) return;
+  if (STATE.bubbleTimer) {
+    clearTimeout(STATE.bubbleTimer);
+    STATE.bubbleTimer = null;
+  }
+  const text = textOrEmpty(content);
+  if (!text) {
+    bubble.hidden = true;
+    bubble.textContent = "";
+    return;
+  }
+  bubble.textContent = text;
+  bubble.hidden = false;
+  if (durationMs > 0) {
+    STATE.bubbleTimer = setTimeout(() => setBubble(""), durationMs);
+  }
+}
+
+function reactionBubble(type) {
+  return t(`companion.bubble.${type}`, STATE.language());
+}
+
+function react(options = {}) {
+  const type = textOrEmpty(options.type || options.mood || "idle");
+  STATE.lastInteractionAt = Date.now();
+  const mood = textOrEmpty(options.mood || type || "idle");
+  const motion = options.motion !== undefined
+    ? options.motion
+    : pickAvailableMotion(MOTION_BY_REACTION[type] || []);
+  const expression = options.expression !== undefined
+    ? options.expression
+    : EXPRESSION_BY_REACTION[type] || EXPRESSION_BY_REACTION.idle;
+  const durationMs = Number(options.durationMs || DEFAULT_REACTION_DURATION_MS);
+
+  if (Array.isArray(motion)) {
+    const selected = pickAvailableMotion(motion);
+    if (selected) playMotion(selected, options.index);
+  } else if (textOrEmpty(motion)) {
+    playMotion(motion, options.index);
+  }
+  setExpression(expression);
+  if (options.fx) {
+    spawnFx(options.fx);
+  }
+  if (options.bubble !== undefined) {
+    setBubble(options.bubble, durationMs);
+  } else if (type !== "idle") {
+    setBubble(reactionBubble(type), durationMs);
+  }
+  setMood(mood);
+}
+
+function showInventory() {
+  const motions = availableMotionGroups();
+  const expressions = STATE.expressionNames;
+  console.info(LOG_PREFIX, "model inventory", { motions, expressions });
+  if (!motions.length && !expressions.length) {
+    setBubble(t("companion.bubble.inventory_empty", STATE.language()));
+    return;
+  }
+  setBubble(tFormat("companion.inventory.label", {
+    motions: motions.length ? motions.join(", ") : "none",
+    expressions: expressions.length ? expressions.join(", ") : "none",
+  }, STATE.language()), 6800);
+}
+
 // ------------------------------- Interactions ------------------------------
 
 function bindHotspot() {
@@ -404,10 +635,31 @@ function bindHotspot() {
     event.preventDefault();
     event.stopPropagation();
     STATE.lastInteractionAt = Date.now();
-    toggleMenu();
+    if (event.detail > 1) return;
+    const areas = hitAreasFromPointer(event);
+    if (areas.includes("head")) {
+      react({ type: "pat", motion: "flick_head", expression: "f02", fx: "sparkle" });
+      return;
+    }
+    react({ type: "feed", motion: "tap_body", expression: "f03", fx: "heart" });
+  });
+
+  hotspot.addEventListener("dblclick", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    closeMenu();
+    react({ type: "chat", motion: "tap_body", expression: "f02" });
+    openChat();
   });
 
   hotspot.addEventListener("contextmenu", (event) => {
+    event.preventDefault();
+    STATE.lastInteractionAt = Date.now();
+    toggleMenu();
+  });
+
+  hotspot.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
     event.preventDefault();
     STATE.lastInteractionAt = Date.now();
     toggleMenu();
@@ -436,6 +688,24 @@ function bindHotspot() {
   });
 }
 
+function hitAreasFromPointer(event) {
+  const rect = event.currentTarget?.getBoundingClientRect?.();
+  if (!rect || !rect.width || !rect.height) return [];
+  const x = event.clientX - rect.left;
+  const y = event.clientY - rect.top;
+  if (STATE.model && typeof STATE.model.hitTest === "function") {
+    try {
+      const hitAreas = STATE.model.hitTest(x, y);
+      if (Array.isArray(hitAreas) && hitAreas.length) {
+        return hitAreas.map((area) => String(area).toLowerCase());
+      }
+    } catch (_err) {
+      // Fall back to the stage split below.
+    }
+  }
+  return y < rect.height * 0.45 ? ["head"] : ["body"];
+}
+
 function bindMenu() {
   const menu = $("[data-companion-menu]");
   if (!menu) return;
@@ -448,6 +718,8 @@ function bindMenu() {
     if (action === "pat") doPat();
     else if (action === "feed") doFeed();
     else if (action === "chat") openChat();
+    else if (action === "mute") toggleMuted();
+    else if (action === "debug") showInventory();
   });
 
   document.addEventListener("click", (event) => {
@@ -491,17 +763,11 @@ function closeMenu() {
 }
 
 function doPat() {
-  STATE.lastInteractionAt = Date.now();
-  playMotion("pat");
-  spawnFx("sparkle");
-  setMood("pat");
+  react({ type: "pat", motion: "flick_head", expression: "f02", fx: "sparkle" });
 }
 
 function doFeed() {
-  STATE.lastInteractionAt = Date.now();
-  playMotion("feed");
-  spawnFx("heart");
-  setMood("feed");
+  react({ type: "feed", motion: ["pinch_in", "pinch_out", "tap_body"], expression: "f03", fx: "heart" });
 }
 
 function spawnFx(kind) {
@@ -544,6 +810,7 @@ function setMood(key) {
 
 function openChat() {
   STATE.lastInteractionAt = Date.now();
+  react({ type: "chat", motion: "tap_body", expression: "f02", bubble: reactionBubble("chat") });
   if (STATE.chatOpen) return;
   STATE.chatOpen = true;
   renderChatPanel();
@@ -577,6 +844,11 @@ function renderChatPanel() {
         </label>
       </div>
       ${STATE.useMain ? `<div class="companion-chat-warning">${esc(t("companion.chat.warning.main", lang))}</div>` : ""}
+      <div class="companion-chat-chips" aria-label="Companion quick prompts">
+        <button type="button" data-companion-chat-chip="runtime">${esc(t("companion.chat.quick.runtime", lang))}</button>
+        <button type="button" data-companion-chat-chip="error">${esc(t("companion.chat.quick.error", lang))}</button>
+        <button type="button" data-companion-chat-chip="next">${esc(t("companion.chat.quick.next", lang))}</button>
+      </div>
       <div class="companion-chat-list" data-companion-chat-list="true"></div>
       <form class="companion-chat-input" data-companion-chat-form="true">
         <textarea data-companion-chat-input="true" rows="2" placeholder="${esc(t("companion.chat.placeholder", lang))}"></textarea>
@@ -611,6 +883,9 @@ function bindChatPanel() {
     saveHistory(STATE.history);
     renderChatList();
   });
+  root.querySelectorAll("[data-companion-chat-chip]").forEach((button) => {
+    button.addEventListener("click", () => submitQuickChat(button.dataset.companionChatChip));
+  });
 }
 
 function renderChatList() {
@@ -641,29 +916,60 @@ function renderChatList() {
 
 async function onChatSubmit(event) {
   event.preventDefault?.();
-  if (STATE.busy) return;
   const root = document.getElementById("companion-chat-root");
   if (!root) return;
   const textarea = root.querySelector("[data-companion-chat-input]");
   const text = (textarea?.value || "").trim();
   if (!text) return;
-  if (text.length > 2000) {
+  if (textarea) textarea.value = "";
+  await submitChatText(text, textarea);
+}
+
+function quickChatPrompt(kind) {
+  const lang = STATE.language();
+  const prompts = {
+    zh: {
+      runtime: "请用 2 句话总结当前 OpenHire 管理后台运行态，并指出最重要的状态信号。",
+      error: "请解释当前 OpenHire 管理后台里最值得关注的异常或风险。如果没有异常，请说明当前比较稳定。",
+      next: "请基于当前 OpenHire 管理后台状态，给我 1-2 个下一步操作建议。",
+    },
+    en: {
+      runtime: "Summarize the current OpenHire admin runtime in 2 sentences and call out the most important signal.",
+      error: "Explain the most relevant issue or risk in the current OpenHire admin state. If none exists, say it looks stable.",
+      next: "Based on the current OpenHire admin state, suggest 1-2 next actions.",
+    },
+  };
+  return prompts[lang]?.[kind] || prompts.en.next;
+}
+
+async function submitQuickChat(kind) {
+  if (STATE.busy) return;
+  const root = document.getElementById("companion-chat-root");
+  if (!root) return;
+  const textarea = root.querySelector("[data-companion-chat-input]");
+  if (textarea) textarea.value = "";
+  await submitChatText(quickChatPrompt(kind), textarea);
+}
+
+async function submitChatText(text, textarea) {
+  if (STATE.busy) return;
+  const message = textOrEmpty(text);
+  if (!message) return;
+  if (message.length > 2000) {
     setMood("error");
     return;
   }
-  textarea.value = "";
-  textarea.disabled = true;
+  if (textarea) textarea.disabled = true;
   STATE.busy = true;
-  STATE.history.push({ role: "user", content: text });
+  STATE.history.push({ role: "user", content: message });
   saveHistory(STATE.history);
-  setMood("thinking");
+  react({ type: "thinking", expression: "f04", bubble: reactionBubble("thinking") });
   renderChatList();
   try {
-    const reply = await sendChat(text);
+    const reply = await sendChat(message);
     STATE.history.push({ role: "assistant", content: reply || "..." });
     saveHistory(STATE.history);
-    playMotion("chat");
-    setMood("idle");
+    react({ type: "chat", motion: "tap_body", expression: "f02", bubble: "" });
   } catch (err) {
     console.error("[companion] chat error", err);
     STATE.history.push({
@@ -671,7 +977,7 @@ async function onChatSubmit(event) {
       content: t("companion.chat.error", STATE.language()),
     });
     saveHistory(STATE.history);
-    setMood("error");
+    react({ type: "error", motion: "shake", expression: "f04" });
   } finally {
     STATE.busy = false;
     renderChatList();
@@ -703,14 +1009,27 @@ async function sendChat(text) {
     role: msg.role,
     content: msg.content,
   }));
+  const context = companionContextSnapshot();
   const res = await fetch("/admin/api/companion/chat", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ messages }),
+    body: JSON.stringify(context ? { messages, context } : { messages }),
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const json = await res.json();
   return json.content || "";
+}
+
+function companionContextSnapshot() {
+  const value = window.OpenHireCompanionContext;
+  if (!value) return null;
+  try {
+    const raw = typeof value === "string" ? value : JSON.stringify(value);
+    if (!raw || raw.length <= CONTEXT_MAX_CHARS) return value;
+    return raw.slice(0, CONTEXT_MAX_CHARS);
+  } catch (_err) {
+    return null;
+  }
 }
 
 // ------------------------------- Public API --------------------------------
@@ -720,6 +1039,10 @@ function refreshLanguage() {
   document.querySelectorAll("[data-companion-action]").forEach((btn) => {
     const action = btn.dataset.companionAction;
     if (!action) return;
+    if (action === "mute") {
+      btn.textContent = t(STATE.muted ? "companion.action.sound_on" : "companion.action.sound_off", lang);
+      return;
+    }
     btn.textContent = t(`companion.action.${action}`, lang);
   });
   const moodEl = $("[data-companion-mood]");
@@ -739,12 +1062,14 @@ function syncTheme(_theme) {
 function destroy() {
   if (STATE.idleTimer) clearInterval(STATE.idleTimer);
   if (STATE.moodTimer) clearTimeout(STATE.moodTimer);
+  if (STATE.bubbleTimer) clearTimeout(STATE.bubbleTimer);
   STATE.resizeObserver?.disconnect();
   STATE.pixiApp?.destroy?.(true, { children: true, texture: true });
   STATE.pixiApp = null;
   STATE.model = null;
   STATE.idleTimer = null;
   STATE.moodTimer = null;
+  STATE.bubbleTimer = null;
 }
 
 async function mount(opts) {
@@ -753,10 +1078,12 @@ async function mount(opts) {
   STATE.language = typeof opts?.lang === "function" ? opts.lang : () => "en";
   STATE.modelName = opts?.modelName || "openhire";
   STATE.history = loadHistory();
+  STATE.muted = loadMuted();
 
   bindMenu();
   bindHotspot();
   refreshLanguage();
+  syncMuteState();
   setMood("idle");
 
   const stage = $("[data-companion-stage]");
@@ -788,6 +1115,10 @@ window.OpenHireCompanion = {
   pat: doPat,
   feed: doFeed,
   openChat,
+  react,
+  playMotion,
+  setExpression,
+  setBubble,
 };
 
-export { mount, refreshLanguage, syncTheme, destroy };
+export { mount, refreshLanguage, syncTheme, destroy, react, playMotion, setExpression, setBubble };

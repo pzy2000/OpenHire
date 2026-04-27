@@ -41,7 +41,8 @@ COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN sed -i 's/\r$//' /usr/local/bin/entrypoint.sh && chmod +x /usr/local/bin/entrypoint.sh
 
 USER openhire
-ENV HOME=/home/openhire
+ENV HOME=/home/openhire \
+    OPENHIRE_DEPLOY_TARGET=modelscope
 
 # ModelScope Studio default app port
 EXPOSE 7860

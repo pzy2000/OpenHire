@@ -17,6 +17,13 @@ from loguru import logger
 
 from openhire.adapters import build_default_registry
 from openhire.adapters.base import inspect_container_status
+from openhire.admin.demo_mode import (
+    apply_demo_runtime_history_overlay,
+    apply_demo_runtime_overlay,
+    demo_docker_containers,
+    demo_docker_daemon,
+    demo_mode_status,
+)
 from openhire.utils.helpers import estimate_message_tokens
 
 RUNTIME_HISTORY_WINDOW_SECONDS = 15 * 60
@@ -809,14 +816,18 @@ class RuntimeMonitor:
         async def _run() -> None:
             while True:
                 try:
-                    daemon = await probe_docker_daemon()
-                    self.update_docker_daemon(daemon)
-                    if daemon.get("ok") is True:
-                        self.update_docker_snapshot(
-                            await sample_docker_containers(self.docker_agent_tracker)
-                        )
+                    if demo_mode_status(workspace=self.workspace).get("enabled"):
+                        self.update_docker_daemon(demo_docker_daemon())
+                        self.update_docker_snapshot(demo_docker_containers())
                     else:
-                        self.update_docker_snapshot([])
+                        daemon = await probe_docker_daemon()
+                        self.update_docker_daemon(daemon)
+                        if daemon.get("ok") is True:
+                            self.update_docker_snapshot(
+                                await sample_docker_containers(self.docker_agent_tracker)
+                            )
+                        else:
+                            self.update_docker_snapshot([])
                 except asyncio.CancelledError:
                     raise
                 except Exception as exc:
@@ -904,10 +915,22 @@ class RuntimeMonitor:
 
 async def build_admin_snapshot(loop: Any) -> dict[str, Any]:
     """Build the full admin runtime snapshot."""
+    demo_mode = demo_mode_status(workspace=getattr(loop, "workspace", None))
+    model = str(getattr(loop, "model", "") or "openhire-demo")
+    total_context_tokens = int(getattr(loop, "context_window_tokens", 0) or 10000)
     monitor = getattr(loop, "runtime_monitor", None)
     if monitor is not None:
         snapshot = monitor.snapshot(record_history=False)
         _hydrate_main_from_sessions(snapshot, loop)
+        process_snapshot = snapshot.get("process") if isinstance(snapshot.get("process"), dict) else {}
+        snapshot = apply_demo_runtime_overlay(
+            snapshot,
+            demo_mode=demo_mode,
+            workspace=getattr(loop, "workspace", None) or process_snapshot.get("workspace"),
+            model=model,
+            process_role=getattr(monitor, "process_role", "gateway"),
+            context_window_tokens=total_context_tokens,
+        )
         if hasattr(monitor, "_record_history_sample"):
             monitor._record_history_sample(snapshot)
         return snapshot
@@ -916,7 +939,6 @@ async def build_admin_snapshot(loop: Any) -> dict[str, Any]:
     if main_status == "idle" and getattr(loop, "_last_admin_stop_reason", None) == "error":
         main_status = "error"
 
-    total_context_tokens = int(getattr(loop, "context_window_tokens", 0) or 0)
     used_context_tokens = int(getattr(loop, "_last_admin_context_tokens", 0) or 0)
     main_context_source = getattr(loop, "_last_admin_context_source", "unknown") or "unknown"
     last_usage = dict(getattr(loop, "_last_usage", {}) or {})
@@ -943,6 +965,15 @@ async def build_admin_snapshot(loop: Any) -> dict[str, Any]:
         },
         "dockerAgents": [],
     }
+
+    if demo_mode.get("enabled"):
+        return apply_demo_runtime_overlay(
+            snapshot,
+            demo_mode=demo_mode,
+            workspace=getattr(loop, "workspace", None),
+            model=model,
+            context_window_tokens=total_context_tokens,
+        )
 
     docker_cfg = getattr(loop, "_docker_agents_config", None)
     if not docker_cfg or not getattr(docker_cfg, "enabled", False):
@@ -1008,7 +1039,12 @@ async def build_runtime_history(
     monitor = getattr(loop, "runtime_monitor", None)
     if monitor is not None and hasattr(monitor, "history_snapshot"):
         await build_admin_snapshot(loop)
-        return monitor.history_snapshot(limit=limit)
+        return apply_demo_runtime_history_overlay(
+            monitor.history_snapshot(limit=limit),
+            workspace=getattr(loop, "workspace", None),
+            model=str(getattr(loop, "model", "") or "openhire-demo"),
+            limit=limit,
+        )
 
     snapshot_getter = getattr(loop, "get_admin_snapshot", None)
     if callable(snapshot_getter):
@@ -1016,4 +1052,9 @@ async def build_runtime_history(
     else:
         snapshot = await build_admin_snapshot(loop)
     sample = _runtime_history_sample_from_snapshot(snapshot)
-    return _runtime_history_payload([sample], limit=limit)
+    return apply_demo_runtime_history_overlay(
+        _runtime_history_payload([sample], limit=limit),
+        workspace=getattr(loop, "workspace", None),
+        model=str(getattr(loop, "model", "") or "openhire-demo"),
+        limit=limit,
+    )

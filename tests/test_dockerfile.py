@@ -26,5 +26,6 @@ def test_root_dockerfile_starts_long_running_modelscope_gateway() -> None:
     dockerfile = (ROOT / "Dockerfile").read_text(encoding="utf-8")
 
     assert 'EXPOSE 7860' in dockerfile
+    assert 'OPENHIRE_DEPLOY_TARGET=modelscope' in dockerfile
     assert 'CMD ["gateway", "--host", "0.0.0.0", "--port", "7860"]' in dockerfile
     assert 'CMD ["status"]' not in dockerfile
