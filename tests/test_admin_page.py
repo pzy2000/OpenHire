@@ -227,10 +227,20 @@ def test_companion_static_assets_expose_reaction_context_controls() -> None:
     assert "OpenHireCompanionContext" in companion_js
     assert "BUBBLES_STORAGE_KEY" in companion_js
     assert "RUNTIME_REACTIONS_STORAGE_KEY" in companion_js
+    assert "REACTION_INTENSITY_STORAGE_KEY" in companion_js
+    assert "openhire.companion.reactionIntensity.v1" in companion_js
+    assert "function renderPreferenceIntensity(" in companion_js
+    assert "function reactionIntensity(" in companion_js
+    assert "calm" in companion_js
+    assert "normal" in companion_js
+    assert "expressive" in companion_js
+    assert "Reaction intensity" in companion_js
+    assert "反应强度" in companion_js
     assert "function renderPreferencesPanel(" in companion_js
     assert "function runtimeReactionsEnabled(" in companion_js
     assert "function bubblesEnabled(" in companion_js
     assert "data-companion-preference" in companion_js
+    assert "data-companion-intensity" in companion_js
     assert 'hotspot.addEventListener("click"' in companion_js
     assert "if (event.detail > 1) return;\n    toggleMenu();" in companion_js
     assert 'panel.addEventListener("click", (event) => {\n    event.stopPropagation();' in companion_js
@@ -240,6 +250,15 @@ def test_companion_static_assets_expose_reaction_context_controls() -> None:
     assert "playMotion," in companion_js
     assert "runtimeReactionsEnabled," in companion_js
     assert "publishCompanionContext" in admin_js
+    assert "companionContextActionItems" in admin_js
+    assert "companionContextAlerts" in admin_js
+    assert "companionSelectedEmployeeSummary" in admin_js
+    assert "companionCaseImportSummary" in admin_js
+    assert "actionItems: companionContextActionItems()" in admin_js
+    assert "alerts: companionContextAlerts()" in admin_js
+    assert "selectedEmployee: companionSelectedEmployeeSummary()" in admin_js
+    assert "caseImport: companionCaseImportSummary()" in admin_js
+    assert "dockerDaemonMessage" in admin_js
     assert "syncCompanionRuntimeReaction" in admin_js
     assert "runtimeReactionsEnabled?.() === false" in admin_js
     assert "Main context was cleared." in admin_js
@@ -261,6 +280,15 @@ def test_companion_static_assets_expose_reaction_context_controls() -> None:
     assert "Agent skill package failed." in admin_js
     assert "Agent skill proposal approved." in admin_js
     assert "Agent skill proposal approval failed." in admin_js
+
+    smoke_js = (root / "scripts/admin_companion_smoke.mjs").read_text()
+    assert "OPENHIRE_ADMIN_URL" in smoke_js
+    assert "data-companion-hotspot" in smoke_js
+    assert "data-companion-action" in smoke_js
+    assert "data-companion-preferences-toggle" in smoke_js
+    assert "data-companion-intensity" in smoke_js
+    assert "data-companion-chat-chip" in smoke_js
+    assert "runtimeReactionsEnabled?.() === false" in smoke_js
 
 
 @pytest.mark.skipif(not HAS_AIOHTTP, reason="aiohttp not installed")

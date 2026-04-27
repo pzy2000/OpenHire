@@ -5953,6 +5953,12 @@ html[data-theme="light"] .companion-menu-item {
   text-transform: uppercase;
 }
 
+.companion-preference-row-stacked {
+  align-items: stretch;
+  flex-direction: column;
+  gap: 6px;
+}
+
 .companion-preference-control {
   position: relative;
   flex: 0 0 auto;
@@ -6000,6 +6006,34 @@ html[data-theme="light"] .companion-menu-item {
 .companion-preference-inventory {
   color: var(--muted);
   font-size: 10px;
+}
+
+.companion-preference-segmented {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.companion-preference-segment {
+  min-height: 26px;
+  border: 1px solid rgba(120, 200, 255, 0.18);
+  border-radius: 7px;
+  background: rgba(120, 200, 255, 0.08);
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.companion-preference-segment:hover,
+.companion-preference-segment:focus-visible,
+.companion-preference-segment.is-active {
+  border-color: rgba(109, 247, 255, 0.58);
+  background: rgba(109, 247, 255, 0.16);
+  color: var(--neon-cyan);
+  outline: none;
 }
 
 .companion-preference-inspect {

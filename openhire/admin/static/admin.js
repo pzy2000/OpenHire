@@ -1781,31 +1781,127 @@ function companionContextLevel(value) {
   return "ok";
 }
 
-function publishCompanionContext(payload = {}) {
+function companionContextClip(value, limit = 220) {
+  const raw = text(value, "").replace(/\s+/g, " ").trim();
+  if (!raw || raw.length <= limit) return raw;
+  return `${raw.slice(0, Math.max(0, limit - 1))}…`;
+}
+
+function companionContextActionItems() {
+  try {
+    return collectActionItems().slice(0, 5).map((item) => ({
+      key: text(item.key, ""),
+      level: text(item.level, "idle"),
+      title: companionContextClip(item.title),
+      body: companionContextClip(item.body, 260),
+      actions: (Array.isArray(item.actions) ? item.actions : []).slice(0, 3).map((action) => ({
+        kind: text(action?.kind, ""),
+        label: companionContextClip(action?.label, 80),
+        disabled: Boolean(action?.disabled),
+      })),
+    }));
+  } catch (_error) {
+    return [];
+  }
+}
+
+function companionContextAlerts() {
+  try {
+    return collectAlertItems().slice(0, 5).map((item) => ({
+      level: text(item.level, "idle"),
+      message: companionContextClip(item.message, 260),
+    }));
+  } catch (_error) {
+    return [];
+  }
+}
+
+function companionSelectedEmployeeSummary() {
+  const selectedId = text(employeeState.selectedEmployeeId, "");
+  if (!selectedId) return null;
+  const employee = [...employeeState.runtimeEmployees, ...employeeState.employees]
+    .find((item) => text(item?.id, "") === selectedId);
+  if (!employee) return { id: selectedId };
+  const employeeContext = employee.runtime?.context || employee.context || null;
+  return {
+    id: text(employee.id, ""),
+    name: companionContextClip(employee.name, 120),
+    role: companionContextClip(employee.role, 160),
+    status: text(employee.status, "unknown"),
+    agentType: text(employee.agent_type || employee.runtime?.kind, employee.runtime ? "runtime" : "openclaw"),
+    runtimeKind: text(employee.runtime?.kind, ""),
+    skillCount: normalizeSkillIds(employee.skill_ids).length + (Array.isArray(employee.skills) ? employee.skills.length : 0),
+    toolCount: Array.isArray(employee.tools) ? employee.tools.length : 0,
+    contextPercent: employeeContext ? percent(employeeContext.percent) : null,
+    contextSource: text(employeeContext?.source, ""),
+  };
+}
+
+function companionCaseImportSummary() {
+  const result = caseState.importResult;
+  if (!result) return null;
+  const employees = Array.isArray(result.employees) ? result.employees : [];
+  const warnings = Array.isArray(result.warnings) ? result.warnings : [];
+  const failures = Array.isArray(result.failures) ? result.failures : [];
+  return {
+    status: text(result.status, ""),
+    failedCount: Number(result.failed_count || failures.length || 0),
+    importedEmployeeCount: employees.filter((employee) => employee?.id).length,
+    warningCount: warnings.length,
+    warning: companionContextClip(warnings[0] || failures[0]?.message || result.message || "", 260),
+  };
+}
+
+function companionDockerDaemonSummary(payload = {}) {
+  const daemon = payload.dockerDaemon || adminState.dockerDaemon || {};
+  return {
+    status: text(daemon.status, "unknown"),
+    ok: daemon.ok === true ? true : (daemon.ok === false ? false : null),
+    message: companionContextClip(dockerDaemonMessage(daemon), 220),
+    action: text(adminState.dockerDaemonAction, ""),
+  };
+}
+
+function buildCompanionContext(payload = {}) {
   const mainAgent = payload.mainAgent || adminState.mainAgent || {};
   const dockerRows = payload.dockerContainers || payload.dockerAgents || adminState.dockerAgents || [];
   const context = mainAgent.context || {};
+  const daemon = companionDockerDaemonSummary(payload);
+  return {
+    generatedAt: text(payload.generatedAt || adminState.generatedAt, ""),
+    activeSection: currentActiveNavSection(),
+    resourceTab: currentResourceHubTab(),
+    mainStatus: text(mainAgent.status, "unknown"),
+    mainStage: text(mainAgent.stage, "idle"),
+    activeTaskCount: Number(mainAgent.activeTaskCount || 0),
+    contextPercent: percent(context.percent),
+    contextSource: text(context.source, "unknown"),
+    mainContextAction: text(adminState.mainContextAction, ""),
+    employeeContextAction: text(adminState.employeeContextAction, ""),
+    dockerDaemonStatus: daemon.status,
+    dockerDaemonOk: daemon.ok,
+    dockerDaemonMessage: daemon.message,
+    dockerDaemon: daemon,
+    dockerWorkerCount: Array.isArray(dockerRows) ? dockerRows.length : 0,
+    dockerIssueCount: dockerIssueCount(dockerRows),
+    employeeCount: employeeState.employees.length,
+    runtimeEmployeeCount: employeeState.runtimeEmployees.length,
+    localSkillCount: skillState.localSkills.length,
+    caseCount: caseState.cases.length,
+    lastCaseImportStatus: text(caseState.importResult?.status, ""),
+    lastSkillImportCount: skillState.lastImportedSkillIds.length,
+    selectedEmployeeId: text(employeeState.selectedEmployeeId, ""),
+    selectedEmployee: companionSelectedEmployeeSummary(),
+    caseImport: companionCaseImportSummary(),
+    alerts: companionContextAlerts(),
+    actionItems: companionContextActionItems(),
+  };
+}
+
+function publishCompanionContext(payload = {}) {
   try {
-    window.OpenHireCompanionContext = {
-      generatedAt: text(payload.generatedAt || adminState.generatedAt, ""),
-      activeSection: currentActiveNavSection(),
-      resourceTab: currentResourceHubTab(),
-      mainStatus: text(mainAgent.status, "unknown"),
-      mainStage: text(mainAgent.stage, "idle"),
-      activeTaskCount: Number(mainAgent.activeTaskCount || 0),
-      contextPercent: percent(context.percent),
-      contextSource: text(context.source, "unknown"),
-      dockerDaemonStatus: text((payload.dockerDaemon || adminState.dockerDaemon || {}).status, "unknown"),
-      dockerWorkerCount: Array.isArray(dockerRows) ? dockerRows.length : 0,
-      dockerIssueCount: dockerIssueCount(dockerRows),
-      employeeCount: employeeState.employees.length,
-      runtimeEmployeeCount: employeeState.runtimeEmployees.length,
-      localSkillCount: skillState.localSkills.length,
-      caseCount: caseState.cases.length,
-      lastCaseImportStatus: text(caseState.importResult?.status, ""),
-      lastSkillImportCount: skillState.lastImportedSkillIds.length,
-      selectedEmployeeId: text(employeeState.selectedEmployeeId, ""),
-    };
+    window.OpenHireCompanionContextProvider = () => buildCompanionContext();
+    window.OpenHireCompanionContext = buildCompanionContext(payload);
   } catch (error) {
     console.warn("[companion] context skipped", error);
   }

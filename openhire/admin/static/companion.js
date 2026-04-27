@@ -32,9 +32,11 @@ const MAIN_AGENT_SESSION_ID = "live2d-companion";
 const MUTE_STORAGE_KEY = "openhire.companion.muted.v1";
 const BUBBLES_STORAGE_KEY = "openhire.companion.bubbles.v1";
 const RUNTIME_REACTIONS_STORAGE_KEY = "openhire.companion.runtimeReactions.v1";
+const REACTION_INTENSITY_STORAGE_KEY = "openhire.companion.reactionIntensity.v1";
 const DEFAULT_REACTION_DURATION_MS = 4200;
 const DEFAULT_BUBBLE_DURATION_MS = 3600;
 const CONTEXT_MAX_CHARS = 3600;
+const REACTION_INTENSITIES = ["calm", "normal", "expressive"];
 const EXPRESSION_BY_REACTION = {
   idle: "f01",
   pat: "f02",
@@ -68,6 +70,10 @@ const I18N = {
     "companion.preferences.sound": "声音",
     "companion.preferences.bubbles": "气泡提示",
     "companion.preferences.runtime": "运行态反馈",
+    "companion.preferences.intensity": "反应强度",
+    "companion.preferences.intensity.calm": "轻柔",
+    "companion.preferences.intensity.normal": "标准",
+    "companion.preferences.intensity.expressive": "活跃",
     "companion.preferences.inspect": "检查模型",
     "companion.preferences.on": "开",
     "companion.preferences.off": "关",
@@ -119,6 +125,10 @@ const I18N = {
     "companion.preferences.sound": "Sound",
     "companion.preferences.bubbles": "Bubble tips",
     "companion.preferences.runtime": "Runtime reactions",
+    "companion.preferences.intensity": "Reaction intensity",
+    "companion.preferences.intensity.calm": "Calm",
+    "companion.preferences.intensity.normal": "Normal",
+    "companion.preferences.intensity.expressive": "Expressive",
     "companion.preferences.inspect": "Inspect model",
     "companion.preferences.on": "On",
     "companion.preferences.off": "Off",
@@ -219,6 +229,7 @@ const STATE = {
   muted: true,
   bubblesEnabled: true,
   runtimeReactionsEnabled: true,
+  reactionIntensity: "normal",
   preferencesOpen: false,
 };
 
@@ -273,6 +284,27 @@ function loadBooleanPreference(key, defaultValue) {
 function saveBooleanPreference(key, value) {
   try {
     window.localStorage?.setItem(key, value ? "true" : "false");
+  } catch (_err) {
+    // best-effort persistence
+  }
+}
+
+function normalizeReactionIntensity(value) {
+  const candidate = textOrEmpty(value);
+  return REACTION_INTENSITIES.includes(candidate) ? candidate : "normal";
+}
+
+function loadReactionIntensity() {
+  try {
+    return normalizeReactionIntensity(window.localStorage?.getItem(REACTION_INTENSITY_STORAGE_KEY));
+  } catch (_err) {
+    return "normal";
+  }
+}
+
+function saveReactionIntensity(value) {
+  try {
+    window.localStorage?.setItem(REACTION_INTENSITY_STORAGE_KEY, normalizeReactionIntensity(value));
   } catch (_err) {
     // best-effort persistence
   }
@@ -624,6 +656,29 @@ function runtimeReactionsEnabled() {
   return STATE.runtimeReactionsEnabled;
 }
 
+function setReactionIntensity(value) {
+  STATE.reactionIntensity = normalizeReactionIntensity(value);
+  saveReactionIntensity(STATE.reactionIntensity);
+  renderPreferencesPanel();
+}
+
+function reactionIntensity() {
+  return STATE.reactionIntensity;
+}
+
+function reactionDisplayDuration(durationMs) {
+  const base = Number(durationMs);
+  const safeBase = Number.isFinite(base) ? base : DEFAULT_REACTION_DURATION_MS;
+  if (safeBase <= 0) return safeBase;
+  if (STATE.reactionIntensity === "calm") return Math.max(1600, Math.round(safeBase * 0.72));
+  if (STATE.reactionIntensity === "expressive") return Math.round(safeBase * 1.28);
+  return safeBase;
+}
+
+function reactionFxCount() {
+  return STATE.reactionIntensity === "expressive" ? 10 : 7;
+}
+
 function setBubble(content, durationMs = DEFAULT_BUBBLE_DURATION_MS) {
   const bubble = $("[data-companion-bubble]");
   if (!bubble) return;
@@ -663,7 +718,8 @@ function react(options = {}) {
   const expression = options.expression !== undefined
     ? options.expression
     : EXPRESSION_BY_REACTION[type] || EXPRESSION_BY_REACTION.idle;
-  const durationMs = Number(options.durationMs || DEFAULT_REACTION_DURATION_MS);
+  const requestedDurationMs = options.durationMs !== undefined ? Number(options.durationMs) : DEFAULT_REACTION_DURATION_MS;
+  const durationMs = reactionDisplayDuration(requestedDurationMs);
 
   if (Array.isArray(motion)) {
     const selected = pickAvailableMotion(motion);
@@ -672,8 +728,8 @@ function react(options = {}) {
     playMotion(motion, options.index);
   }
   setExpression(expression);
-  if (options.fx) {
-    spawnFx(options.fx);
+  if (options.fx && STATE.reactionIntensity !== "calm") {
+    spawnFx(options.fx, reactionFxCount());
   }
   if (options.bubble !== undefined) {
     setBubble(options.bubble, durationMs);
@@ -714,6 +770,24 @@ function renderPreferenceSwitch(key, label, checked) {
   `;
 }
 
+function renderPreferenceIntensity(lang) {
+  return `
+    <div class="companion-preference-row companion-preference-row-stacked">
+      <span class="companion-preference-label">${esc(t("companion.preferences.intensity", lang))}</span>
+      <span class="companion-preference-segmented" role="group" aria-label="${esc(t("companion.preferences.intensity", lang))}">
+        ${REACTION_INTENSITIES.map((item) => `
+          <button
+            class="companion-preference-segment ${STATE.reactionIntensity === item ? "is-active" : ""}"
+            type="button"
+            data-companion-intensity="${esc(item)}"
+            aria-pressed="${STATE.reactionIntensity === item ? "true" : "false"}"
+          >${esc(t(`companion.preferences.intensity.${item}`, lang))}</button>
+        `).join("")}
+      </span>
+    </div>
+  `;
+}
+
 function renderPreferencesPanel() {
   const panel = $("[data-companion-preferences-panel]");
   if (!panel) return;
@@ -725,6 +799,7 @@ function renderPreferencesPanel() {
       ${renderPreferenceSwitch("sound", t("companion.preferences.sound", lang), !STATE.muted)}
       ${renderPreferenceSwitch("bubbles", t("companion.preferences.bubbles", lang), STATE.bubblesEnabled)}
       ${renderPreferenceSwitch("runtime", t("companion.preferences.runtime", lang), STATE.runtimeReactionsEnabled)}
+      ${renderPreferenceIntensity(lang)}
       <button class="companion-preference-inspect" type="button" data-companion-preference-action="inspect">
         ${esc(t("companion.preferences.inspect", lang))}
       </button>
@@ -786,6 +861,12 @@ function bindPreferences() {
   });
   panel.addEventListener("click", (event) => {
     event.stopPropagation();
+    const intensity = event.target.closest("[data-companion-intensity]");
+    if (intensity) {
+      event.preventDefault();
+      setReactionIntensity(intensity.dataset.companionIntensity);
+      return;
+    }
     const action = event.target.closest("[data-companion-preference-action]");
     if (!action) return;
     event.preventDefault();
@@ -949,11 +1030,10 @@ function doFeed() {
   react({ type: "feed", motion: ["pinch_in", "pinch_out", "tap_body"], expression: "f03", fx: "heart" });
 }
 
-function spawnFx(kind) {
+function spawnFx(kind, count = 7) {
   const fx = $("[data-companion-fx]");
   if (!fx) return;
   if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
-  const count = 7;
   for (let i = 0; i < count; i++) {
     const span = document.createElement("span");
     span.className = `companion-fx-particle companion-fx-${esc(kind)}`;
@@ -1108,14 +1188,14 @@ function quickChatPrompt(kind) {
   const lang = STATE.language();
   const prompts = {
     zh: {
-      runtime: "请用 2 句话总结当前 OpenHire 管理后台运行态，并指出最重要的状态信号。",
-      error: "请解释当前 OpenHire 管理后台里最值得关注的异常或风险。如果没有异常，请说明当前比较稳定。",
-      next: "请基于当前 OpenHire 管理后台状态，给我 1-2 个下一步操作建议。",
+      runtime: "请用 2 句话总结当前 OpenHire 管理后台运行态，优先参考 mainStatus、contextPercent、Docker 状态、员工数量和当前页面位置。",
+      error: "请解释当前 OpenHire 管理后台里最值得关注的异常或风险，优先参考 alerts、actionItems、caseImport warning、Docker issue 和选中员工状态；如果没有异常，请说明当前比较稳定。",
+      next: "请基于当前 OpenHire 管理后台状态给 1-2 个下一步操作建议，优先参考 Action Center、当前 resourceTab/activeSection 和选中员工。",
     },
     en: {
-      runtime: "Summarize the current OpenHire admin runtime in 2 sentences and call out the most important signal.",
-      error: "Explain the most relevant issue or risk in the current OpenHire admin state. If none exists, say it looks stable.",
-      next: "Based on the current OpenHire admin state, suggest 1-2 next actions.",
+      runtime: "Summarize the current OpenHire admin runtime in 2 sentences, prioritizing mainStatus, contextPercent, Docker state, employee counts, and the current page location.",
+      error: "Explain the most relevant issue or risk in the current OpenHire admin state, prioritizing alerts, actionItems, caseImport warnings, Docker issues, and the selected employee. If none exists, say it looks stable.",
+      next: "Suggest 1-2 next actions for the current OpenHire admin state, prioritizing Action Center, the current resourceTab/activeSection, and the selected employee.",
     },
   };
   return prompts[lang]?.[kind] || prompts.en.next;
@@ -1200,7 +1280,14 @@ async function sendChat(text) {
 }
 
 function companionContextSnapshot() {
-  const value = window.OpenHireCompanionContext;
+  let value = window.OpenHireCompanionContext;
+  if (typeof window.OpenHireCompanionContextProvider === "function") {
+    try {
+      value = window.OpenHireCompanionContextProvider();
+    } catch (err) {
+      console.warn("[companion] context provider failed", err);
+    }
+  }
   if (!value) return null;
   try {
     const raw = typeof value === "string" ? value : JSON.stringify(value);
@@ -1258,6 +1345,7 @@ async function mount(opts) {
   STATE.muted = loadMuted();
   STATE.bubblesEnabled = loadBubblesEnabled();
   STATE.runtimeReactionsEnabled = loadRuntimeReactionsEnabled();
+  STATE.reactionIntensity = loadReactionIntensity();
 
   bindMenu();
   bindHotspot();
@@ -1302,6 +1390,7 @@ window.OpenHireCompanion = {
   setBubble,
   bubblesEnabled,
   runtimeReactionsEnabled,
+  reactionIntensity,
 };
 
 export {
@@ -1315,4 +1404,5 @@ export {
   setBubble,
   bubblesEnabled,
   runtimeReactionsEnabled,
+  reactionIntensity,
 };
