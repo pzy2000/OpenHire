@@ -30,6 +30,8 @@ const MAX_DISPLAY_MESSAGES = 60;
 const IDLE_INTERVAL_MS = 12000;
 const MAIN_AGENT_SESSION_ID = "live2d-companion";
 const MUTE_STORAGE_KEY = "openhire.companion.muted.v1";
+const BUBBLES_STORAGE_KEY = "openhire.companion.bubbles.v1";
+const RUNTIME_REACTIONS_STORAGE_KEY = "openhire.companion.runtimeReactions.v1";
 const DEFAULT_REACTION_DURATION_MS = 4200;
 const DEFAULT_BUBBLE_DURATION_MS = 3600;
 const CONTEXT_MAX_CHARS = 3600;
@@ -62,6 +64,14 @@ const I18N = {
     "companion.action.sound_on": "开声音",
     "companion.action.sound_off": "关声音",
     "companion.action.debug": "检查",
+    "companion.preferences.title": "偏好",
+    "companion.preferences.sound": "声音",
+    "companion.preferences.bubbles": "气泡提示",
+    "companion.preferences.runtime": "运行态反馈",
+    "companion.preferences.inspect": "检查模型",
+    "companion.preferences.on": "开",
+    "companion.preferences.off": "关",
+    "companion.preferences.inventory": "模型：{motions} 个动作 · {expressions} 个表情",
     "companion.chat.title": "和小伙伴聊聊",
     "companion.chat.placeholder": "对小伙伴说点什么...",
     "companion.chat.send": "发送",
@@ -105,6 +115,14 @@ const I18N = {
     "companion.action.sound_on": "Sound On",
     "companion.action.sound_off": "Sound Off",
     "companion.action.debug": "Inspect",
+    "companion.preferences.title": "Preferences",
+    "companion.preferences.sound": "Sound",
+    "companion.preferences.bubbles": "Bubble tips",
+    "companion.preferences.runtime": "Runtime reactions",
+    "companion.preferences.inspect": "Inspect model",
+    "companion.preferences.on": "On",
+    "companion.preferences.off": "Off",
+    "companion.preferences.inventory": "Model: {motions} motions · {expressions} expressions",
     "companion.chat.title": "Talk to the companion",
     "companion.chat.placeholder": "Say something to the companion...",
     "companion.chat.send": "Send",
@@ -199,6 +217,9 @@ const STATE = {
   expressionNames: [],
   bubbleTimer: null,
   muted: true,
+  bubblesEnabled: true,
+  runtimeReactionsEnabled: true,
+  preferencesOpen: false,
 };
 
 // ------------------------------- Utilities ---------------------------------
@@ -240,21 +261,45 @@ function saveHistory(history) {
   }
 }
 
-function loadMuted() {
+function loadBooleanPreference(key, defaultValue) {
   try {
-    const raw = window.localStorage?.getItem(MUTE_STORAGE_KEY);
-    return raw === null ? true : raw !== "false";
+    const raw = window.localStorage?.getItem(key);
+    return raw === null ? Boolean(defaultValue) : raw !== "false";
   } catch (_err) {
-    return true;
+    return Boolean(defaultValue);
   }
 }
 
-function saveMuted(muted) {
+function saveBooleanPreference(key, value) {
   try {
-    window.localStorage?.setItem(MUTE_STORAGE_KEY, muted ? "true" : "false");
+    window.localStorage?.setItem(key, value ? "true" : "false");
   } catch (_err) {
     // best-effort persistence
   }
+}
+
+function loadMuted() {
+  return loadBooleanPreference(MUTE_STORAGE_KEY, true);
+}
+
+function saveMuted(muted) {
+  saveBooleanPreference(MUTE_STORAGE_KEY, muted);
+}
+
+function loadBubblesEnabled() {
+  return loadBooleanPreference(BUBBLES_STORAGE_KEY, true);
+}
+
+function saveBubblesEnabled(enabled) {
+  saveBooleanPreference(BUBBLES_STORAGE_KEY, enabled);
+}
+
+function loadRuntimeReactionsEnabled() {
+  return loadBooleanPreference(RUNTIME_REACTIONS_STORAGE_KEY, true);
+}
+
+function saveRuntimeReactionsEnabled(enabled) {
+  saveBooleanPreference(RUNTIME_REACTIONS_STORAGE_KEY, enabled);
 }
 
 function tFormat(key, replacements = {}, lang = STATE.language()) {
@@ -551,10 +596,32 @@ function setMuted(muted) {
   saveMuted(STATE.muted);
   syncMuteState();
   setBubble(t(STATE.muted ? "companion.bubble.muted" : "companion.bubble.unmuted", STATE.language()));
+  renderPreferencesPanel();
 }
 
 function toggleMuted() {
   setMuted(!STATE.muted);
+}
+
+function setBubblesEnabled(enabled) {
+  STATE.bubblesEnabled = Boolean(enabled);
+  saveBubblesEnabled(STATE.bubblesEnabled);
+  if (!STATE.bubblesEnabled) setBubble("");
+  renderPreferencesPanel();
+}
+
+function bubblesEnabled() {
+  return STATE.bubblesEnabled;
+}
+
+function setRuntimeReactionsEnabled(enabled) {
+  STATE.runtimeReactionsEnabled = Boolean(enabled);
+  saveRuntimeReactionsEnabled(STATE.runtimeReactionsEnabled);
+  renderPreferencesPanel();
+}
+
+function runtimeReactionsEnabled() {
+  return STATE.runtimeReactionsEnabled;
 }
 
 function setBubble(content, durationMs = DEFAULT_BUBBLE_DURATION_MS) {
@@ -566,6 +633,11 @@ function setBubble(content, durationMs = DEFAULT_BUBBLE_DURATION_MS) {
   }
   const text = textOrEmpty(content);
   if (!text) {
+    bubble.hidden = true;
+    bubble.textContent = "";
+    return;
+  }
+  if (!STATE.bubblesEnabled) {
     bubble.hidden = true;
     bubble.textContent = "";
     return;
@@ -623,6 +695,113 @@ function showInventory() {
     motions: motions.length ? motions.join(", ") : "none",
     expressions: expressions.length ? expressions.join(", ") : "none",
   }, STATE.language()), 6800);
+}
+
+function preferenceStatus(enabled) {
+  return t(enabled ? "companion.preferences.on" : "companion.preferences.off", STATE.language());
+}
+
+function renderPreferenceSwitch(key, label, checked) {
+  return `
+    <label class="companion-preference-row">
+      <span class="companion-preference-label">${esc(label)}</span>
+      <span class="companion-preference-control">
+        <input type="checkbox" data-companion-preference="${esc(key)}" ${checked ? "checked" : ""} />
+        <span class="companion-preference-track" aria-hidden="true"></span>
+        <span class="companion-preference-status">${esc(preferenceStatus(checked))}</span>
+      </span>
+    </label>
+  `;
+}
+
+function renderPreferencesPanel() {
+  const panel = $("[data-companion-preferences-panel]");
+  if (!panel) return;
+  const lang = STATE.language();
+  const motions = availableMotionGroups().length;
+  const expressions = STATE.expressionNames.length;
+  panel.innerHTML = `
+    <div class="companion-preferences-card" role="group" aria-label="${esc(t("companion.preferences.title", lang))}">
+      ${renderPreferenceSwitch("sound", t("companion.preferences.sound", lang), !STATE.muted)}
+      ${renderPreferenceSwitch("bubbles", t("companion.preferences.bubbles", lang), STATE.bubblesEnabled)}
+      ${renderPreferenceSwitch("runtime", t("companion.preferences.runtime", lang), STATE.runtimeReactionsEnabled)}
+      <button class="companion-preference-inspect" type="button" data-companion-preference-action="inspect">
+        ${esc(t("companion.preferences.inspect", lang))}
+      </button>
+      <div class="companion-preference-inventory">
+        ${esc(tFormat("companion.preferences.inventory", { motions, expressions }, lang))}
+      </div>
+    </div>
+  `;
+}
+
+function syncPreferencesToggle() {
+  const toggle = $("[data-companion-preferences-toggle]");
+  if (!toggle) return;
+  const label = t("companion.preferences.title", STATE.language());
+  toggle.textContent = label;
+  toggle.setAttribute("aria-label", label);
+  toggle.setAttribute("aria-expanded", STATE.preferencesOpen ? "true" : "false");
+}
+
+function openPreferences() {
+  const panel = $("[data-companion-preferences-panel]");
+  if (!panel) return;
+  renderPreferencesPanel();
+  panel.hidden = false;
+  STATE.preferencesOpen = true;
+  syncPreferencesToggle();
+}
+
+function closePreferences() {
+  const panel = $("[data-companion-preferences-panel]");
+  if (!panel) return;
+  panel.hidden = true;
+  STATE.preferencesOpen = false;
+  syncPreferencesToggle();
+}
+
+function togglePreferences() {
+  STATE.preferencesOpen ? closePreferences() : openPreferences();
+}
+
+function bindPreferences() {
+  const toggle = $("[data-companion-preferences-toggle]");
+  const panel = $("[data-companion-preferences-panel]");
+  if (!toggle || !panel) return;
+  toggle.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    togglePreferences();
+  });
+  panel.addEventListener("change", (event) => {
+    const control = event.target.closest("[data-companion-preference]");
+    if (!control) return;
+    const enabled = Boolean(control.checked);
+    const key = control.dataset.companionPreference;
+    if (key === "sound") setMuted(!enabled);
+    else if (key === "bubbles") setBubblesEnabled(enabled);
+    else if (key === "runtime") setRuntimeReactionsEnabled(enabled);
+  });
+  panel.addEventListener("click", (event) => {
+    const action = event.target.closest("[data-companion-preference-action]");
+    if (!action) return;
+    event.preventDefault();
+    if (action.dataset.companionPreferenceAction === "inspect") {
+      showInventory();
+      renderPreferencesPanel();
+    }
+  });
+  document.addEventListener("click", (event) => {
+    if (!STATE.preferencesOpen) return;
+    if (
+      event.target.closest("[data-companion-preferences-panel]") ||
+      event.target.closest("[data-companion-preferences-toggle]")
+    ) {
+      return;
+    }
+    closePreferences();
+  });
 }
 
 // ------------------------------- Interactions ------------------------------
@@ -718,8 +897,6 @@ function bindMenu() {
     if (action === "pat") doPat();
     else if (action === "feed") doFeed();
     else if (action === "chat") openChat();
-    else if (action === "mute") toggleMuted();
-    else if (action === "debug") showInventory();
   });
 
   document.addEventListener("click", (event) => {
@@ -737,6 +914,10 @@ function bindMenu() {
     if (event.key === "Escape") {
       if (STATE.chatOpen) {
         closeChat();
+        return;
+      }
+      if (STATE.preferencesOpen) {
+        closePreferences();
         return;
       }
       if (STATE.menuOpen) closeMenu();
@@ -1039,12 +1220,10 @@ function refreshLanguage() {
   document.querySelectorAll("[data-companion-action]").forEach((btn) => {
     const action = btn.dataset.companionAction;
     if (!action) return;
-    if (action === "mute") {
-      btn.textContent = t(STATE.muted ? "companion.action.sound_on" : "companion.action.sound_off", lang);
-      return;
-    }
     btn.textContent = t(`companion.action.${action}`, lang);
   });
+  syncPreferencesToggle();
+  if (STATE.preferencesOpen) renderPreferencesPanel();
   const moodEl = $("[data-companion-mood]");
   if (moodEl) {
     const key = moodEl.dataset.companionMoodKey || "companion.mood.idle";
@@ -1079,11 +1258,15 @@ async function mount(opts) {
   STATE.modelName = opts?.modelName || "openhire";
   STATE.history = loadHistory();
   STATE.muted = loadMuted();
+  STATE.bubblesEnabled = loadBubblesEnabled();
+  STATE.runtimeReactionsEnabled = loadRuntimeReactionsEnabled();
 
   bindMenu();
   bindHotspot();
+  bindPreferences();
   refreshLanguage();
   syncMuteState();
+  renderPreferencesPanel();
   setMood("idle");
 
   const stage = $("[data-companion-stage]");
@@ -1119,6 +1302,19 @@ window.OpenHireCompanion = {
   playMotion,
   setExpression,
   setBubble,
+  bubblesEnabled,
+  runtimeReactionsEnabled,
 };
 
-export { mount, refreshLanguage, syncTheme, destroy, react, playMotion, setExpression, setBubble };
+export {
+  mount,
+  refreshLanguage,
+  syncTheme,
+  destroy,
+  react,
+  playMotion,
+  setExpression,
+  setBubble,
+  bubblesEnabled,
+  runtimeReactionsEnabled,
+};

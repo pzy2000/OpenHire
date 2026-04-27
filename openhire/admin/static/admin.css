@@ -4240,6 +4240,7 @@ html[data-theme="dark"] .case-import-result.is-partial {
 .agent-skill-files-panel,
 .agent-skill-proposals-panel,
 .agent-skill-create-panel {
+  min-width: 0;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -4285,9 +4286,11 @@ html[data-theme="dark"] .case-import-result.is-partial {
 .agent-skill-file-list {
   display: grid;
   gap: 10px;
+  min-width: 0;
 }
 .agent-skill-row {
   width: 100%;
+  min-width: 0;
   justify-content: space-between;
   gap: 12px;
   text-align: left;
@@ -4302,6 +4305,17 @@ html[data-theme="dark"] .case-import-result.is-partial {
 .agent-skill-proposal-card div:first-child {
   display: grid;
   gap: 4px;
+  min-width: 0;
+}
+.agent-skill-row strong,
+.agent-skill-row span:first-child span {
+  overflow-wrap: anywhere;
+}
+.agent-skill-row-meta {
+  flex: 0 1 auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  min-width: 0;
 }
 .agent-skill-row span:first-child span,
 .agent-skill-file-row small {
@@ -5830,14 +5844,14 @@ html[data-theme="light"] .companion {
   align-items: center;
   justify-content: center;
   min-height: 34px;
-  padding: 0 8px;
+  padding: 0 10px;
   border: 1px solid rgba(109, 247, 255, 0.32);
   border-radius: 999px;
   background: rgba(109, 247, 255, 0.10);
   color: var(--neon-cyan);
   font-family: var(--mono);
-  font-size: 10px;
-  letter-spacing: 0.08em;
+  font-size: 11px;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   cursor: pointer;
   transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease, color 0.18s ease;
@@ -5861,6 +5875,142 @@ html[data-theme="light"] .companion-menu {
 html[data-theme="light"] .companion-menu-item {
   background: rgba(36, 149, 179, 0.10);
   border-color: rgba(36, 149, 179, 0.32);
+}
+
+.companion-preferences-toggle {
+  justify-self: center;
+  width: fit-content;
+  min-height: 28px;
+  padding: 0 10px;
+  border: 1px solid rgba(109, 247, 255, 0.24);
+  border-radius: 999px;
+  background: rgba(109, 247, 255, 0.08);
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: border-color 0.18s ease, color 0.18s ease, background 0.18s ease;
+}
+
+.companion-preferences-toggle:hover,
+.companion-preferences-toggle:focus-visible,
+.companion-preferences-toggle[aria-expanded="true"] {
+  border-color: rgba(109, 247, 255, 0.56);
+  background: rgba(109, 247, 255, 0.14);
+  color: var(--neon-cyan);
+  outline: none;
+}
+
+.companion-preferences-panel {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 40px;
+  z-index: 9;
+}
+
+.companion-preferences-panel[hidden] {
+  display: none;
+}
+
+.companion-preferences-card {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid rgba(109, 247, 255, 0.32);
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(15, 25, 42, 0.98), rgba(8, 14, 26, 0.98));
+  box-shadow: 0 18px 38px rgba(0, 0, 0, 0.54), 0 0 22px rgba(109, 247, 255, 0.16);
+}
+
+.companion-preference-row,
+.companion-preference-control {
+  display: flex;
+  align-items: center;
+}
+
+.companion-preference-row {
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.companion-preference-control {
+  position: relative;
+  flex: 0 0 auto;
+  gap: 8px;
+}
+
+.companion-preference-control input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.companion-preference-track {
+  width: 34px;
+  height: 18px;
+  border-radius: 999px;
+  background: rgba(120, 200, 255, 0.18);
+  box-shadow: inset 0 0 0 1px rgba(120, 200, 255, 0.18);
+}
+
+.companion-preference-track::after {
+  content: "";
+  display: block;
+  width: 14px;
+  height: 14px;
+  margin: 2px;
+  border-radius: 50%;
+  background: var(--ink);
+  transition: transform 0.18s ease, background 0.18s ease;
+}
+
+.companion-preference-control input:checked + .companion-preference-track {
+  background: linear-gradient(90deg, var(--neon-cyan), var(--neon-violet));
+}
+
+.companion-preference-control input:checked + .companion-preference-track::after {
+  transform: translateX(16px);
+  background: #050811;
+}
+
+.companion-preference-status,
+.companion-preference-inventory {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.companion-preference-inspect {
+  min-height: 30px;
+  border: 1px solid rgba(109, 247, 255, 0.28);
+  border-radius: 8px;
+  background: rgba(109, 247, 255, 0.08);
+  color: var(--neon-cyan);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.companion-preference-inspect:hover,
+.companion-preference-inspect:focus-visible {
+  border-color: rgba(109, 247, 255, 0.58);
+  background: rgba(109, 247, 255, 0.16);
+  outline: none;
+}
+
+html[data-theme="light"] .companion-preferences-card {
+  background: var(--surface-strong);
+  border-color: rgba(36, 149, 179, 0.28);
 }
 
 .companion-bubble {

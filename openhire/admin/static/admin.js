@@ -71,6 +71,7 @@ const TRANSLATIONS = {
     "companion.action.sound_on": "Sound On",
     "companion.action.sound_off": "Sound Off",
     "companion.action.debug": "Inspect",
+    "companion.preferences.title": "Preferences",
     "companion.chat.title": "Talk to the companion",
     "companion.chat.placeholder": "Say something to the companion...",
     "companion.chat.send": "Send",
@@ -566,6 +567,7 @@ const TRANSLATIONS = {
     "companion.action.sound_on": "开声音",
     "companion.action.sound_off": "关声音",
     "companion.action.debug": "检查",
+    "companion.preferences.title": "偏好",
     "companion.chat.title": "和小伙伴聊聊",
     "companion.chat.placeholder": "对小伙伴说点什么...",
     "companion.chat.send": "发送",
@@ -1746,6 +1748,7 @@ function companionPhrase(en, zh) {
 
 function companionReact(options) {
   try {
+    if (window.OpenHireCompanion?.runtimeReactionsEnabled?.() === false) return;
     window.OpenHireCompanion?.react?.(options);
   } catch (error) {
     console.warn("[companion] reaction skipped", error);

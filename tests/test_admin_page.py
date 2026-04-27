@@ -165,8 +165,11 @@ async def test_admin_page_contains_mount_points(aiohttp_client) -> None:
     assert 'data-companion-action="pat"' in body
     assert 'data-companion-action="feed"' in body
     assert 'data-companion-action="chat"' in body
-    assert 'data-companion-action="mute"' in body
-    assert 'data-companion-action="debug"' in body
+    assert 'data-companion-action="mute"' not in body
+    assert 'data-companion-action="debug"' not in body
+    assert body.count('data-companion-action="') == 3
+    assert 'data-companion-preferences-toggle="true"' in body
+    assert 'data-companion-preferences-panel="true"' in body
     assert 'id="companion-chat-root"' in body
     assert 'id="subagent-list"' not in body
     assert "Background agents spawned by the main loop." not in body
@@ -222,12 +225,20 @@ def test_companion_static_assets_expose_reaction_context_controls() -> None:
     assert "function playMotion(" in companion_js
     assert "data-companion-chat-chip" in companion_js
     assert "OpenHireCompanionContext" in companion_js
+    assert "BUBBLES_STORAGE_KEY" in companion_js
+    assert "RUNTIME_REACTIONS_STORAGE_KEY" in companion_js
+    assert "function renderPreferencesPanel(" in companion_js
+    assert "function runtimeReactionsEnabled(" in companion_js
+    assert "function bubblesEnabled(" in companion_js
+    assert "data-companion-preference" in companion_js
     assert "react," in companion_js
     assert "setExpression," in companion_js
     assert "setBubble," in companion_js
     assert "playMotion," in companion_js
+    assert "runtimeReactionsEnabled," in companion_js
     assert "publishCompanionContext" in admin_js
     assert "syncCompanionRuntimeReaction" in admin_js
+    assert "runtimeReactionsEnabled?.() === false" in admin_js
 
 
 @pytest.mark.skipif(not HAS_AIOHTTP, reason="aiohttp not installed")
@@ -1359,6 +1370,8 @@ async def test_admin_css_keeps_scrolled_modal_close_buttons_outside_scroll(aioht
     assert ".skill-ops-preview" in body
     assert ".skill-ops-opportunity" in body
     assert ".agent-skills-grid" in body
+    assert ".agent-skill-row-meta" in body
+    assert "overflow-wrap: anywhere" in body
     assert ".agent-skill-detail-panel" in body
     assert ".agent-skill-editor" in body
     assert ".agent-skill-proposal-card" in body

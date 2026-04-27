@@ -923,7 +923,7 @@ def _admin_html() -> str:
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>OpenHire Admin</title>
     <link rel="icon" href="data:," />
-    <link rel="stylesheet" href="/admin/assets/admin.css?v=neon-5" />
+    <link rel="stylesheet" href="/admin/assets/admin.css?v=neon-6" />
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
   </head>
   <body>
@@ -1071,21 +1071,22 @@ def _admin_html() -> str:
               role="menuitem"
               data-i18n="companion.action.chat"
             >Chat</button>
-            <button
-              type="button"
-              class="companion-menu-item"
-              data-companion-action="mute"
-              role="menuitem"
-              data-i18n="companion.action.sound_on"
-            >Sound On</button>
-            <button
-              type="button"
-              class="companion-menu-item"
-              data-companion-action="debug"
-              role="menuitem"
-              data-i18n="companion.action.debug"
-            >Inspect</button>
           </div>
+          <button
+            type="button"
+            class="companion-preferences-toggle"
+            data-companion-preferences-toggle="true"
+            data-i18n="companion.preferences.title"
+            aria-controls="companion-preferences-panel"
+            aria-expanded="false"
+            aria-label="Preferences"
+          >Preferences</button>
+          <div
+            id="companion-preferences-panel"
+            class="companion-preferences-panel"
+            data-companion-preferences-panel="true"
+            hidden
+          ></div>
           <div
             class="companion-bubble"
             data-companion-bubble="true"
@@ -1336,8 +1337,8 @@ def _admin_html() -> str:
     </div>
     <div id="employee-modal-root"></div>
     <div id="companion-chat-root" data-companion-chat-root="true"></div>
-    <script type="module" src="/admin/assets/admin.js?v=neon-5"></script>
-    <script type="module" src="/admin/assets/companion.js?v=neon-5"></script>
+    <script type="module" src="/admin/assets/admin.js?v=neon-6"></script>
+    <script type="module" src="/admin/assets/companion.js?v=neon-6"></script>
   </body>
 </html>"""
 
