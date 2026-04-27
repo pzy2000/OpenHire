@@ -1755,6 +1755,18 @@ function companionReact(options) {
   }
 }
 
+function companionContextActionBubble(scope, action) {
+  const isCompact = action === "compact";
+  if (scope === "employee") {
+    return isCompact
+      ? companionPhrase("Employee context was compacted.", "员工上下文已压缩。")
+      : companionPhrase("Employee context was cleared.", "员工上下文已清理。");
+  }
+  return isCompact
+    ? companionPhrase("Main context was compacted.", "主控上下文已压缩。")
+    : companionPhrase("Main context was cleared.", "主控上下文已清理。");
+}
+
 function dockerIssueCount(rows = []) {
   return (Array.isArray(rows) ? rows : []).filter((agent) => {
     const status = text(agent?.status, "").toLowerCase();
@@ -3062,6 +3074,10 @@ async function runSelectedDream() {
   dreamState.isRunning = true;
   dreamState.actionStatus = "";
   renderDreamPanel();
+  companionReact({
+    type: "thinking",
+    bubble: companionPhrase("Dream run started.", "梦境运行已开始。"),
+  });
   try {
     const response = await fetch(dreamSubjectEndpoint(subject.id, "/run"), {
       method: "POST",
@@ -3073,6 +3089,16 @@ async function runSelectedDream() {
     }
     dreamState.actionStatus = dreamRunStatusLabel(payload.status);
     await loadDream();
+    companionReact({
+      type: "ready",
+      bubble: companionPhrase("Dream run finished.", "梦境运行完成。"),
+    });
+  } catch (error) {
+    companionReact({
+      type: "error",
+      bubble: companionPhrase("Dream run failed.", "梦境运行失败。"),
+    });
+    throw error;
   } finally {
     dreamState.isRunning = false;
     renderDreamPanel();
@@ -3100,6 +3126,10 @@ async function restoreDreamCommit(subjectId, sha) {
   if (!normalizedSha) return;
   dreamState.isRestoring = true;
   setBusyAction({ key: "dream-restore", label: t("dream.restoring") });
+  companionReact({
+    type: "thinking",
+    bubble: companionPhrase("Dream restore started.", "梦境恢复已开始。"),
+  });
   try {
     const response = await fetch(dreamSubjectEndpoint(normalizedSubjectId, "/restore"), {
       method: "POST",
@@ -3116,6 +3146,16 @@ async function restoreDreamCommit(subjectId, sha) {
     adminState.confirmAction = null;
     dreamState.actionStatus = dreamRunStatusLabel(payload.status);
     await loadDream();
+    companionReact({
+      type: "ready",
+      bubble: companionPhrase("Dream restore finished.", "梦境恢复完成。"),
+    });
+  } catch (error) {
+    companionReact({
+      type: "error",
+      bubble: companionPhrase("Dream restore failed.", "梦境恢复失败。"),
+    });
+    throw error;
   } finally {
     dreamState.isRestoring = false;
     clearBusyAction();
@@ -9056,6 +9096,16 @@ async function packageAgentSkill(name) {
     }
     agentSkillState.packageResult = await response.json();
     renderAgentSkillsWorkbench();
+    companionReact({
+      type: "ready",
+      bubble: companionPhrase("Agent skill package is ready.", "Agent Skill 包已准备好。"),
+    });
+  } catch (error) {
+    companionReact({
+      type: "error",
+      bubble: companionPhrase("Agent skill package failed.", "Agent Skill 打包失败。"),
+    });
+    throw error;
   } finally {
     clearBusyAction();
   }
@@ -9106,15 +9156,27 @@ async function deleteAgentSkillFile(filePath) {
 async function approveAgentSkillProposal(proposalId) {
   const normalizedId = text(proposalId, "");
   if (!normalizedId) return;
-  const response = await fetch(`${AGENT_SKILL_PROPOSALS_ENDPOINT}/${encodeURIComponent(normalizedId)}/approve`, {
-    method: "POST",
-    headers: { Accept: "application/json" },
-  });
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: { message: `HTTP ${response.status}` } }));
-    throw new Error(text(error?.error?.message, `HTTP ${response.status}`));
+  try {
+    const response = await fetch(`${AGENT_SKILL_PROPOSALS_ENDPOINT}/${encodeURIComponent(normalizedId)}/approve`, {
+      method: "POST",
+      headers: { Accept: "application/json" },
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: { message: `HTTP ${response.status}` } }));
+      throw new Error(text(error?.error?.message, `HTTP ${response.status}`));
+    }
+    await loadAgentSkills();
+    companionReact({
+      type: "ready",
+      bubble: companionPhrase("Agent skill proposal approved.", "Agent Skill 提案已通过。"),
+    });
+  } catch (error) {
+    companionReact({
+      type: "error",
+      bubble: companionPhrase("Agent skill proposal approval failed.", "Agent Skill 提案通过失败。"),
+    });
+    throw error;
   }
-  await loadAgentSkills();
 }
 
 async function discardAgentSkillProposal(proposalId) {
@@ -10403,6 +10465,16 @@ async function runMainAgentContextAction(action) {
       throw new Error(text(error?.error?.message, `HTTP ${response.status}`));
     }
     await refreshDashboard();
+    companionReact({
+      type: "ready",
+      bubble: companionContextActionBubble("main", action),
+    });
+  } catch (error) {
+    companionReact({
+      type: "error",
+      bubble: companionPhrase("Main context action failed.", "主控上下文操作失败。"),
+    });
+    throw error;
   } finally {
     clearMainContextAction();
   }
@@ -10433,6 +10505,16 @@ async function runEmployeeContextAction(employeeId, action, sessionKey = "", sur
     if (surface === "dream") {
       await loadDream();
     }
+    companionReact({
+      type: "ready",
+      bubble: companionContextActionBubble("employee", normalizedAction),
+    });
+  } catch (error) {
+    companionReact({
+      type: "error",
+      bubble: companionPhrase("Employee context action failed.", "员工上下文操作失败。"),
+    });
+    throw error;
   } finally {
     clearEmployeeContextAction();
   }
@@ -10449,6 +10531,10 @@ async function repairDockerDaemon() {
   adminState.dockerDaemonAction = "repair";
   adminState.dockerDaemonRepairResult = "";
   renderDockerDaemonSurfaces();
+  companionReact({
+    type: "thinking",
+    bubble: companionPhrase("Docker repair started.", "开始修复 Docker daemon。"),
+  });
   try {
     const response = await fetch(DOCKER_DAEMON_REPAIR_ENDPOINT, {
       method: "POST",
@@ -10463,6 +10549,16 @@ async function repairDockerDaemon() {
     }
     adminState.dockerDaemonRepairResult = text(payload?.message, "");
     await refreshDashboard();
+    companionReact({
+      type: "ready",
+      bubble: companionPhrase("Docker daemon repair finished.", "Docker daemon 修复完成。"),
+    });
+  } catch (error) {
+    companionReact({
+      type: "error",
+      bubble: companionPhrase("Docker daemon repair failed.", "Docker daemon 修复失败。"),
+    });
+    throw error;
   } finally {
     adminState.dockerDaemonAction = null;
     renderDockerDaemonSurfaces();

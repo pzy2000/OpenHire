@@ -242,6 +242,25 @@ def test_companion_static_assets_expose_reaction_context_controls() -> None:
     assert "publishCompanionContext" in admin_js
     assert "syncCompanionRuntimeReaction" in admin_js
     assert "runtimeReactionsEnabled?.() === false" in admin_js
+    assert "Main context was cleared." in admin_js
+    assert "Main context was compacted." in admin_js
+    assert "Main context action failed." in admin_js
+    assert "Employee context was cleared." in admin_js
+    assert "Employee context was compacted." in admin_js
+    assert "Employee context action failed." in admin_js
+    assert "Docker repair started." in admin_js
+    assert "Docker daemon repair finished." in admin_js
+    assert "Docker daemon repair failed." in admin_js
+    assert "Dream run started." in admin_js
+    assert "Dream run finished." in admin_js
+    assert "Dream run failed." in admin_js
+    assert "Dream restore started." in admin_js
+    assert "Dream restore finished." in admin_js
+    assert "Dream restore failed." in admin_js
+    assert "Agent skill package is ready." in admin_js
+    assert "Agent skill package failed." in admin_js
+    assert "Agent skill proposal approved." in admin_js
+    assert "Agent skill proposal approval failed." in admin_js
 
 
 @pytest.mark.skipif(not HAS_AIOHTTP, reason="aiohttp not installed")
