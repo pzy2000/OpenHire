@@ -871,9 +871,15 @@ async def test_admin_js_asset_matches_main_polling_and_sse(aiohttp_client) -> No
     assert "renderOrganization" in body
     assert "saveOrganization" in body
     assert "validateOrganizationDraft" in body
+    assert "connectionDrag" in body
+    assert "startOrganizationConnectionDrag" in body
+    assert "finishOrganizationConnectionDrag" in body
+    assert "document.elementFromPoint" in body
     assert "data-organization-connect" in body
     assert "data-organization-save" in body
     assert "data-organization-skill-toggle" in body
+    assert "Drag from an employee connector to its direct manager card." in body
+    assert "从员工连接点拖到直属上级员工卡片。" in body
     assert "organization.skills_selected" in body
     assert 'fetch("/employees"' in body
     assert "Delete Employee" in body
@@ -1411,6 +1417,7 @@ async def test_admin_css_keeps_scrolled_modal_close_buttons_outside_scroll(aioht
     assert ".organization-canvas" in body
     assert ".organization-node" in body
     assert ".organization-edge" in body
+    assert ".organization-edge-preview" in body
     assert ".organization-detail" in body
     assert ".organization-connector" in body
     assert ".organization-skill-head" in body

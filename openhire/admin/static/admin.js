@@ -194,14 +194,14 @@ const TRANSLATIONS = {
     "organization.skills_empty": "No local skills selected.",
     "organization.tools": "Tools",
     "organization.tools_placeholder": "message, github",
-    "organization.start_line": "Start report line",
+    "organization.start_line": "Drag report line",
     "organization.complete_line": "Connect manager",
     "organization.remove_manager": "Remove manager",
     "organization.valid": "Organization graph is valid.",
     "organization.invalid": "{count} issue(s) must be fixed before saving.",
     "organization.dirty": "Unsaved organization changes.",
     "organization.saved": "Organization saved.",
-    "organization.connect_hint": "Click a node connector, then click its manager.",
+    "organization.connect_hint": "Drag from an employee connector to its direct manager card.",
     "button.delete_skill": "Delete skill",
     "button.delete_employee": "Delete Employee",
     "button.delete_docker": "Delete Docker",
@@ -694,14 +694,14 @@ const TRANSLATIONS = {
     "organization.skills_empty": "未选择本地技能。",
     "organization.tools": "工具",
     "organization.tools_placeholder": "message, github",
-    "organization.start_line": "开始连线",
+    "organization.start_line": "拖出汇报线",
     "organization.complete_line": "连接上级",
     "organization.remove_manager": "移除上级",
     "organization.valid": "组织架构合法。",
     "organization.invalid": "保存前需修复 {count} 个问题。",
     "organization.dirty": "组织架构有未保存变更。",
     "organization.saved": "组织架构已保存。",
-    "organization.connect_hint": "先点击员工节点连接点，再点击直属上级节点。",
+    "organization.connect_hint": "从员工连接点拖到直属上级员工卡片。",
     "button.delete_skill": "删除技能",
     "button.delete_employee": "删除员工",
     "button.delete_docker": "删除 Docker",
@@ -1496,6 +1496,8 @@ const organizationState = {
   draft: null,
   selectedEmployeeId: null,
   connectFromId: null,
+  connectionDrag: null,
+  suppressConnectionClickUntil: 0,
   isSkillListExpanded: false,
   drag: null,
   validation: { valid: true, errors: [], warnings: [] },
@@ -4502,6 +4504,7 @@ function setOrganizationManager(employeeId, managerId) {
 function startOrganizationConnection(employeeId) {
   const normalized = text(employeeId, "");
   if (!normalized) return;
+  if (organizationState.connectionDrag) return;
   if (!organizationState.connectFromId) {
     organizationState.connectFromId = normalized;
     organizationState.saveStatus = t("organization.connect_hint");
@@ -4511,6 +4514,105 @@ function startOrganizationConnection(employeeId) {
   const reporterId = organizationState.connectFromId;
   organizationState.connectFromId = null;
   setOrganizationManager(reporterId, normalized);
+}
+
+function organizationConnectorPoint(employeeId) {
+  const node = organizationNode(employeeId);
+  if (!node) return null;
+  return {
+    x: Number(node.x || 0) + 220,
+    y: Number(node.y || 0) + 54,
+  };
+}
+
+function organizationCanvasPointFromEvent(event) {
+  const canvas = document.querySelector("[data-organization-canvas]");
+  if (!(canvas instanceof HTMLElement)) return null;
+  const rect = canvas.getBoundingClientRect();
+  return {
+    x: Math.max(0, event.clientX - rect.left + canvas.scrollLeft),
+    y: Math.max(0, event.clientY - rect.top + canvas.scrollTop),
+  };
+}
+
+function organizationConnectionPreviewPath() {
+  const drag = organizationState.connectionDrag;
+  if (!drag) return "";
+  const x1 = Number(drag.startX || 0);
+  const y1 = Number(drag.startY || 0);
+  const x2 = Number(drag.currentX || x1);
+  const y2 = Number(drag.currentY || y1);
+  const mid = Math.max(x1 + 24, (x1 + x2) / 2);
+  return `<path class="organization-edge organization-edge-preview" d="M ${x1} ${y1} C ${mid} ${y1}, ${mid} ${y2}, ${x2} ${y2}" marker-end="url(#organization-arrow)" />`;
+}
+
+function startOrganizationConnectionDrag(event, connectorElement) {
+  const employeeId = connectorElement.getAttribute("data-organization-connect");
+  const start = organizationConnectorPoint(employeeId);
+  const current = organizationCanvasPointFromEvent(event) || start;
+  if (!employeeId || !start || !current) return;
+  event.preventDefault();
+  event.stopPropagation();
+  organizationState.connectionDrag = {
+    employeeId,
+    pointerId: event.pointerId,
+    startClientX: event.clientX,
+    startClientY: event.clientY,
+    startX: start.x,
+    startY: start.y,
+    currentX: current.x,
+    currentY: current.y,
+    hasMoved: false,
+  };
+  organizationState.connectFromId = employeeId;
+  organizationState.saveStatus = t("organization.connect_hint");
+  connectorElement.setPointerCapture?.(event.pointerId);
+  if (organizationState.selectedEmployeeId !== employeeId) {
+    organizationState.isSkillListExpanded = false;
+  }
+  organizationState.selectedEmployeeId = employeeId;
+  renderOrganization();
+}
+
+function moveOrganizationConnectionDrag(event) {
+  const drag = organizationState.connectionDrag;
+  if (!drag || drag.pointerId !== event.pointerId) return;
+  const point = organizationCanvasPointFromEvent(event);
+  if (!point) return;
+  event.preventDefault();
+  const dx = event.clientX - drag.startClientX;
+  const dy = event.clientY - drag.startClientY;
+  drag.hasMoved = drag.hasMoved || Math.hypot(dx, dy) > 3;
+  drag.currentX = point.x;
+  drag.currentY = point.y;
+  renderOrganization();
+}
+
+function cancelOrganizationConnectionDrag() {
+  if (!organizationState.connectionDrag) return;
+  organizationState.connectionDrag = null;
+  organizationState.connectFromId = null;
+  organizationState.saveStatus = "";
+  renderOrganization();
+}
+
+function finishOrganizationConnectionDrag(event) {
+  const drag = organizationState.connectionDrag;
+  if (!drag || drag.pointerId !== event.pointerId) return;
+  event.preventDefault();
+  organizationState.connectionDrag = null;
+  organizationState.connectFromId = null;
+  organizationState.saveStatus = "";
+  organizationState.suppressConnectionClickUntil = Date.now() + 350;
+  const targetNode = drag.hasMoved
+    ? document.elementFromPoint(event.clientX, event.clientY)?.closest("[data-organization-node]")
+    : null;
+  const managerId = targetNode?.getAttribute("data-organization-node") || "";
+  if (managerId) {
+    setOrganizationManager(drag.employeeId, managerId);
+    return;
+  }
+  renderOrganization();
 }
 
 function toggleOrganizationSkill(employeeId, skillId, checked) {
@@ -4565,6 +4667,7 @@ function renderOrganizationCanvas() {
   }
   const bounds = organizationCanvasBounds();
   const nodeById = organizationNodeMap();
+  const previewEdge = organizationConnectionPreviewPath();
   const edges = draft.edges.map((edge) => {
     const reporter = nodeById.get(edge.reporter_id);
     const manager = nodeById.get(edge.manager_id);
@@ -4626,6 +4729,7 @@ function renderOrganizationCanvas() {
             </marker>
           </defs>
           ${edges}
+          ${previewEdge}
         </svg>
         <div class="organization-node-layer">${nodes}</div>
       </div>
@@ -4757,6 +4861,7 @@ async function loadOrganization() {
   organizationState.draft = cloneOrganizationDraft(organizationState.server);
   organizationState.selectedEmployeeId = organizationState.selectedEmployeeId || organizationState.draft.nodes[0]?.employee_id || null;
   organizationState.connectFromId = null;
+  organizationState.connectionDrag = null;
   organizationState.validation = payload.validation || { valid: true, errors: [], warnings: [] };
   organizationState.isDirty = false;
   organizationState.isLoading = false;
@@ -10842,6 +10947,10 @@ function initEmployeeInteractions() {
     }
     const organizationConnectButton = event.target.closest("[data-organization-connect]");
     if (organizationConnectButton) {
+      if (organizationState.suppressConnectionClickUntil >= Date.now()) {
+        return;
+      }
+      organizationState.suppressConnectionClickUntil = 0;
       startOrganizationConnection(organizationConnectButton.getAttribute("data-organization-connect"));
       return;
     }
@@ -11873,7 +11982,11 @@ function initEmployeeInteractions() {
   });
   document.addEventListener("pointerdown", (event) => {
     if (!(event.target instanceof Element)) return;
-    if (event.target.closest("[data-organization-connect]")) return;
+    const organizationConnectButton = event.target.closest("[data-organization-connect]");
+    if (organizationConnectButton) {
+      startOrganizationConnectionDrag(event, organizationConnectButton);
+      return;
+    }
     const node = event.target.closest("[data-organization-node]");
     if (!node) return;
     event.preventDefault();
@@ -11881,9 +11994,15 @@ function initEmployeeInteractions() {
     startOrganizationDrag(event, node);
   });
   document.addEventListener("pointermove", (event) => {
+    moveOrganizationConnectionDrag(event);
     moveOrganizationDrag(event);
   });
-  document.addEventListener("pointerup", () => {
+  document.addEventListener("pointerup", (event) => {
+    finishOrganizationConnectionDrag(event);
+    endOrganizationDrag();
+  });
+  document.addEventListener("pointercancel", () => {
+    cancelOrganizationConnectionDrag();
     endOrganizationDrag();
   });
   document.addEventListener("keydown", (event) => {

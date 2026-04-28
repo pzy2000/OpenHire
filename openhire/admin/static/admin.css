@@ -6559,6 +6559,11 @@ html[data-theme="light"] .organization-canvas {
   fill: var(--neon-cyan);
 }
 
+.organization-edge-preview {
+  stroke-dasharray: 8 7;
+  opacity: 0.55;
+}
+
 .organization-node {
   position: absolute;
   width: 224px;
