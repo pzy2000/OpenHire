@@ -69,6 +69,7 @@ class _LoopHook(AgentHook):
         channel: str = "cli",
         chat_id: str = "direct",
         message_id: str | None = None,
+        requester_agent_id: str | None = None,
     ) -> None:
         super().__init__(reraise=True)
         self._loop = agent_loop
@@ -78,6 +79,7 @@ class _LoopHook(AgentHook):
         self._channel = channel
         self._chat_id = chat_id
         self._message_id = message_id
+        self._requester_agent_id = requester_agent_id
         self._stream_buf = ""
 
     def wants_streaming(self) -> bool:
@@ -115,7 +117,12 @@ class _LoopHook(AgentHook):
         for tc in context.tool_calls:
             args_str = json.dumps(tc.arguments, ensure_ascii=False)
             logger.info("Tool call: {}({})", tc.name, args_str[:200])
-        self._loop._set_tool_context(self._channel, self._chat_id, self._message_id)
+        self._loop._set_tool_context(
+            self._channel,
+            self._chat_id,
+            self._message_id,
+            requester_agent_id=self._requester_agent_id,
+        )
 
     async def after_iteration(self, context: AgentHookContext) -> None:
         u = context.usage or {}
@@ -368,13 +375,32 @@ class AgentLoop:
         finally:
             self._mcp_connecting = False
 
-    def _set_tool_context(self, channel: str, chat_id: str, message_id: str | None = None) -> None:
+    def _set_tool_context(
+        self,
+        channel: str,
+        chat_id: str,
+        message_id: str | None = None,
+        *,
+        requester_agent_id: str | None = None,
+    ) -> None:
         """Update context for all tools that need routing info."""
         for name in ("message", "cron", "openhire"):
             if tool := self.tools.get(name):
                 if hasattr(tool, "set_context"):
                     with_message_id = name in {"message", "openhire"}
                     tool.set_context(channel, chat_id, *([message_id] if with_message_id else []))
+                if hasattr(tool, "set_requester_agent_id"):
+                    tool.set_requester_agent_id(requester_agent_id)
+
+    @staticmethod
+    def _organization_requester_agent_id(msg: InboundMessage) -> str:
+        """Return explicit employee requester metadata, if this inbound turn has one."""
+        metadata = msg.metadata or {}
+        for key in ("requester_agent_id", "requesterAgentId", "employee_id", "employeeId"):
+            value = metadata.get(key)
+            if value:
+                return str(value).strip()
+        return ""
 
     @staticmethod
     def _strip_think(text: str | None) -> str | None:
@@ -409,6 +435,7 @@ class AgentLoop:
         channel: str = "cli",
         chat_id: str = "direct",
         message_id: str | None = None,
+        requester_agent_id: str | None = None,
         pending_queue: asyncio.Queue | None = None,
     ) -> tuple[str | None, list[str], list[dict], str, bool]:
         """Run the agent iteration loop.
@@ -428,6 +455,7 @@ class AgentLoop:
             channel=channel,
             chat_id=chat_id,
             message_id=message_id,
+            requester_agent_id=requester_agent_id,
         )
         hook: AgentHook = (
             CompositeHook([loop_hook] + self._extra_hooks) if self._extra_hooks else loop_hook
@@ -728,6 +756,7 @@ class AgentLoop:
                 final_content, _, all_msgs, _, _ = await self._run_agent_loop(
                     messages, session=session, channel=channel, chat_id=chat_id,
                     message_id=msg.metadata.get("message_id"),
+                    requester_agent_id=self._organization_requester_agent_id(msg),
                 )
             except Exception as exc:
                 self.runtime_monitor.finish_main_turn(stop_reason="error", error=str(exc))
@@ -776,7 +805,13 @@ class AgentLoop:
 
         await self.consolidator.maybe_consolidate_by_tokens(session)
 
-        self._set_tool_context(msg.channel, msg.chat_id, msg.metadata.get("message_id"))
+        requester_agent_id = self._organization_requester_agent_id(msg)
+        self._set_tool_context(
+            msg.channel,
+            msg.chat_id,
+            msg.metadata.get("message_id"),
+            requester_agent_id=requester_agent_id,
+        )
         for tool_name in ("message", "openhire"):
             if tool := self.tools.get(tool_name):
                 if hasattr(tool, "start_turn"):
@@ -830,6 +865,7 @@ class AgentLoop:
                 channel=msg.channel,
                 chat_id=msg.chat_id,
                 message_id=msg.metadata.get("message_id"),
+                requester_agent_id=requester_agent_id,
                 pending_queue=pending_queue,
             )
         except Exception as exc:
@@ -1309,6 +1345,7 @@ class AgentLoop:
         channel: str = "cli",
         chat_id: str = "direct",
         media: list[str] | None = None,
+        requester_agent_id: str | None = None,
         on_progress: Callable[[str], Awaitable[None]] | None = None,
         on_stream: Callable[[str], Awaitable[None]] | None = None,
         on_stream_end: Callable[..., Awaitable[None]] | None = None,
@@ -1318,6 +1355,7 @@ class AgentLoop:
         msg = InboundMessage(
             channel=channel, sender_id="user", chat_id=chat_id,
             content=content, media=media or [],
+            metadata={"requester_agent_id": requester_agent_id} if requester_agent_id else {},
         )
         return await self._process_message(
             msg,

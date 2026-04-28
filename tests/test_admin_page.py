@@ -279,6 +279,9 @@ def test_companion_static_assets_expose_reaction_context_controls() -> None:
     assert "Docker repair started." in admin_js
     assert "Docker daemon repair finished." in admin_js
     assert "Docker daemon repair failed." in admin_js
+    assert "Docker worker repair started." in admin_js
+    assert "Docker worker repair finished." in admin_js
+    assert "Docker worker repair failed." in admin_js
     assert "Dream run started." in admin_js
     assert "Dream run finished." in admin_js
     assert "Dream run failed." in admin_js
@@ -1092,10 +1095,16 @@ async def test_admin_js_asset_matches_main_polling_and_sse(aiohttp_client) -> No
     assert "action.docker_daemon.repair" in body
     assert "DOCKER_DAEMON_REPAIR_ENDPOINT" in body
     assert "repairDockerDaemon" in body
+    assert "action.docker_issue.restore" in body
+    assert "action.docker_issue.repairing" in body
+    assert "action.docker_issue.restore_result" in body
+    assert "EMPLOYEE_CONTAINER_RESTORE_ENDPOINT" in body
+    assert "restoreEmployeeContainers" in body
     assert "docker-daemon" in body
     assert "docker.daemon_unavailable" in body
     assert "data-docker-daemon-repair" in body
     assert "data-action-center-docker-repair" in body
+    assert "data-action-center-employee-container-restore" in body
     assert "adminState.dockerDaemon = payload.dockerDaemon || {}" in body
     assert "dockerIssues.length" in body
     assert "caseState.importResult" in body
@@ -1852,6 +1861,35 @@ async def test_admin_repair_docker_daemon_endpoint_calls_repair(aiohttp_client, 
     assert body["attempted"] is True
     assert body["command"] == ["open", "-a", "Docker"]
     assert body["dockerDaemon"]["ok"] is True
+
+
+@pytest.mark.skipif(not HAS_AIOHTTP, reason="aiohttp not installed")
+@pytest.mark.asyncio
+async def test_admin_restore_employee_containers_endpoint_calls_lifecycle(aiohttp_client, monkeypatch) -> None:
+    calls = 0
+
+    async def fake_restore_active_agents(_self):
+        nonlocal calls
+        calls += 1
+        return {"restored": 2, "failed": 1, "skipped": 3}
+
+    monkeypatch.setenv("OPENHIRE_DEMO_MODE", "1")
+    monkeypatch.setattr(
+        "openhire.workforce.lifecycle.AgentLifecycle.restore_active_agents",
+        fake_restore_active_agents,
+    )
+
+    app = create_app(_make_admin_agent(), model_name="test-model")
+    client = await aiohttp_client(app)
+
+    resp = await client.post("/admin/api/employee-containers/restore")
+
+    assert resp.status == 200
+    body = await resp.json()
+    assert calls == 1
+    assert body["status"] == "partial"
+    assert body["stats"] == {"restored": 2, "failed": 1, "skipped": 3}
+    assert "restored=2 failed=1 skipped=3" in body["message"]
 
 
 @pytest.mark.skipif(not HAS_AIOHTTP, reason="aiohttp not installed")

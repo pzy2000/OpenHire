@@ -37,6 +37,7 @@ class MessageTool(Tool):
         self._default_chat_id = default_chat_id
         self._default_message_id = default_message_id
         self._organization_policy = organization_policy
+        self._requester_agent_id = ""
         self._sent_in_turn: bool = False
 
     def set_context(self, channel: str, chat_id: str, message_id: str | None = None) -> None:
@@ -44,6 +45,10 @@ class MessageTool(Tool):
         self._default_channel = channel
         self._default_chat_id = chat_id
         self._default_message_id = message_id
+
+    def set_requester_agent_id(self, requester_agent_id: str | None) -> None:
+        """Set the employee requester for organization policy checks."""
+        self._requester_agent_id = str(requester_agent_id or "").strip()
 
     def set_send_callback(self, callback: Callable[[OutboundMessage], Awaitable[None]]) -> None:
         """Set the callback for sending messages."""
@@ -80,8 +85,9 @@ class MessageTool(Tool):
         from openhire.utils.helpers import strip_think
         content = strip_think(content)
 
-        if self._organization_policy is not None and requester_agent_id and target_agent_id:
-            decision = self._organization_policy.can_communicate(requester_agent_id, target_agent_id)
+        effective_requester_agent_id = str(requester_agent_id or self._requester_agent_id or "").strip()
+        if self._organization_policy is not None and effective_requester_agent_id and target_agent_id:
+            decision = self._organization_policy.can_communicate(effective_requester_agent_id, target_agent_id)
             if not decision.allowed:
                 return f"Organization policy blocked message: {decision.reason}"
         

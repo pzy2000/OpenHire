@@ -137,15 +137,25 @@ async def read_container_bootstrap_file(container_name: str, adapter: Any, filen
     if not template_path:
         return ""
 
-    proc = await asyncio.create_subprocess_exec(
-        "docker",
-        "exec",
-        container_name,
-        "cat",
-        template_path,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
-    )
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            "docker",
+            "exec",
+            container_name,
+            "cat",
+            template_path,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+    except (FileNotFoundError, OSError) as exc:
+        logger.warning(
+            "Failed to read {} template from {} at {}: {}",
+            filename,
+            container_name,
+            template_path,
+            exc,
+        )
+        return ""
     stdout, stderr = await proc.communicate()
     if proc.returncode != 0:
         logger.warning(

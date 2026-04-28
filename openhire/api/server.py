@@ -1978,6 +1978,36 @@ async def handle_admin_repair_docker_daemon(request: web.Request) -> web.Respons
     return web.json_response(result)
 
 
+async def handle_admin_restore_employee_containers(request: web.Request) -> web.Response:
+    """POST /admin/api/employee-containers/restore"""
+    try:
+        raw_stats = await _employee_lifecycle(request).restore_active_agents()
+    except Exception as exc:
+        logger.exception("Failed to restore employee containers")
+        return _error_json(500, str(exc), err_type="server_error")
+
+    raw_stats = raw_stats if isinstance(raw_stats, dict) else {}
+    stats = {
+        "restored": int(raw_stats.get("restored") or 0),
+        "failed": int(raw_stats.get("failed") or 0),
+        "skipped": int(raw_stats.get("skipped") or 0),
+    }
+    status = "partial" if stats["failed"] > 0 else "ok"
+    message = (
+        "Employee container restore partially completed"
+        if status == "partial"
+        else "Employee container restore completed"
+    )
+    return web.json_response({
+        "status": status,
+        "message": (
+            f"{message}: restored={stats['restored']} "
+            f"failed={stats['failed']} skipped={stats['skipped']}."
+        ),
+        "stats": stats,
+    })
+
+
 def _admin_docker_rows(snapshot: dict[str, Any]) -> list[dict[str, Any]]:
     rows = snapshot.get("dockerContainers")
     if not isinstance(rows, list):
@@ -2581,18 +2611,36 @@ async def handle_admin_update_organization(request: web.Request) -> web.Response
     if capability_error:
         return _organization_error_json(400, capability_error, validation)
 
+    registry = _employee_registry(request)
+    previous_fields: dict[str, dict[str, Any]] = {}
     try:
+        for employee_id, fields in capability_updates:
+            current = registry.get(employee_id)
+            if current is None:
+                raise RuntimeError(f"Capability references unknown employee '{employee_id}'.")
+            previous_fields[employee_id] = {
+                field: list(getattr(current, field)) if isinstance(getattr(current, field), list) else getattr(current, field)
+                for field in fields
+            }
+            updated = registry.update(employee_id, **fields)
+            if updated is None:
+                raise RuntimeError(f"Failed to update employee '{employee_id}'.")
         _organization_store(request).save(
             graph,
             employee_ids=employee_ids,
             default_allow_skip_level_reporting=_default_allow_skip_level_reporting(request),
         )
     except OrganizationValidationError as exc:
+        for employee_id, fields in previous_fields.items():
+            registry.update(employee_id, **fields)
         return _organization_error_json(400, str(exc), exc.validation)
-
-    registry = _employee_registry(request)
-    for employee_id, fields in capability_updates:
-        registry.update(employee_id, **fields)
+    except Exception as exc:
+        for employee_id, fields in previous_fields.items():
+            try:
+                registry.update(employee_id, **fields)
+            except Exception:
+                logger.exception("Failed to roll back organization capability update for {}", employee_id)
+        return _organization_error_json(500, f"Failed to save organization: {exc}", validation)
     return web.json_response(_organization_payload(request))
 
 
@@ -3466,6 +3514,7 @@ def _add_admin_routes(app: web.Application) -> None:
     app.router.add_put("/admin/api/organization", handle_admin_update_organization)
     app.router.add_post("/admin/api/employees/{employee_id}/context/clear", handle_admin_employee_clear_context)
     app.router.add_post("/admin/api/employees/{employee_id}/context/compact", handle_admin_employee_compact_context)
+    app.router.add_post("/admin/api/employee-containers/restore", handle_admin_restore_employee_containers)
     app.router.add_post("/admin/api/docker-daemon/repair", handle_admin_repair_docker_daemon)
     app.router.add_delete("/admin/api/docker-containers/{name}", handle_admin_delete_docker)
     app.router.add_get("/admin/api/agent-skills", handle_admin_agent_skills_list)

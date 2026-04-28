@@ -129,6 +129,7 @@ class OpenHireTool(Tool):
         self._channel = ""
         self._chat_id = ""
         self._message_id: str | None = None
+        self._requester_agent_id = ""
         self._sent_in_turn = False
 
     def set_context(self, channel: str, chat_id: str, message_id: str | None = None) -> None:
@@ -136,6 +137,10 @@ class OpenHireTool(Tool):
         self._channel = channel
         self._chat_id = chat_id
         self._message_id = message_id
+
+    def set_requester_agent_id(self, requester_agent_id: str | None) -> None:
+        """Set the employee requester for organization policy checks."""
+        self._requester_agent_id = str(requester_agent_id or "").strip()
 
     def set_send_callback(
         self,
@@ -360,11 +365,12 @@ class OpenHireTool(Tool):
         )
         if not decision.target_agents:
             return f"No agent matched. Strategy: {decision.strategy}. Reason: {decision.reason}"
-        if requester_agent_id:
+        effective_requester_agent_id = str(requester_agent_id or self._requester_agent_id or "").strip()
+        if effective_requester_agent_id:
             allowed_targets: list[str] = []
             blocked_reasons: list[str] = []
             for target_agent_id in decision.target_agents:
-                policy_decision = self._organization_policy.can_communicate(requester_agent_id, target_agent_id)
+                policy_decision = self._organization_policy.can_communicate(effective_requester_agent_id, target_agent_id)
                 if policy_decision.allowed:
                     allowed_targets.append(target_agent_id)
                 else:
@@ -398,7 +404,8 @@ class OpenHireTool(Tool):
         if entry.status != "active":
             return f"Agent '{entry.agent_id}' is not active."
 
-        policy_decision = self._organization_policy.can_communicate(requester_agent_id, entry.agent_id)
+        effective_requester_agent_id = str(requester_agent_id or self._requester_agent_id or "").strip()
+        policy_decision = self._organization_policy.can_communicate(effective_requester_agent_id, entry.agent_id)
         if not policy_decision.allowed:
             return f"Organization policy blocked delegate: {policy_decision.reason}"
 

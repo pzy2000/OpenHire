@@ -6,9 +6,12 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 import pytest_asyncio
 
+from openhire.agent.loop import AgentLoop
 from openhire.agent.tools.message import MessageTool
 from openhire.api.server import create_app
+from openhire.bus.queue import MessageBus
 from openhire.config.schema import DockerAgentsConfig, OpenHireConfig
+from openhire.providers.base import GenerationSettings, LLMProvider, LLMResponse, ToolCallRequest
 from openhire.skill_catalog import SkillCatalogService, SkillCatalogStore
 from openhire.workforce.organization import OrganizationPolicy, OrganizationStore, OrganizationValidator
 from openhire.workforce.registry import AgentEntry, AgentRegistry
@@ -58,6 +61,40 @@ def _make_agent() -> MagicMock:
     agent._connect_mcp = AsyncMock()
     agent.close_mcp = AsyncMock()
     return agent
+
+
+class _OrganizationToolCallProvider(LLMProvider):
+    def __init__(self) -> None:
+        super().__init__(api_key="dummy", api_base="http://dummy")
+        self.generation = GenerationSettings()
+        self.calls: list[list[dict]] = []
+
+    def get_default_model(self) -> str:
+        return "test-model"
+
+    async def chat(self, *args, **kwargs) -> LLMResponse:
+        raise NotImplementedError
+
+    async def chat_with_retry(self, *, messages, tools=None, **kwargs) -> LLMResponse:
+        self.calls.append(messages)
+        if len(self.calls) == 1:
+            return LLMResponse(
+                content="",
+                tool_calls=[
+                    ToolCallRequest(
+                        id="call_delegate",
+                        name="openhire",
+                        arguments={"action": "delegate", "agent_id": "c", "task": "review"},
+                    )
+                ],
+                usage={},
+            )
+        tool_content = next(
+            msg["content"]
+            for msg in reversed(messages)
+            if msg.get("role") == "tool" and msg.get("name") == "openhire"
+        )
+        return LLMResponse(content=f"tool said: {tool_content}", tool_calls=[], usage={})
 
 
 def _registry(workspace: Path) -> AgentRegistry:
@@ -174,6 +211,25 @@ def test_organization_policy_blocks_skip_level_by_default_and_allows_overrides(t
     assert policy.can_communicate("", "c").allowed is True
 
 
+def test_organization_policy_allows_global_skip_level_override(tmp_path: Path) -> None:
+    _seed_employee(tmp_path, "a", "Analyst")
+    _seed_employee(tmp_path, "b", "Manager")
+    _seed_employee(tmp_path, "c", "Director")
+    OrganizationStore(tmp_path).save(
+        _graph(
+            edges=[{"reporter_id": "a", "manager_id": "b"}, {"reporter_id": "b", "manager_id": "c"}],
+            allow_skip=True,
+        ),
+        employee_ids={"a", "b", "c"},
+    )
+
+    policy = OrganizationPolicy(_registry(tmp_path), OrganizationStore(tmp_path))
+
+    decision = policy.can_communicate("a", "c")
+    assert decision.allowed is True
+    assert "global skip-level" in decision.reason
+
+
 @pytest.mark.skipif(not HAS_AIOHTTP, reason="aiohttp not installed")
 @pytest.mark.asyncio
 async def test_admin_organization_api_saves_graph_and_employee_capabilities(aiohttp_client, tmp_path: Path) -> None:
@@ -241,6 +297,31 @@ async def test_admin_organization_api_rejects_invalid_graph(aiohttp_client, tmp_
     assert any("cannot report to itself" in error["message"] for error in body["validation"]["errors"])
 
 
+@pytest.mark.skipif(not HAS_AIOHTTP, reason="aiohttp not installed")
+@pytest.mark.asyncio
+async def test_admin_organization_api_rejects_invalid_capabilities_without_saving_graph(aiohttp_client, tmp_path: Path) -> None:
+    app = create_app(_make_agent(), model_name="test-model", workspace=tmp_path)
+    _seed_employee(tmp_path, "a", "Analyst")
+    _seed_employee(tmp_path, "b", "Manager")
+    client = await aiohttp_client(app)
+
+    resp = await client.put(
+        "/admin/api/organization",
+        json={
+            "nodes": [{"employee_id": "a"}, {"employee_id": "b"}],
+            "edges": [{"reporter_id": "a", "manager_id": "b"}],
+            "capabilities": [{"employee_id": "a", "skill_ids": ["missing-skill"]}],
+        },
+    )
+
+    assert resp.status == 400
+    body = await resp.json()
+    assert "Invalid skill_ids" in body["error"]["message"]
+    get_resp = await client.get("/admin/api/organization")
+    loaded = await get_resp.json()
+    assert loaded["edges"] == []
+
+
 @pytest.mark.asyncio
 async def test_openhire_delegate_blocks_skip_level_requester_before_container_execution(tmp_path: Path) -> None:
     _seed_employee(tmp_path, "a", "Analyst")
@@ -260,6 +341,55 @@ async def test_openhire_delegate_blocks_skip_level_requester_before_container_ex
 
     assert "Organization policy blocked delegate" in result
     assert "skip-level" in result
+
+
+@pytest.mark.asyncio
+async def test_openhire_delegate_uses_default_requester_context(tmp_path: Path) -> None:
+    _seed_employee(tmp_path, "a", "Analyst")
+    _seed_employee(tmp_path, "b", "Manager")
+    _seed_employee(tmp_path, "c", "Director")
+    OrganizationStore(tmp_path).save(
+        _graph(edges=[{"reporter_id": "a", "manager_id": "b"}, {"reporter_id": "b", "manager_id": "c"}]),
+        employee_ids={"a", "b", "c"},
+    )
+    tool = OpenHireTool(
+        workspace=tmp_path,
+        openhire_config=OpenHireConfig(enabled=True),
+        docker_agents_config=DockerAgentsConfig(enabled=True),
+    )
+    tool.set_requester_agent_id("a")
+
+    result = await tool.execute(action="delegate", agent_id="c", task="review")
+
+    assert "Organization policy blocked delegate" in result
+    assert "skip-level" in result
+
+
+@pytest.mark.asyncio
+async def test_openhire_route_filters_skip_level_targets(tmp_path: Path) -> None:
+    _seed_employee(tmp_path, "a", "Analyst", owner_id="owner-a", group_ids=["group"])
+    _seed_employee(tmp_path, "b", "Manager", owner_id="owner-b", group_ids=["group"])
+    _seed_employee(tmp_path, "c", "Director", owner_id="owner-c", group_ids=["group"])
+    OrganizationStore(tmp_path).save(
+        _graph(edges=[{"reporter_id": "a", "manager_id": "b"}, {"reporter_id": "b", "manager_id": "c"}]),
+        employee_ids={"a", "b", "c"},
+    )
+    tool = OpenHireTool(
+        workspace=tmp_path,
+        openhire_config=OpenHireConfig(enabled=True),
+        docker_agents_config=DockerAgentsConfig(enabled=True),
+    )
+
+    result = await tool.execute(
+        action="route",
+        group_id="group",
+        message="please review",
+        mentions=["owner-b", "owner-c"],
+        requester_agent_id="a",
+    )
+
+    assert "Route to: b" in result
+    assert "c" not in result.split("Route to:", 1)[1].split("|", 1)[0]
 
 
 @pytest.mark.asyncio
@@ -283,3 +413,57 @@ async def test_message_tool_blocks_explicit_skip_level_target(tmp_path: Path) ->
 
     assert sent == []
     assert "Organization policy blocked message" in result
+
+
+@pytest.mark.asyncio
+async def test_message_tool_uses_default_requester_context(tmp_path: Path) -> None:
+    _seed_employee(tmp_path, "a", "Analyst")
+    _seed_employee(tmp_path, "b", "Manager")
+    _seed_employee(tmp_path, "c", "Director")
+    OrganizationStore(tmp_path).save(
+        _graph(edges=[{"reporter_id": "a", "manager_id": "b"}, {"reporter_id": "b", "manager_id": "c"}]),
+        employee_ids={"a", "b", "c"},
+    )
+    sent = []
+    tool = MessageTool(
+        send_callback=lambda msg: sent.append(msg),
+        default_channel="feishu",
+        default_chat_id="oc_group",
+        organization_policy=OrganizationPolicy(_registry(tmp_path), OrganizationStore(tmp_path)),
+    )
+    tool.set_requester_agent_id("a")
+
+    result = await tool.execute(content="hello", target_agent_id="c")
+
+    assert sent == []
+    assert "Organization policy blocked message" in result
+
+
+@pytest.mark.asyncio
+async def test_agent_loop_injects_requester_agent_id_from_inbound_metadata(tmp_path: Path) -> None:
+    _seed_employee(tmp_path, "a", "Analyst")
+    _seed_employee(tmp_path, "b", "Manager")
+    _seed_employee(tmp_path, "c", "Director")
+    OrganizationStore(tmp_path).save(
+        _graph(edges=[{"reporter_id": "a", "manager_id": "b"}, {"reporter_id": "b", "manager_id": "c"}]),
+        employee_ids={"a", "b", "c"},
+    )
+    provider = _OrganizationToolCallProvider()
+    loop = AgentLoop(
+        bus=MessageBus(),
+        provider=provider,
+        workspace=tmp_path,
+        model="test-model",
+        openhire_config=OpenHireConfig(enabled=True),
+        docker_agents_config=DockerAgentsConfig(enabled=True),
+    )
+
+    response = await loop.process_direct(
+        "delegate as employee",
+        session_key="test:organization-requester",
+        requester_agent_id="a",
+    )
+
+    assert response is not None
+    assert "Organization policy blocked delegate" in response.content
+    assert "skip-level" in response.content

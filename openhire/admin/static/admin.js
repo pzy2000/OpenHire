@@ -264,6 +264,10 @@ const TRANSLATIONS = {
     "action.docker_issue.title": "Review Docker workers",
     "action.docker_issue.body": "{count} Docker workers report an error, exited, or unknown state.",
     "action.docker_issue.action": "Open Infrastructure",
+    "action.docker_issue.restore": "One-click repair",
+    "action.docker_issue.repairing": "Repairing...",
+    "action.docker_issue.restore_result_title": "Docker workers repaired",
+    "action.docker_issue.restore_result": "Restore result: {restored} restored · {failed} failed · {skipped} skipped.",
     "action.docker_daemon.title": "Start Docker daemon",
     "action.docker_daemon.body": "Docker is unavailable: {message}",
     "action.docker_daemon.action": "Open Infrastructure",
@@ -760,6 +764,10 @@ const TRANSLATIONS = {
     "action.docker_issue.title": "查看 Docker workers",
     "action.docker_issue.body": "{count} 个 Docker worker 处于 error、exited 或 unknown 状态。",
     "action.docker_issue.action": "打开基础设施",
+    "action.docker_issue.restore": "一键修复",
+    "action.docker_issue.repairing": "修复中...",
+    "action.docker_issue.restore_result_title": "Docker workers 已修复",
+    "action.docker_issue.restore_result": "修复结果：启动 {restored} 个，失败 {failed} 个，跳过 {skipped} 个。",
     "action.docker_daemon.title": "启动 Docker daemon",
     "action.docker_daemon.body": "Docker 当前不可用：{message}",
     "action.docker_daemon.action": "打开基础设施",
@@ -1582,6 +1590,9 @@ const adminState = {
   mainContextAction: null,
   dockerDaemonAction: null,
   dockerDaemonRepairResult: "",
+  employeeContainerRestoreAction: null,
+  employeeContainerRestoreResult: "",
+  employeeContainerRestoreStatus: "",
   mainAgent: {},
   process: {},
   dockerDaemon: {},
@@ -1644,6 +1655,7 @@ const TRANSCRIPT_ENDPOINTS = {
 
 const DOCKER_CONTAINERS_ENDPOINT = "/admin/api/docker-containers/";
 const DOCKER_DAEMON_REPAIR_ENDPOINT = "/admin/api/docker-daemon/repair";
+const EMPLOYEE_CONTAINER_RESTORE_ENDPOINT = "/admin/api/employee-containers/restore";
 const RUNTIME_HISTORY_ENDPOINT = "/admin/api/runtime/history";
 const EMPLOYEE_ADMIN_ENDPOINT = "/admin/api/employees/";
 const EMPLOYEE_EXPORT_ENDPOINT = "/admin/api/employees/export";
@@ -2375,12 +2387,31 @@ function collectActionItems() {
     const status = text(agent?.status, "").toLowerCase();
     return ["error", "exited", "unknown"].includes(status);
   });
+  const employeeContainerRestoring = adminState.employeeContainerRestoreAction === "restore";
+  const employeeContainerRestoreResult = text(adminState.employeeContainerRestoreResult, "");
   if (dockerIssues.length) {
     items.push({
       key: "docker-issue",
       level: "danger",
       title: t("action.docker_issue.title"),
-      body: t("action.docker_issue.body", { count: dockerIssues.length }),
+      body: employeeContainerRestoreResult
+        ? `${t("action.docker_issue.body", { count: dockerIssues.length })} ${employeeContainerRestoreResult}`
+        : t("action.docker_issue.body", { count: dockerIssues.length }),
+      actions: [
+        {
+          kind: "employee-container-restore",
+          label: employeeContainerRestoring ? t("action.docker_issue.repairing") : t("action.docker_issue.restore"),
+          disabled: employeeContainerRestoring,
+        },
+        { kind: "infrastructure", label: t("action.docker_issue.action") },
+      ],
+    });
+  } else if (employeeContainerRestoreResult) {
+    items.push({
+      key: "docker-restore-result",
+      level: adminState.employeeContainerRestoreStatus === "partial" ? "warning" : "ok",
+      title: t("action.docker_issue.restore_result_title"),
+      body: employeeContainerRestoreResult,
       actions: [{ kind: "infrastructure", label: t("action.docker_issue.action") }],
     });
   }
@@ -2447,6 +2478,8 @@ function actionDataAttribute(action) {
       return 'data-action-center-infrastructure="true"';
     case "docker-repair":
       return 'data-action-center-docker-repair="true"';
+    case "employee-container-restore":
+      return 'data-action-center-employee-container-restore="true"';
     case "cases":
       return 'data-action-center-cases="true"';
     case "skills":
@@ -10622,6 +10655,20 @@ function renderDockerDaemonSurfaces() {
   renderDockerAgents(adminState.dockerAgents || []);
 }
 
+function renderEmployeeContainerRestoreSurfaces() {
+  renderAlertStrip();
+  renderActionCenter();
+  renderDockerAgents(adminState.dockerAgents || []);
+}
+
+function employeeContainerRestoreSummary(stats) {
+  return t("action.docker_issue.restore_result", {
+    restored: Number(stats?.restored || 0),
+    failed: Number(stats?.failed || 0),
+    skipped: Number(stats?.skipped || 0),
+  });
+}
+
 async function repairDockerDaemon() {
   if (adminState.dockerDaemonAction) return;
   adminState.dockerDaemonAction = "repair";
@@ -10658,6 +10705,49 @@ async function repairDockerDaemon() {
   } finally {
     adminState.dockerDaemonAction = null;
     renderDockerDaemonSurfaces();
+  }
+}
+
+async function restoreEmployeeContainers() {
+  if (adminState.employeeContainerRestoreAction) return;
+  adminState.employeeContainerRestoreAction = "restore";
+  adminState.employeeContainerRestoreResult = "";
+  adminState.employeeContainerRestoreStatus = "";
+  renderEmployeeContainerRestoreSurfaces();
+  companionReact({
+    type: "thinking",
+    bubble: companionPhrase("Docker worker repair started.", "开始修复 Docker workers。"),
+  });
+  try {
+    const response = await fetch(EMPLOYEE_CONTAINER_RESTORE_ENDPOINT, {
+      method: "POST",
+      headers: { Accept: "application/json" },
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(text(payload?.error?.message, `HTTP ${response.status}`));
+    }
+    adminState.employeeContainerRestoreStatus = text(payload?.status, "ok");
+    adminState.employeeContainerRestoreResult = payload?.stats
+      ? employeeContainerRestoreSummary(payload.stats)
+      : text(payload?.message, "");
+    await refreshDashboard();
+    companionReact({
+      type: "ready",
+      bubble: companionPhrase(
+        `Docker worker repair finished. ${adminState.employeeContainerRestoreResult}`,
+        `Docker workers 修复完成。${adminState.employeeContainerRestoreResult}`,
+      ),
+    });
+  } catch (error) {
+    companionReact({
+      type: "error",
+      bubble: companionPhrase("Docker worker repair failed.", "Docker workers 修复失败。"),
+    });
+    throw error;
+  } finally {
+    adminState.employeeContainerRestoreAction = null;
+    renderEmployeeContainerRestoreSurfaces();
   }
 }
 
@@ -10860,6 +10950,13 @@ function initEmployeeInteractions() {
     if (actionCenterDockerRepairButton) {
       repairDockerDaemon().catch((error) => {
         window.alert(text(error.message, "Failed to repair Docker daemon"));
+      });
+      return;
+    }
+    const actionCenterEmployeeContainerRestoreButton = event.target.closest("[data-action-center-employee-container-restore]");
+    if (actionCenterEmployeeContainerRestoreButton) {
+      restoreEmployeeContainers().catch((error) => {
+        window.alert(text(error.message, "Failed to repair Docker workers"));
       });
       return;
     }
