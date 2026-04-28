@@ -218,6 +218,58 @@ def demo_skill_rows(*, now: float | None = None) -> list[dict[str, Any]]:
     ]
 
 
+def demo_skill_import_records(*, now: float | None = None) -> list[dict[str, Any]]:
+    records: list[dict[str, Any]] = []
+    for row in demo_skill_rows(now=now):
+        skill_id = str(row["id"])
+        description = str(row["description"])
+        records.append({
+            "id": skill_id,
+            "source": row["source"],
+            "external_id": row["external_id"],
+            "name": row["name"],
+            "description": description,
+            "version": row["version"],
+            "author": row["author"],
+            "license": row["license"],
+            "source_url": row["source_url"],
+            "safety_status": row["safety_status"],
+            "tags": row["tags"],
+            "markdown": (
+                "---\n"
+                f"name: {skill_id}\n"
+                f"description: {description}\n"
+                f"version: {row['version']}\n"
+                f"author: {row['author']}\n"
+                f"license: {row['license']}\n"
+                "---\n\n"
+                f"# {row['name']}\n\n"
+                f"{description}\n"
+            ),
+        })
+    return records
+
+
+def demo_organization_graph() -> dict[str, Any]:
+    return {
+        "version": 1,
+        "settings": {"allow_skip_level_reporting": False},
+        "nodes": [
+            {"employee_id": "demo-market", "x": 40, "y": 40, "allow_skip_level_reporting": False},
+            {"employee_id": "demo-qa-ops", "x": 40, "y": 220, "allow_skip_level_reporting": False},
+            {"employee_id": "demo-finance", "x": 40, "y": 400, "allow_skip_level_reporting": False},
+            {"employee_id": "demo-architect", "x": 300, "y": 220, "allow_skip_level_reporting": False},
+            {"employee_id": "demo-product", "x": 560, "y": 220, "allow_skip_level_reporting": False},
+        ],
+        "edges": [
+            {"reporter_id": "demo-market", "manager_id": "demo-product"},
+            {"reporter_id": "demo-architect", "manager_id": "demo-product"},
+            {"reporter_id": "demo-finance", "manager_id": "demo-product"},
+            {"reporter_id": "demo-qa-ops", "manager_id": "demo-architect"},
+        ],
+    }
+
+
 def demo_case_records() -> list[dict[str, Any]]:
     return [
         {

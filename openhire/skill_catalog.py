@@ -625,11 +625,16 @@ class SkillCatalogService:
                 continue
             seen_input.add(identity)
 
-            existing = by_identity.get(identity)
+            requested_id = normalized["id"]
+            existing = entries.get(requested_id) if requested_id else None
             if existing is None:
-                existing = SkillEntry(id=str(uuid.uuid4())[:8])
+                existing = by_identity.get(identity)
+            if existing is None:
+                skill_id = requested_id or str(uuid.uuid4())[:8]
+                while skill_id in entries:
+                    skill_id = str(uuid.uuid4())[:8]
+                existing = SkillEntry(id=skill_id)
                 entries[existing.id] = existing
-                by_identity[identity] = existing
 
             existing.source = normalized["source"]
             existing.external_id = normalized["external_id"]
@@ -643,6 +648,7 @@ class SkillCatalogService:
             existing.markdown = normalized["markdown"]
             existing.tags = normalized["tags"]
             existing.imported_at = _now()
+            by_identity[identity] = existing
             upserted.append(existing)
 
         self._save()
@@ -660,6 +666,7 @@ class SkillCatalogService:
             return str(value or "").strip()
 
         return {
+            "id": text(record.get("id")),
             "source": text(record.get("source")),
             "external_id": text(record.get("external_id")),
             "name": text(record.get("name")),

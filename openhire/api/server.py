@@ -24,6 +24,12 @@ from aiohttp.client_exceptions import ClientConnectionResetError
 from loguru import logger
 
 from openhire.agent.memory import Dream, MemoryStore
+from openhire.memory_write_service import (
+    MemoryWriteError,
+    MemoryWriteNotFoundError,
+    MemoryWriteService,
+    MemoryWriteValidationError,
+)
 from openhire.agent_skill_service import (
     AgentSkillConflictError,
     AgentSkillNotFoundError,
@@ -49,7 +55,9 @@ from openhire.admin.demo_mode import (
     demo_case_summaries,
     demo_employee_rows,
     demo_mode_status,
+    demo_organization_graph,
     demo_persona_records,
+    demo_skill_import_records,
     demo_skill_rows,
 )
 from openhire.admin.runtime import build_runtime_history, repair_docker_daemon
@@ -103,6 +111,7 @@ from openhire.workforce.registry import AgentEntry, AgentRegistry
 from openhire.workforce.required_skill import (
     REQUIRED_EMPLOYEE_SKILL_ID,
     RequiredEmployeeSkillError,
+    apply_required_employee_skill_contract,
     ensure_required_employee_skill_ids,
     ensure_required_employee_skill_names,
     replace_required_employee_skill_prompt_block,
@@ -175,6 +184,10 @@ def _agent_skills(request: web.Request) -> AgentSkillService:
     return request.app["agent_skills"]
 
 
+def _memory_write_service_for_workspace(workspace: Path) -> MemoryWriteService:
+    return MemoryWriteService(workspace)
+
+
 def _skill_provider(request: web.Request) -> ClawHubSkillProvider:
     return request.app["skill_provider"]
 
@@ -200,6 +213,54 @@ def _demo_mode(request: web.Request) -> dict[str, Any]:
 
 def _demo_enabled(request: web.Request) -> bool:
     return bool(_demo_mode(request).get("enabled"))
+
+
+def _ensure_demo_materialized(request: web.Request) -> bool:
+    if not _demo_enabled(request):
+        return False
+
+    registry = _employee_registry(request)
+    if registry.all():
+        return False
+
+    skill_catalog = _skill_catalog(request)
+    skill_catalog.upsert_many(demo_skill_import_records())
+
+    materialized_ids: list[str] = []
+    for row in demo_employee_rows():
+        skills, skill_ids, system_prompt = apply_required_employee_skill_contract(
+            skills=[str(item) for item in row.get("skills", [])],
+            skill_ids=[str(item) for item in row.get("skill_ids", [])],
+            system_prompt=str(row.get("system_prompt") or ""),
+        )
+        agent_config = dict(row.get("agent_config") or {})
+        agent_config["demo"] = True
+        entry = AgentEntry(
+            agent_id=str(row.get("id") or ""),
+            name=str(row.get("name") or ""),
+            avatar=str(row.get("avatar") or ""),
+            role=str(row.get("role") or ""),
+            agent_type=str(row.get("agent_type") or "nanobot"),
+            skills=skills,
+            skill_ids=skill_ids,
+            system_prompt=system_prompt,
+            agent_config=agent_config,
+            tools=[str(item) for item in row.get("tools", []) if str(item).strip()],
+            container_name=str(row.get("container_name") or ""),
+            status=str(row.get("status") or "active"),
+        )
+        materialized = registry.register(entry)
+        materialized_ids.append(materialized.agent_id)
+
+    store = _organization_store(request)
+    if materialized_ids and not store.path.exists():
+        store.save(
+            demo_organization_graph(),
+            employee_ids=materialized_ids,
+            default_allow_skip_level_reporting=_default_allow_skip_level_reporting(request),
+        )
+
+    return bool(materialized_ids)
 
 
 def _case_catalog(request: web.Request) -> CaseCatalogService:
@@ -417,6 +478,47 @@ def _dream_subject_store(request: web.Request, subject_id: str) -> tuple[MemoryS
     return MemoryStore(employee_workspace_path(workspace, entry)), entry
 
 
+def _memory_write_subject_services(request: web.Request) -> list[tuple[str, str, MemoryWriteService]]:
+    main_store = _main_memory_store(request)
+    services = [
+        (_DREAM_MAIN_SUBJECT_ID, "Main Agent", _memory_write_service_for_workspace(main_store.workspace))
+    ]
+    root_workspace = Path(request.app["workspace"])
+    for entry in sorted(_employee_registry(request).all(), key=lambda item: item.created_at, reverse=True):
+        services.append((
+            entry.agent_id,
+            entry.name or entry.agent_id,
+            _memory_write_service_for_workspace(employee_workspace_path(root_workspace, entry)),
+        ))
+    return services
+
+
+def _memory_write_pending_count(store: MemoryStore) -> int:
+    return _memory_write_service_for_workspace(store.workspace).pending_count()
+
+
+def _memory_write_find_service(request: web.Request, proposal_id: str) -> MemoryWriteService | None:
+    for _subject_id, _subject_name, service in _memory_write_subject_services(request):
+        if any(proposal.get("id") == proposal_id for proposal in service.list_proposals()):
+            return service
+    return None
+
+
+def _with_memory_write_subject(
+    proposal: dict[str, Any],
+    *,
+    subject_id: str,
+    subject_name: str,
+    workspace: Path,
+) -> dict[str, Any]:
+    return {
+        **proposal,
+        "subjectId": subject_id,
+        "subjectName": subject_name,
+        "workspace": str(workspace),
+    }
+
+
 def _dream_history_entries(store: MemoryStore) -> list[dict[str, Any]]:
     try:
         entries = store._read_entries()
@@ -455,7 +557,7 @@ def _dream_commits(store: MemoryStore, *, max_entries: int = _DREAM_COMMIT_LIMIT
     commits = store.git.log(max_entries=50)
     dream_commits = [
         commit for commit in commits
-        if str(commit.message).startswith(("dream:", "revert:"))
+        if str(commit.message).startswith(("dream:", "memory:", "revert:"))
     ]
     return [_commit_payload(commit) for commit in dream_commits[:max_entries] if commit is not None]
 
@@ -576,6 +678,7 @@ def _dream_subject_summary(
         "externalHistory": external,
         "latestCommit": commits[0] if commits else None,
         "versioningInitialized": store.git.is_initialized(),
+        "pendingMemoryWriteCount": _memory_write_pending_count(store),
         "isRunning": bool(task and not task.done()),
         "lastRun": _dream_results(request).get(subject_id),
         "context": resolved_context,
@@ -679,6 +782,7 @@ def _dream_for_subject(request: web.Request, subject_id: str, store: MemoryStore
     agent_loop = request.app["agent_loop"]
     existing = getattr(agent_loop, "dream", None)
     if subject_id == _DREAM_MAIN_SUBJECT_ID and isinstance(existing, Dream):
+        existing.subject_id = subject_id
         return existing
 
     provider = getattr(agent_loop, "provider", None)
@@ -695,6 +799,7 @@ def _dream_for_subject(request: web.Request, subject_id: str, store: MemoryStore
         max_batch_size=int(max_batch_size or 20),
         max_iterations=int(max_iterations or 10),
         agent_skill_workspace=Path(request.app["workspace"]),
+        subject_id=subject_id,
     )
 
 
@@ -2511,6 +2616,7 @@ def _default_allow_skip_level_reporting(request: web.Request) -> bool:
 
 
 def _organization_entries(request: web.Request) -> list[AgentEntry]:
+    _ensure_demo_materialized(request)
     return sorted(_employee_registry(request).all(), key=lambda entry: entry.agent_id)
 
 
@@ -2717,13 +2823,12 @@ async def handle_recommend_employee_skills(request: web.Request) -> web.Response
 
 
 async def handle_list_employees(request: web.Request) -> web.Response:
+    _ensure_demo_materialized(request)
     entries = sorted(
         _employee_registry(request).all(),
         key=lambda entry: entry.created_at,
         reverse=True,
     )
-    if _demo_enabled(request) and not entries:
-        return web.json_response(demo_employee_rows())
     return web.json_response([entry.to_public_dict() for entry in entries])
 
 
@@ -3284,6 +3389,72 @@ async def handle_admin_agent_skill_proposal_delete(request: web.Request) -> web.
     return web.Response(status=204)
 
 
+def _memory_write_error_response(exc: Exception) -> web.Response:
+    if isinstance(exc, MemoryWriteNotFoundError):
+        return _error_json(404, str(exc))
+    if isinstance(exc, MemoryWriteValidationError):
+        return _error_json(400, str(exc))
+    if isinstance(exc, MemoryWriteError):
+        return _error_json(409, str(exc), err_type="conflict_error")
+    logger.exception("Memory write API error")
+    return _error_json(500, str(exc), err_type="server_error")
+
+
+async def handle_admin_memory_write_proposals_list(request: web.Request) -> web.Response:
+    proposals: list[dict[str, Any]] = []
+    for subject_id, subject_name, service in _memory_write_subject_services(request):
+        for proposal in service.list_proposals():
+            proposals.append(_with_memory_write_subject(
+                proposal,
+                subject_id=subject_id,
+                subject_name=subject_name,
+                workspace=service.workspace,
+            ))
+    proposals.sort(key=lambda item: str(item.get("updated_at") or item.get("created_at") or ""), reverse=True)
+    return web.json_response(proposals)
+
+
+async def handle_admin_memory_write_proposal_approve(request: web.Request) -> web.Response:
+    proposal_id = request.match_info.get("proposal_id", "")
+    service = _memory_write_find_service(request, proposal_id)
+    if service is None:
+        return _error_json(404, f"Memory write proposal '{proposal_id}' not found.")
+    try:
+        proposal = service.approve_proposal(proposal_id)
+    except Exception as exc:
+        return _memory_write_error_response(exc)
+    return web.json_response(proposal)
+
+
+async def handle_admin_memory_write_proposal_delete(request: web.Request) -> web.Response:
+    proposal_id = request.match_info.get("proposal_id", "")
+    service = _memory_write_find_service(request, proposal_id)
+    if service is None:
+        return _error_json(404, f"Memory write proposal '{proposal_id}' not found.")
+    if not service.discard_proposal(proposal_id):
+        return _error_json(404, f"Memory write proposal '{proposal_id}' not found.")
+    return web.Response(status=204)
+
+
+async def handle_admin_memory_write_records(request: web.Request) -> web.Response:
+    try:
+        limit = int(request.query.get("limit", "50") or 50)
+    except ValueError:
+        limit = 50
+    limit = max(0, min(limit, 200))
+    records: list[dict[str, Any]] = []
+    for subject_id, subject_name, service in _memory_write_subject_services(request):
+        for record in service.list_records(limit=limit):
+            records.append({
+                **record,
+                "subjectId": subject_id,
+                "subjectName": subject_name,
+                "workspace": str(service.workspace),
+            })
+    records.sort(key=lambda item: str(item.get("created_at") or ""), reverse=True)
+    return web.json_response(records[:limit])
+
+
 async def handle_skill_governance_report(request: web.Request) -> web.Response:
     return web.json_response(_skill_governance(request).get_report())
 
@@ -3495,6 +3666,10 @@ def _add_admin_routes(app: web.Application) -> None:
     app.router.add_get("/admin/api/dream/subjects/{subject_id}", handle_admin_dream_subject)
     app.router.add_post("/admin/api/dream/subjects/{subject_id}/run", handle_admin_dream_run)
     app.router.add_post("/admin/api/dream/subjects/{subject_id}/restore", handle_admin_dream_restore)
+    app.router.add_get("/admin/api/memory-writes/proposals", handle_admin_memory_write_proposals_list)
+    app.router.add_post("/admin/api/memory-writes/proposals/{proposal_id}/approve", handle_admin_memory_write_proposal_approve)
+    app.router.add_delete("/admin/api/memory-writes/proposals/{proposal_id}", handle_admin_memory_write_proposal_delete)
+    app.router.add_get("/admin/api/memory-writes/records", handle_admin_memory_write_records)
     app.router.add_get("/admin/api/transcripts/main", handle_admin_main_transcript)
     app.router.add_get("/admin/api/transcripts/docker/{name}", handle_admin_docker_transcript)
     app.router.add_get("/admin/api/cases", handle_admin_cases)

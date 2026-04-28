@@ -18,8 +18,13 @@ from openhire.utils.helpers import ensure_dir, estimate_message_tokens, estimate
 from openhire.agent.runner import AgentRunSpec, AgentRunner
 from openhire.agent.tools.base import Tool, tool_parameters
 from openhire.agent.tools.registry import ToolRegistry
-from openhire.agent.tools.schema import ArraySchema, StringSchema, tool_parameters_schema
+from openhire.agent.tools.schema import ArraySchema, IntegerSchema, StringSchema, tool_parameters_schema
 from openhire.agent_skill_service import AgentSkillService
+from openhire.memory_write_service import (
+    TRACKED_MEMORY_FILES,
+    MemoryWriteError,
+    MemoryWriteService,
+)
 from openhire.utils.gitstore import GitStore
 
 if TYPE_CHECKING:
@@ -631,6 +636,140 @@ class ProposeAgentSkillTool(Tool):
         )
 
 
+@tool_parameters(
+    tool_parameters_schema(
+        target_file=StringSchema(
+            "Memory file to update",
+            enum=["SOUL.md", "USER.md", "memory/MEMORY.md", "MEMORY.md"],
+        ),
+        action=StringSchema("Write action", enum=["append", "patch", "delete"]),
+        old_text=StringSchema("Exact existing text for patch/delete actions"),
+        new_text=StringSchema("Text to append or replacement text for patch actions"),
+        category=StringSchema(
+            "Memory category",
+            enum=[
+                "user_preference",
+                "project_fact",
+                "workflow_experience",
+                "organization_relation",
+                "employee_permission",
+                "default_behavior",
+                "security_policy",
+                "required_skill",
+                "runtime_default",
+                "adapter_default",
+                "temporary_status",
+                "one_time_event",
+                "other",
+            ],
+        ),
+        impact=StringSchema("Impact level", enum=["low", "medium", "high"]),
+        reason=StringSchema("Why this memory write should happen"),
+        ttl_days=IntegerSchema(
+            description="Optional TTL in days for time-limited facts; omit for stable facts",
+            minimum=0,
+            nullable=True,
+        ),
+        evidence=ArraySchema(
+            StringSchema("Evidence pointer or excerpt"),
+            description="Evidence from the processed session/history",
+        ),
+        required=["target_file", "action", "category", "impact", "reason", "evidence"],
+    )
+)
+class MemoryWriteTool(Tool):
+    """Govern long-term memory writes from Dream."""
+
+    def __init__(self, store: MemoryStore, subject_id: str = "main") -> None:
+        self._store = store
+        self._service = MemoryWriteService(store.workspace)
+        self._subject_id = subject_id
+        self._run_context: dict[str, Any] = {}
+
+    @property
+    def name(self) -> str:
+        return "memory_write"
+
+    @property
+    def description(self) -> str:
+        return (
+            "Submit a governed write to SOUL.md, USER.md, or memory/MEMORY.md. "
+            "Low-risk long-term facts may be applied automatically; high-impact "
+            "changes create an Admin review proposal."
+        )
+
+    def set_run_context(
+        self,
+        *,
+        subject_id: str,
+        cursor_start: int,
+        cursor_end: int,
+        source_excerpt: str,
+    ) -> None:
+        evidence = [
+            (
+                f"Dream subject={subject_id} workspace={self._store.workspace} "
+                f"history_cursor={cursor_start}-{cursor_end}"
+            )
+        ]
+        excerpt = source_excerpt.strip()
+        if excerpt:
+            evidence.append(f"Source excerpt: {excerpt[:1000]}")
+        self._run_context = {
+            "subject_id": subject_id,
+            "workspace": str(self._store.workspace),
+            "cursor_start": cursor_start,
+            "cursor_end": cursor_end,
+            "source_excerpt": excerpt[:1000],
+            "evidence": evidence,
+        }
+
+    async def execute(
+        self,
+        target_file: str | None = None,
+        action: str | None = None,
+        old_text: str | None = None,
+        new_text: str | None = None,
+        category: str | None = None,
+        impact: str | None = None,
+        reason: str | None = None,
+        ttl_days: int | None = None,
+        evidence: list[str] | None = None,
+        **kwargs: Any,
+    ) -> str:
+        try:
+            result = self._service.submit(
+                {
+                    "target_file": target_file or "",
+                    "action": action or "append",
+                    "old_text": old_text or "",
+                    "new_text": new_text or "",
+                    "category": category or "other",
+                    "impact": impact or "medium",
+                    "reason": reason or "",
+                    "ttl_days": ttl_days,
+                    "evidence": evidence or [],
+                },
+                metadata=self._run_context,
+            )
+        except MemoryWriteError as exc:
+            return f"Error: {exc}"
+        status = result.get("status")
+        if status == "auto_applied":
+            record = result.get("record", {})
+            return f"Applied governed memory write {record.get('id', '')} to {target_file}."
+        if status == "pending":
+            proposal = result.get("proposal", {})
+            return (
+                f"Created pending memory write proposal {proposal.get('id', '')} "
+                f"for {proposal.get('target_file', target_file)}."
+            )
+        if status == "skipped":
+            record = result.get("record", {})
+            return f"Skipped transient memory write {record.get('id', '')}; recorded audit entry only."
+        return f"Memory write result: {status}"
+
+
 class Dream:
     """Two-phase memory processor: analyze history.jsonl, then edit files via AgentRunner.
 
@@ -648,6 +787,7 @@ class Dream:
         max_iterations: int = 10,
         max_tool_result_chars: int = 16_000,
         agent_skill_workspace: Path | None = None,
+        subject_id: str = "main",
     ):
         self.store = store
         self.provider = provider
@@ -657,6 +797,7 @@ class Dream:
         self.max_tool_result_chars = max_tool_result_chars
         self._runner = AgentRunner(provider)
         self.agent_skill_workspace = agent_skill_workspace or store.workspace
+        self.subject_id = subject_id
         self._tools = self._build_tools()
 
     # -- tool registry -------------------------------------------------------
@@ -669,12 +810,22 @@ class Dream:
         tools = ToolRegistry()
         workspace = self.store.workspace
         skills_dir = workspace / "skills"
+        tracked_memory_paths = {
+            (workspace / rel).resolve()
+            for rel in TRACKED_MEMORY_FILES
+        }
+        tracked_memory_paths.add((workspace / "MEMORY.md").resolve())
 
         class DreamEditFileTool(EditFileTool):
             async def execute(self, path: str | None = None, **kwargs: Any) -> str:
                 if path:
                     try:
                         fp = self._resolve(path)
+                        if fp.resolve() in tracked_memory_paths:
+                            return (
+                                "Error: Dream cannot edit long-term memory files directly. "
+                                "Use memory_write so policy, evidence, and Admin review can be enforced."
+                            )
                         fp.relative_to(skills_dir.resolve())
                         return (
                             "Error: Dream cannot write workspace/skills directly. "
@@ -694,6 +845,7 @@ class Dream:
             extra_allowed_dirs=extra_read,
         ))
         tools.register(DreamEditFileTool(workspace=workspace, allowed_dir=workspace))
+        tools.register(MemoryWriteTool(self.store, subject_id=self.subject_id))
         tools.register(ProposeAgentSkillTool(self.agent_skill_workspace))
         return tools
 
@@ -746,6 +898,8 @@ class Dream:
         history_text = "\n".join(
             f"[{e['timestamp']}] {e['content']}" for e in batch
         )
+        cursor_start = int(batch[0]["cursor"])
+        cursor_end = int(batch[-1]["cursor"])
 
         # Current file contents
         current_date = datetime.now().strftime("%Y-%m-%d")
@@ -795,6 +949,14 @@ class Dream:
         phase2_prompt = f"## Analysis Result\n{analysis}\n\n{file_context}{skills_section}"
 
         tools = self._tools
+        memory_write_tool = tools.get("memory_write")
+        if hasattr(memory_write_tool, "set_run_context"):
+            memory_write_tool.set_run_context(
+                subject_id=self.subject_id,
+                cursor_start=cursor_start,
+                cursor_end=cursor_end,
+                source_excerpt=history_text,
+            )
         skill_creator_path = BUILTIN_SKILLS_DIR / "skill-creator" / "SKILL.md"
         messages: list[dict[str, Any]] = [
             {

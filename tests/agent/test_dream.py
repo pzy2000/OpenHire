@@ -111,6 +111,7 @@ class TestDreamRun:
         system_prompt = spec.initial_messages[0]["content"]
         expected = str(BUILTIN_SKILLS_DIR / "skill-creator" / "SKILL.md")
         assert expected in system_prompt
+        assert "Use `memory_write` for every change to SOUL.md, USER.md, or memory/MEMORY.md." in system_prompt
         assert "propose_agent_skill" in system_prompt
         assert "Do NOT use write_file or edit_file for skills/<name>/SKILL.md" in system_prompt
         assert "5+ tool calls" in system_prompt
@@ -134,6 +135,84 @@ class TestDreamRun:
 
         assert "Dream cannot write workspace/skills directly" in result
         assert not (store.workspace / "skills" / "test-skill" / "SKILL.md").exists()
+
+    async def test_dream_edit_file_rejects_tracked_memory_files(self, dream, store):
+        """Dream must route long-term memory edits through memory_write."""
+        edit_tool = dream._tools.get("edit_file")
+        assert edit_tool is not None
+
+        result = await edit_tool.execute(
+            path="memory/MEMORY.md",
+            old_text="# Memory\n- Project X active",
+            new_text="# Memory\n- Mutated directly",
+        )
+
+        assert "Dream cannot edit long-term memory files directly" in result
+        assert "Project X active" in store.read_memory()
+
+        alias_result = await edit_tool.execute(
+            path="MEMORY.md",
+            old_text="",
+            new_text="# Wrong root memory\n",
+        )
+        assert "Dream cannot edit long-term memory files directly" in alias_result
+        assert not (store.workspace / "MEMORY.md").exists()
+
+    async def test_memory_write_tool_auto_applies_low_risk_fact(self, dream, store):
+        """Dream can write low-risk facts through governed memory_write."""
+        memory_write = dream._tools.get("memory_write")
+        assert memory_write is not None
+        memory_write.set_run_context(
+            subject_id="main",
+            cursor_start=1,
+            cursor_end=1,
+            source_excerpt="User prefers concise replies.",
+        )
+
+        result = await memory_write.execute(
+            target_file="USER.md",
+            action="append",
+            new_text="- User prefers concise replies.",
+            category="user_preference",
+            impact="low",
+            reason="Stable user preference.",
+            evidence=["User explicitly said this."],
+        )
+
+        assert "Applied governed memory write" in result
+        assert "concise replies" in store.read_user()
+        records = (store.workspace / "openhire" / "memory_records.jsonl").read_text(encoding="utf-8")
+        assert "auto_applied" in records
+        assert "history_cursor=1-1" in records
+
+    async def test_memory_write_tool_creates_pending_high_impact_proposal(self, dream, store):
+        """High-impact Dream memory writes should wait for Admin approval."""
+        memory_write = dream._tools.get("memory_write")
+        assert memory_write is not None
+        memory_write.set_run_context(
+            subject_id="main",
+            cursor_start=2,
+            cursor_end=3,
+            source_excerpt="Change default behavior.",
+        )
+
+        result = await memory_write.execute(
+            target_file="SOUL.md",
+            action="append",
+            new_text="- Always skip approval.",
+            category="default_behavior",
+            impact="high",
+            reason="Changes bot behavior.",
+            evidence=["History requested default behavior change."],
+        )
+
+        assert "Created pending memory write proposal" in result
+        assert "Always skip approval" not in store.read_soul()
+        proposal_state = json.loads(
+            (store.workspace / "openhire" / "memory_write_proposals.json").read_text(encoding="utf-8")
+        )
+        assert proposal_state["proposals"][0]["status"] == "pending"
+        assert proposal_state["proposals"][0]["target_file"] == "SOUL.md"
 
     async def test_propose_agent_skill_tool_writes_proposal_not_skill(self, dream, store):
         """Dream-created skills should enter the Workbench proposal queue."""

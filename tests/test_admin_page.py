@@ -13,6 +13,7 @@ from openhire.api.server import create_admin_app, create_app
 from openhire.agent.memory import MemoryStore
 from openhire.admin import employee_context as employee_context_module
 from openhire.admin.runtime import RuntimeMonitor
+from openhire.memory_write_service import MemoryWriteService
 from openhire.session.manager import SessionManager
 from openhire.workforce.registry import AgentEntry
 from openhire.workforce.workspace import employee_workspace_path
@@ -557,6 +558,72 @@ async def test_admin_dream_subject_returns_files_history_and_diff(aiohttp_client
 
 @pytest.mark.skipif(not HAS_AIOHTTP, reason="aiohttp not installed")
 @pytest.mark.asyncio
+async def test_admin_memory_write_endpoints_and_dream_pending_count(aiohttp_client, tmp_path) -> None:
+    app = create_app(_make_admin_agent(), model_name="test-model", workspace=tmp_path)
+    service = MemoryWriteService(tmp_path)
+    pending = service.submit({
+        "target_file": "SOUL.md",
+        "action": "append",
+        "new_text": "- Review security-sensitive memory changes.",
+        "category": "security_policy",
+        "impact": "high",
+        "reason": "Security policy change.",
+        "evidence": ["Dream cursor 1"],
+    })["proposal"]
+    client = await aiohttp_client(app)
+
+    proposals_resp = await client.get("/admin/api/memory-writes/proposals")
+    dream_resp = await client.get("/admin/api/dream")
+    approve_resp = await client.post(f"/admin/api/memory-writes/proposals/{pending['id']}/approve")
+    records_resp = await client.get("/admin/api/memory-writes/records?limit=10")
+
+    assert proposals_resp.status == 200
+    proposals = await proposals_resp.json()
+    assert proposals[0]["id"] == pending["id"]
+    assert proposals[0]["subjectId"] == "main"
+    assert proposals[0]["status"] == "pending"
+
+    assert dream_resp.status == 200
+    dream_body = await dream_resp.json()
+    subjects = {item["id"]: item for item in dream_body["subjects"]}
+    assert subjects["main"]["pendingMemoryWriteCount"] == 1
+
+    assert approve_resp.status == 200
+    approved = await approve_resp.json()
+    assert approved["status"] == "approved"
+    assert approved["result"]["commit"]
+    assert "Review security-sensitive" in (tmp_path / "SOUL.md").read_text(encoding="utf-8")
+
+    assert records_resp.status == 200
+    records = await records_resp.json()
+    assert {record["status"] for record in records} >= {"pending", "approved"}
+
+
+@pytest.mark.skipif(not HAS_AIOHTTP, reason="aiohttp not installed")
+@pytest.mark.asyncio
+async def test_admin_memory_write_discard_endpoint(aiohttp_client, tmp_path) -> None:
+    app = create_app(_make_admin_agent(), model_name="test-model", workspace=tmp_path)
+    service = MemoryWriteService(tmp_path)
+    pending = service.submit({
+        "target_file": "SOUL.md",
+        "action": "append",
+        "new_text": "- Discard me.",
+        "category": "default_behavior",
+        "impact": "high",
+        "reason": "Test discard.",
+        "evidence": ["Dream cursor 1"],
+    })["proposal"]
+    client = await aiohttp_client(app)
+
+    resp = await client.delete(f"/admin/api/memory-writes/proposals/{pending['id']}")
+
+    assert resp.status == 204
+    proposals = {proposal["id"]: proposal for proposal in service.list_proposals()}
+    assert proposals[pending["id"]]["status"] == "discarded"
+
+
+@pytest.mark.skipif(not HAS_AIOHTTP, reason="aiohttp not installed")
+@pytest.mark.asyncio
 async def test_admin_dream_employee_subject_returns_context(aiohttp_client, tmp_path) -> None:
     app = create_app(_make_admin_agent(), model_name="test-model", workspace=tmp_path)
     entry = app["employee_registry"].register(
@@ -868,9 +935,12 @@ async def test_admin_js_asset_matches_main_polling_and_sse(aiohttp_client) -> No
     assert "agent?.employeeName" in body
     assert 'const ORGANIZATION_ENDPOINT = "/admin/api/organization"' in body
     assert "organizationState" in body
+    assert "organization.employee_sync_pending" in body
     assert "renderOrganization" in body
     assert "saveOrganization" in body
     assert "validateOrganizationDraft" in body
+    assert "employeeIdSignature" in body
+    assert "syncOrganizationAfterEmployeeRefresh" in body
     assert "connectionDrag" in body
     assert "startOrganizationConnectionDrag" in body
     assert "finishOrganizationConnectionDrag" in body
@@ -918,11 +988,18 @@ async def test_admin_js_asset_matches_main_polling_and_sse(aiohttp_client) -> No
     assert "data-action-center-agent-skills" in body
     assert 'const DREAM_ENDPOINT = "/admin/api/dream"' in body
     assert 'const DREAM_SUBJECT_ENDPOINT = "/admin/api/dream/subjects/"' in body
+    assert 'const MEMORY_WRITE_PROPOSALS_ENDPOINT = "/admin/api/memory-writes/proposals"' in body
+    assert 'const MEMORY_WRITE_RECORDS_ENDPOINT = "/admin/api/memory-writes/records"' in body
     assert "dreamState" in body
+    assert "memoryWriteState" in body
     assert "renderDreamPanel" in body
+    assert "renderMemoryWriteProposals" in body
+    assert "loadMemoryWrites" in body
     assert "loadDream" in body
     assert "runSelectedDream" in body
     assert "restoreDreamCommit" in body
+    assert "approveMemoryWriteProposal" in body
+    assert "discardMemoryWriteProposal" in body
     assert "data-dream-refresh" in body
     assert "data-dream-run" in body
     assert "data-dream-subject" in body
@@ -930,6 +1007,10 @@ async def test_admin_js_asset_matches_main_polling_and_sse(aiohttp_client) -> No
     assert "data-dream-commit" in body
     assert "data-dream-restore" in body
     assert "data-dream-context-action" in body
+    assert "data-memory-write-proposal-approve" in body
+    assert "data-memory-write-proposal-discard" in body
+    assert "action.memory_write_proposals.title" in body
+    assert "data-action-center-dream" in body
     assert "dream.confirm.title" in body
     assert "skillOpsState" in body
     assert "renderSkillOpsPanel" in body
@@ -1465,6 +1546,8 @@ async def test_admin_css_keeps_scrolled_modal_close_buttons_outside_scroll(aioht
     assert ".dream-detail-grid" in body
     assert ".dream-file-preview" in body
     assert ".dream-diff-preview" in body
+    assert ".memory-write-proposal-card" in body
+    assert ".memory-write-records" in body
     assert ".skill-card-label-cloud" in body
     assert ".skill-card-label-cloud.is-collapsed" in body
     assert ".skill-card-label-cloud.is-expanded" in body

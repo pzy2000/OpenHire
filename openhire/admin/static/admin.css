@@ -4213,14 +4213,18 @@ html[data-theme="dark"] .case-import-result.is-partial {
 .agent-skill-side-head,
 .agent-skill-row,
 .agent-skill-row-meta,
-.agent-skill-file-row {
+.agent-skill-file-row,
+.memory-write-proposal-head,
+.memory-write-record-row {
   display: flex;
   align-items: center;
 }
 .agent-skills-head,
 .agent-skill-detail-head,
 .agent-skill-side-head,
-.agent-skill-file-row {
+.agent-skill-file-row,
+.memory-write-proposal-head,
+.memory-write-record-row {
   justify-content: space-between;
   gap: 14px;
 }
@@ -4378,7 +4382,8 @@ html[data-theme="dark"] .case-import-result.is-partial {
   gap: 6px;
 }
 .agent-skill-file-row,
-.agent-skill-proposal-card {
+.agent-skill-proposal-card,
+.memory-write-proposal-card {
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 10px;
@@ -4394,16 +4399,20 @@ html[data-theme="dark"] .case-import-result.is-partial {
   resize: vertical;
   font-family: var(--mono);
 }
-.agent-skill-proposal-card {
+.agent-skill-proposal-card,
+.memory-write-proposal-card,
+.memory-write-records {
   display: grid;
   gap: 10px;
   margin-top: 10px;
 }
-.agent-skill-proposal-card p {
+.agent-skill-proposal-card p,
+.memory-write-proposal-card p {
   margin: 0;
   color: var(--muted);
 }
-.agent-skill-proposal-card pre {
+.agent-skill-proposal-card pre,
+.memory-write-proposal-card pre {
   margin: 0;
   max-height: 180px;
   overflow: auto;
@@ -4412,6 +4421,32 @@ html[data-theme="dark"] .case-import-result.is-partial {
   background: var(--surface);
   padding: 10px;
   font: 12px/1.5 var(--mono);
+}
+.memory-write-proposal-head span:first-child {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+.memory-write-evidence {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.memory-write-evidence span,
+.memory-write-record-row {
+  overflow-wrap: anywhere;
+}
+.memory-write-excerpt {
+  color: var(--muted);
+}
+.memory-write-records {
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+.memory-write-record-row {
+  color: var(--muted);
+  font-size: 12px;
 }
 .skill-card-actions {
   display: flex;

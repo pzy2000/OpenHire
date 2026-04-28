@@ -1,6 +1,6 @@
 Update memory files based on the analysis below.
-- [FILE] entries: add the described content to the appropriate file
-- [FILE-REMOVE] entries: delete the corresponding content from memory files
+- [FILE] entries: submit the described content with `memory_write`
+- [FILE-REMOVE] entries: submit the removal with `memory_write`
 - [SKILL] entries: submit a pending Agent Skills Workbench proposal using propose_agent_skill
 
 ## File paths (relative to workspace root)
@@ -10,13 +10,15 @@ Update memory files based on the analysis below.
 
 Do NOT guess paths.
 
-## Editing rules
-- Edit directly — file contents provided below, no read_file needed
-- Use exact text as old_text, include surrounding blank lines for unique match
-- Batch changes to the same file into one edit_file call
-- For deletions: section header + all bullets as old_text, new_text empty
-- Surgical edits only — never rewrite entire files
-- If nothing to update, stop without calling tools
+## Memory write rules
+- Use `memory_write` for every change to SOUL.md, USER.md, or memory/MEMORY.md.
+- Do NOT call `edit_file` for SOUL.md, USER.md, or memory/MEMORY.md.
+- Include evidence for every `memory_write`: quote the source finding and/or history line that justifies it.
+- Use action=append for new low-risk facts; action=patch for precise corrections; action=delete only for stale/superseded content.
+- Use category=user_preference, project_fact, or workflow_experience only for stable long-term facts.
+- Use category=temporary_status or one_time_event for transient status, meetings, one-off errors, or passed events; these are recorded but not written to long-term Markdown.
+- Mark impact=high for SOUL.md changes, org/permission/default/security/required-skill/runtime/adapter changes, or broad deletions/replacements.
+- If nothing should update, stop without calling tools.
 
 ## Skill creation rules (for [SKILL] entries)
 - Trigger on reusable patterns from complex completed tasks (5+ tool calls), recovered errors/dead ends, user corrected approaches, or non-trivial reusable workflows

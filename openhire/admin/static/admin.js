@@ -170,6 +170,12 @@ const TRANSLATIONS = {
     "agent_skills.installed": "Installed to Agent Skills.",
     "agent_skills.package_ready": "Package ready: {path}",
     "agent_skills.error": "Agent skill error: {value}",
+    "memory_writes.title": "Memory Write Proposals",
+    "memory_writes.no_proposals": "No pending memory write proposals.",
+    "memory_writes.approve": "Approve",
+    "memory_writes.discard": "Discard",
+    "memory_writes.records": "Memory Write Audit",
+    "memory_writes.error": "Memory write error: {value}",
     "button.cook": "Cook",
     "button.cooking": "Cooking...",
     "button.creating": "Creating...",
@@ -201,6 +207,7 @@ const TRANSLATIONS = {
     "organization.invalid": "{count} issue(s) must be fixed before saving.",
     "organization.dirty": "Unsaved organization changes.",
     "organization.saved": "Organization saved.",
+    "organization.employee_sync_pending": "Employee roster changed. Refresh organization after saving or discarding current edits.",
     "organization.connect_hint": "Drag from an employee connector to its direct manager card.",
     "button.delete_skill": "Delete skill",
     "button.delete_employee": "Delete Employee",
@@ -278,6 +285,9 @@ const TRANSLATIONS = {
     "action.agent_skill_proposals.title": "Review Agent Skills",
     "action.agent_skill_proposals.body": "{count} pending Agent Skill proposal(s). First: {name}.",
     "action.agent_skill_proposals.action": "Open Workbench",
+    "action.memory_write_proposals.title": "Review Memory Writes",
+    "action.memory_write_proposals.body": "{count} high-impact memory write proposal(s). First: {target}.",
+    "action.memory_write_proposals.action": "Open Dream",
     "action.no_business_skills.title": "Import business skills",
     "action.no_business_skills.body": "Only required skills are available. Import at least one business skill before creating specialized employees.",
     "action.no_business_skills.action": "Review Skills",
@@ -670,6 +680,12 @@ const TRANSLATIONS = {
     "agent_skills.installed": "已安装到 Agent Skills。",
     "agent_skills.package_ready": "打包完成：{path}",
     "agent_skills.error": "Agent skill 错误：{value}",
+    "memory_writes.title": "Memory 写入待审批",
+    "memory_writes.no_proposals": "暂无待审批 memory 写入。",
+    "memory_writes.approve": "审批落地",
+    "memory_writes.discard": "丢弃",
+    "memory_writes.records": "Memory 写入审计",
+    "memory_writes.error": "Memory 写入错误：{value}",
     "button.cook": "Cook",
     "button.cooking": "Cooking...",
     "button.creating": "创建中...",
@@ -701,6 +717,7 @@ const TRANSLATIONS = {
     "organization.invalid": "保存前需修复 {count} 个问题。",
     "organization.dirty": "组织架构有未保存变更。",
     "organization.saved": "组织架构已保存。",
+    "organization.employee_sync_pending": "员工列表已变化，保存或放弃当前编辑后刷新组织架构。",
     "organization.connect_hint": "从员工连接点拖到直属上级员工卡片。",
     "button.delete_skill": "删除技能",
     "button.delete_employee": "删除员工",
@@ -778,6 +795,9 @@ const TRANSLATIONS = {
     "action.agent_skill_proposals.title": "Agent Skills 待审批",
     "action.agent_skill_proposals.body": "当前有 {count} 个待审批 skill proposal，首个：{name}。",
     "action.agent_skill_proposals.action": "打开技能工作台",
+    "action.memory_write_proposals.title": "Memory 写入待审批",
+    "action.memory_write_proposals.body": "当前有 {count} 个高影响 memory 写入待审批，首个：{target}。",
+    "action.memory_write_proposals.action": "打开 Dream",
     "action.no_business_skills.title": "导入业务技能",
     "action.no_business_skills.body": "当前只有必选技能。创建专业员工前建议至少导入一个业务技能。",
     "action.no_business_skills.action": "查看技能",
@@ -1587,6 +1607,14 @@ const agentSkillState = {
   fileContent: "",
 };
 
+const memoryWriteState = {
+  proposals: [],
+  records: [],
+  isLoading: false,
+  actionId: "",
+  error: "",
+};
+
 const adminState = {
   mainSessionKey: null,
   mainContextAction: null,
@@ -1682,6 +1710,8 @@ const AGENT_SKILL_PROPOSALS_ENDPOINT = "/admin/api/agent-skills/proposals";
 const AGENT_SKILL_PROPOSAL_POLL_INTERVAL_MS = 15000;
 const DREAM_ENDPOINT = "/admin/api/dream";
 const DREAM_SUBJECT_ENDPOINT = "/admin/api/dream/subjects/";
+const MEMORY_WRITE_PROPOSALS_ENDPOINT = "/admin/api/memory-writes/proposals";
+const MEMORY_WRITE_RECORDS_ENDPOINT = "/admin/api/memory-writes/records";
 const DREAM_FILE_TABS = ["SOUL.md", "USER.md", "MEMORY.md", "history.jsonl"];
 
 const caseState = {
@@ -2313,6 +2343,10 @@ function pendingAgentSkillProposals() {
   return agentSkillState.proposals.filter((proposal) => proposal.status === "pending");
 }
 
+function pendingMemoryWriteProposals() {
+  return memoryWriteState.proposals.filter((proposal) => proposal.status === "pending");
+}
+
 function collectActionItems() {
   const items = [];
   if (isDemoMode() && Array.isArray(adminState.demoTodos) && adminState.demoTodos.length) {
@@ -2336,6 +2370,19 @@ function collectActionItems() {
         name: text(pendingProposals[0]?.name, "proposal"),
       }),
       actions: [{ kind: "agent-skills", label: t("action.agent_skill_proposals.action") }],
+    });
+  }
+  const pendingMemoryWrites = pendingMemoryWriteProposals();
+  if (pendingMemoryWrites.length) {
+    items.push({
+      key: "memory-write-proposals",
+      level: "warning",
+      title: t("action.memory_write_proposals.title"),
+      body: t("action.memory_write_proposals.body", {
+        count: pendingMemoryWrites.length,
+        target: text(pendingMemoryWrites[0]?.target_file, "memory"),
+      }),
+      actions: [{ kind: "dream", label: t("action.memory_write_proposals.action") }],
     });
   }
   const mainAgent = adminState.mainAgent || {};
@@ -2488,6 +2535,8 @@ function actionDataAttribute(action) {
       return 'data-action-center-skills="true"';
     case "agent-skills":
       return 'data-action-center-agent-skills="true"';
+    case "dream":
+      return 'data-action-center-dream="true"';
     case "employee":
       return `data-action-center-employee="${html(action.employeeId, "")}"`;
     case "create":
@@ -2983,6 +3032,7 @@ function renderDreamSubjectCard(subject) {
       <span class="dream-subject-stats">
         <span>${t("dream.history")}: ${html(subject.historyCount, "0")}</span>
         <span>${t("dream.unprocessed")}: ${html(subject.unprocessedCount, "0")}</span>
+        <span>${t("memory_writes.title")}: ${html(subject.pendingMemoryWriteCount, "0")}</span>
       </span>
       <span class="dream-subject-meta">${t("docker.context")}: ${html(contextLabel)}</span>
       <span class="dream-subject-meta">${t("dream.latest_commit")}: ${html(latestCommit)}</span>
@@ -3056,6 +3106,73 @@ function renderDreamDiff() {
   `;
 }
 
+function currentDreamMemoryWriteProposals() {
+  const subjectId = text(dreamState.selectedSubjectId, "main");
+  return memoryWriteState.proposals.filter((proposal) => (
+    proposal.status === "pending" && proposal.subjectId === subjectId
+  ));
+}
+
+function currentDreamMemoryWriteRecords() {
+  const subjectId = text(dreamState.selectedSubjectId, "main");
+  return memoryWriteState.records.filter((record) => record.subjectId === subjectId).slice(0, 5);
+}
+
+function memoryWriteProposalPreview(proposal) {
+  if (proposal.action === "patch") {
+    return [
+      proposal.old_text ? `--- old\n${proposal.old_text}` : "",
+      proposal.new_text ? `+++ new\n${proposal.new_text}` : "",
+    ].filter(Boolean).join("\n\n");
+  }
+  if (proposal.action === "delete") {
+    return `--- delete\n${proposal.old_text}`;
+  }
+  return `+++ append\n${proposal.new_text}`;
+}
+
+function renderMemoryWriteProposals() {
+  const proposals = currentDreamMemoryWriteProposals();
+  const records = currentDreamMemoryWriteRecords();
+  return `
+    <section class="dream-card memory-write-proposals-panel">
+      <div class="agent-section-title">${t("memory_writes.title")}</div>
+      ${memoryWriteState.error ? `<div class="dream-error">${t("memory_writes.error", { value: html(memoryWriteState.error) })}</div>` : ""}
+      ${memoryWriteState.isLoading ? `<div class="empty-state">${t("button.loading")}</div>` : ""}
+      ${!memoryWriteState.isLoading && proposals.length ? proposals.map((proposal) => `
+        <article class="memory-write-proposal-card">
+          <div class="memory-write-proposal-head">
+            <span>
+              <strong>${html(proposal.target_file)} · ${html(proposal.action)}</strong>
+              <small>${html(proposal.category)} · ${html(proposal.impact)} · ${html(proposal.subjectName)}</small>
+            </span>
+            <span class="${badgeClass(proposal.impact)}">${html(proposal.status)}</span>
+          </div>
+          <p>${html(proposal.reason || proposal.created_at)}</p>
+          ${proposal.evidence.length ? `<div class="memory-write-evidence">${proposal.evidence.slice(0, 3).map((item) => `<span>${html(item)}</span>`).join("")}</div>` : ""}
+          ${proposal.metadata?.source_excerpt ? `<pre class="memory-write-excerpt">${html(proposal.metadata.source_excerpt).slice(0, 700)}</pre>` : ""}
+          <pre>${html(memoryWriteProposalPreview(proposal)).slice(0, 1200)}</pre>
+          <div class="agent-skills-actions">
+            <button class="secondary-button" type="button" data-memory-write-proposal-discard="${html(proposal.id)}" ${memoryWriteState.actionId === proposal.id ? "disabled" : ""}>${t("memory_writes.discard")}</button>
+            <button class="primary-button" type="button" data-memory-write-proposal-approve="${html(proposal.id)}" ${memoryWriteState.actionId === proposal.id ? "disabled" : ""}>${t("memory_writes.approve")}</button>
+          </div>
+        </article>
+      `).join("") : `<div class="empty-state">${t("memory_writes.no_proposals")}</div>`}
+      ${records.length ? `
+        <div class="memory-write-records">
+          <strong>${t("memory_writes.records")}</strong>
+          ${records.map((record) => `
+            <div class="memory-write-record-row">
+              <span>${html(record.status)} · ${html(record.target_file)} · ${html(record.category)}</span>
+              <small>${html(record.created_at)}</small>
+            </div>
+          `).join("")}
+        </div>
+      ` : ""}
+    </section>
+  `;
+}
+
 function renderDreamDetail() {
   if (dreamState.isDetailLoading) {
     return `<section class="dream-card"><div class="empty-state">${t("dream.loading")}</div></section>`;
@@ -3087,6 +3204,7 @@ function renderDreamDetail() {
       })}
       ${subject.lastRun ? `<div class="dream-action-status">${html(dreamRunStatusLabel(subject.lastRun.status))}</div>` : ""}
     </section>
+    ${renderMemoryWriteProposals()}
     <div class="dream-detail-grid">
       <div class="dream-detail-main">
         ${renderDreamFiles()}
@@ -3134,7 +3252,10 @@ async function loadDream({ loadDetail = true } = {}) {
   dreamState.error = "";
   renderDreamPanel();
   try {
-    const response = await fetch(DREAM_ENDPOINT, { headers: { Accept: "application/json" } });
+    const [response] = await Promise.all([
+      fetch(DREAM_ENDPOINT, { headers: { Accept: "application/json" } }),
+      loadMemoryWrites({ render: false }),
+    ]);
     if (!response.ok) {
       const error = await response.json().catch(() => ({ error: { message: `HTTP ${response.status}` } }));
       throw new Error(text(error?.error?.message, `HTTP ${response.status}`));
@@ -3151,9 +3272,44 @@ async function loadDream({ loadDetail = true } = {}) {
   } finally {
     dreamState.isLoading = false;
     renderDreamPanel();
+    renderActionCenter();
   }
   if (loadDetail && currentDreamSubject()) {
     await loadDreamSubject(dreamState.selectedSubjectId);
+  }
+}
+
+async function loadMemoryWrites({ render = true } = {}) {
+  memoryWriteState.isLoading = true;
+  memoryWriteState.error = "";
+  if (render) {
+    renderDreamPanel();
+  }
+  try {
+    const [proposalsResponse, recordsResponse] = await Promise.all([
+      fetch(MEMORY_WRITE_PROPOSALS_ENDPOINT, { headers: { Accept: "application/json" } }),
+      fetch(`${MEMORY_WRITE_RECORDS_ENDPOINT}?limit=50`, { headers: { Accept: "application/json" } }),
+    ]);
+    if (!proposalsResponse.ok) {
+      const error = await proposalsResponse.json().catch(() => ({ error: { message: `HTTP ${proposalsResponse.status}` } }));
+      throw new Error(text(error?.error?.message, `HTTP ${proposalsResponse.status}`));
+    }
+    if (!recordsResponse.ok) {
+      const error = await recordsResponse.json().catch(() => ({ error: { message: `HTTP ${recordsResponse.status}` } }));
+      throw new Error(text(error?.error?.message, `HTTP ${recordsResponse.status}`));
+    }
+    const proposalsPayload = await proposalsResponse.json();
+    const recordsPayload = await recordsResponse.json();
+    memoryWriteState.proposals = Array.isArray(proposalsPayload) ? proposalsPayload.map(normalizeMemoryWriteProposal) : [];
+    memoryWriteState.records = Array.isArray(recordsPayload) ? recordsPayload.map(normalizeMemoryWriteRecord) : [];
+  } catch (error) {
+    memoryWriteState.error = text(error.message, "Failed to load memory writes.");
+  } finally {
+    memoryWriteState.isLoading = false;
+    if (render) {
+      renderDreamPanel();
+      renderActionCenter();
+    }
   }
 }
 
@@ -3291,6 +3447,75 @@ async function restoreDreamCommit(subjectId, sha) {
     dreamState.isRestoring = false;
     clearBusyAction();
     renderDreamPanel();
+  }
+}
+
+async function approveMemoryWriteProposal(proposalId) {
+  const normalizedId = text(proposalId, "");
+  if (!normalizedId || memoryWriteState.actionId) return;
+  memoryWriteState.actionId = normalizedId;
+  memoryWriteState.error = "";
+  renderDreamPanel();
+  try {
+    const response = await fetch(`${MEMORY_WRITE_PROPOSALS_ENDPOINT}/${encodeURIComponent(normalizedId)}/approve`, {
+      method: "POST",
+      headers: { Accept: "application/json" },
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(text(payload?.error?.message, `HTTP ${response.status}`));
+    }
+    companionReact({
+      type: "ready",
+      bubble: companionPhrase("Memory write approved.", "Memory 写入已审批落地。"),
+    });
+    await loadMemoryWrites({ render: false });
+    await loadDreamSubject(dreamState.selectedSubjectId);
+    await loadDream({ loadDetail: false });
+  } catch (error) {
+    companionReact({
+      type: "error",
+      bubble: companionPhrase("Memory write approval failed.", "Memory 写入审批失败。"),
+    });
+    throw error;
+  } finally {
+    memoryWriteState.actionId = "";
+    renderDreamPanel();
+    renderActionCenter();
+  }
+}
+
+async function discardMemoryWriteProposal(proposalId) {
+  const normalizedId = text(proposalId, "");
+  if (!normalizedId || memoryWriteState.actionId) return;
+  memoryWriteState.actionId = normalizedId;
+  memoryWriteState.error = "";
+  renderDreamPanel();
+  try {
+    const response = await fetch(`${MEMORY_WRITE_PROPOSALS_ENDPOINT}/${encodeURIComponent(normalizedId)}`, {
+      method: "DELETE",
+      headers: { Accept: "application/json" },
+    });
+    if (!response.ok) {
+      const payload = await response.json().catch(() => ({}));
+      throw new Error(text(payload?.error?.message, `HTTP ${response.status}`));
+    }
+    companionReact({
+      type: "ready",
+      bubble: companionPhrase("Memory write discarded.", "Memory 写入已丢弃。"),
+    });
+    await loadMemoryWrites({ render: false });
+    await loadDream({ loadDetail: false });
+  } catch (error) {
+    companionReact({
+      type: "error",
+      bubble: companionPhrase("Memory write discard failed.", "Memory 写入丢弃失败。"),
+    });
+    throw error;
+  } finally {
+    memoryWriteState.actionId = "";
+    renderDreamPanel();
+    renderActionCenter();
   }
 }
 
@@ -3866,6 +4091,48 @@ function normalizeAgentSkillProposal(proposal) {
   };
 }
 
+function normalizeMemoryWriteProposal(proposal) {
+  return {
+    id: text(proposal?.id, ""),
+    subjectId: text(proposal?.subjectId || proposal?.subject_id, "main"),
+    subjectName: text(proposal?.subjectName || proposal?.subject_name, "Main Agent"),
+    workspace: text(proposal?.workspace, ""),
+    target_file: text(proposal?.target_file, ""),
+    action: text(proposal?.action, "append"),
+    old_text: text(proposal?.old_text, ""),
+    new_text: text(proposal?.new_text, ""),
+    category: text(proposal?.category, "other"),
+    impact: text(proposal?.impact, "medium"),
+    reason: text(proposal?.reason, ""),
+    ttl_days: proposal?.ttl_days ?? null,
+    evidence: Array.isArray(proposal?.evidence) ? proposal.evidence.map((item) => text(item, "")).filter(Boolean) : [],
+    metadata: proposal?.metadata && typeof proposal.metadata === "object" ? proposal.metadata : {},
+    status: text(proposal?.status, "pending"),
+    created_at: text(proposal?.created_at, ""),
+    updated_at: text(proposal?.updated_at, ""),
+    applied_at: text(proposal?.applied_at, ""),
+    result: proposal?.result && typeof proposal.result === "object" ? proposal.result : null,
+  };
+}
+
+function normalizeMemoryWriteRecord(record) {
+  return {
+    id: text(record?.id, ""),
+    proposal_id: text(record?.proposal_id, ""),
+    status: text(record?.status, ""),
+    target_file: text(record?.target_file, ""),
+    action: text(record?.action, ""),
+    category: text(record?.category, ""),
+    impact: text(record?.impact, ""),
+    reason: text(record?.reason, ""),
+    evidence: Array.isArray(record?.evidence) ? record.evidence.map((item) => text(item, "")).filter(Boolean) : [],
+    subjectId: text(record?.subjectId || record?.subject_id, "main"),
+    subjectName: text(record?.subjectName || record?.subject_name, "Main Agent"),
+    workspace: text(record?.workspace, ""),
+    created_at: text(record?.created_at, ""),
+  };
+}
+
 function normalizeSoulBannerSkillCandidate(skill) {
   return {
     source: text(skill.source, "soulbanner"),
@@ -4274,6 +4541,24 @@ function selectableEmployees() {
 
 function selectableEmployeeIds() {
   return selectableEmployees().map((employee) => employee.id).filter(Boolean);
+}
+
+function employeeIdSignature(items = employeeState.employees) {
+  return items.map((employee) => text(employee.id, "")).filter(Boolean).sort().join("|");
+}
+
+async function syncOrganizationAfterEmployeeRefresh(previousSignature) {
+  const nextSignature = employeeIdSignature();
+  if (previousSignature === nextSignature || !organizationState.server || organizationState.isLoading) {
+    return;
+  }
+  if (organizationState.isDirty) {
+    organizationState.saveStatus = t("organization.employee_sync_pending");
+    validateOrganizationDraft();
+    renderOrganization();
+    return;
+  }
+  await loadOrganization();
 }
 
 function selectableSkills() {
@@ -8916,6 +9201,10 @@ function actionCenterOpenAgentSkills() {
   scrollToNavSection("agent-skills-workbench");
 }
 
+function actionCenterOpenDream() {
+  scrollToNavSection("dream-shell");
+}
+
 function actionCenterOpenEmployee(employeeId) {
   selectEmployee(employeeId);
   scrollToNavSection("employee-studio");
@@ -9455,6 +9744,7 @@ async function installCatalogSkillToAgentSkills(skillId) {
 }
 
 async function loadEmployees() {
+  const previousSignature = employeeIdSignature();
   const response = await fetch("/employees", { headers: { Accept: "application/json" } });
   if (!response.ok) {
     throw new Error(`Failed to load employees: HTTP ${response.status}`);
@@ -9466,6 +9756,7 @@ async function loadEmployees() {
   ensureSelectedEmployee();
   revealSelectedEmployeeInList();
   renderEmployees();
+  await syncOrganizationAfterEmployeeRefresh(previousSignature);
 }
 
 async function loadEmployeeConfig(employeeId) {
@@ -11004,6 +11295,22 @@ function initEmployeeInteractions() {
       requestDreamRestore();
       return;
     }
+    const memoryWriteApproveButton = event.target.closest("[data-memory-write-proposal-approve]");
+    if (memoryWriteApproveButton) {
+      approveMemoryWriteProposal(memoryWriteApproveButton.getAttribute("data-memory-write-proposal-approve")).catch((error) => {
+        memoryWriteState.error = text(error.message, "Failed to approve memory write.");
+        renderDreamPanel();
+      });
+      return;
+    }
+    const memoryWriteDiscardButton = event.target.closest("[data-memory-write-proposal-discard]");
+    if (memoryWriteDiscardButton) {
+      discardMemoryWriteProposal(memoryWriteDiscardButton.getAttribute("data-memory-write-proposal-discard")).catch((error) => {
+        memoryWriteState.error = text(error.message, "Failed to discard memory write.");
+        renderDreamPanel();
+      });
+      return;
+    }
     const dreamContextButton = event.target.closest("[data-dream-context-action]");
     if (dreamContextButton) {
       runEmployeeContextAction(
@@ -11082,6 +11389,11 @@ function initEmployeeInteractions() {
     const actionCenterAgentSkillsButton = event.target.closest("[data-action-center-agent-skills]");
     if (actionCenterAgentSkillsButton) {
       actionCenterOpenAgentSkills();
+      return;
+    }
+    const actionCenterDreamButton = event.target.closest("[data-action-center-dream]");
+    if (actionCenterDreamButton) {
+      actionCenterOpenDream();
       return;
     }
     const actionCenterEmployeeButton = event.target.closest("[data-action-center-employee]");

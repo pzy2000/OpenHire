@@ -12,7 +12,9 @@ from openhire.admin.demo_mode import demo_mode_status
 from openhire.admin.runtime import RuntimeMonitor, build_admin_snapshot
 from openhire.api.server import create_app
 from openhire.config.schema import DockerAgentConfig, DockerAgentsConfig
+from openhire.workforce.organization import OrganizationStore
 from openhire.workforce.registry import AgentEntry, AgentRegistry
+from openhire.workforce.required_skill import REQUIRED_EMPLOYEE_SKILL_ID
 from openhire.workforce.store import OpenHireStore
 
 try:
@@ -155,8 +157,17 @@ async def test_demo_mode_skips_employee_container_restore(aiohttp_client, monkey
 
 @pytest.mark.skipif(not HAS_AIOHTTP, reason="aiohttp not installed")
 @pytest.mark.asyncio
-async def test_demo_mode_adds_readonly_fallbacks_for_empty_admin_data(aiohttp_client, monkeypatch, tmp_path) -> None:
+async def test_demo_mode_materializes_employees_and_skills_for_empty_admin_data(
+    aiohttp_client,
+    monkeypatch,
+    tmp_path,
+) -> None:
     monkeypatch.setenv("OPENHIRE_DEMO_MODE", "1")
+
+    async def fail_create(_self, *_args, **_kwargs):
+        raise AssertionError("demo bootstrap must not create real employee containers")
+
+    monkeypatch.setattr("openhire.workforce.lifecycle.AgentLifecycle.create_agent", fail_create)
     app = create_app(_make_agent(), model_name="test-model", workspace=tmp_path)
     (tmp_path / "openhire" / "cases.json").write_text(json.dumps({"cases": []}), encoding="utf-8")
     client = await aiohttp_client(app)
@@ -167,12 +178,105 @@ async def test_demo_mode_adds_readonly_fallbacks_for_empty_admin_data(aiohttp_cl
     agent_skills = await (await client.get("/admin/api/agent-skills")).json()
     runtime = await (await client.get("/admin/api/runtime")).json()
 
-    assert employees and employees[0]["demo"] is True and employees[0]["readOnly"] is True
-    assert any(item.get("demo") is True for item in skills)
+    assert len(employees) == 5
+    assert {item["id"] for item in employees} == {
+        "demo-market",
+        "demo-product",
+        "demo-architect",
+        "demo-qa-ops",
+        "demo-finance",
+    }
+    assert all(item["agent_config"]["demo"] is True for item in employees)
+    assert all("demo" not in item and "readOnly" not in item for item in employees)
+    assert {item["id"] for item in skills} >= {
+        REQUIRED_EMPLOYEE_SKILL_ID,
+        "market-research",
+        "product-brief",
+        "system-design",
+        "release-checklist",
+        "risk-review",
+    }
+    assert any(item["source"] == "demo" for item in skills)
     assert cases["cases"] and cases["cases"][0]["demo"] is True
     assert any(item.get("demo") is True for item in agent_skills)
     assert runtime["demoMode"]["enabled"] is True
     assert runtime["demoTodos"]
+    assert (tmp_path / "openhire" / "agents.json").exists()
+    assert (tmp_path / "openhire" / "skills.json").exists()
+    assert "employee_restore_task" not in app
+
+
+@pytest.mark.skipif(not HAS_AIOHTTP, reason="aiohttp not installed")
+@pytest.mark.asyncio
+async def test_demo_mode_materializes_default_organization(aiohttp_client, monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("OPENHIRE_DEMO_MODE", "1")
+    app = create_app(_make_agent(), model_name="test-model", workspace=tmp_path)
+    client = await aiohttp_client(app)
+
+    resp = await client.get("/admin/api/organization")
+
+    assert resp.status == 200
+    body = await resp.json()
+    assert {item["id"] for item in body["employees"]} == {
+        "demo-market",
+        "demo-product",
+        "demo-architect",
+        "demo-qa-ops",
+        "demo-finance",
+    }
+    assert body["validation"]["valid"] is True
+    assert body["settings"]["allow_skip_level_reporting"] is False
+    assert body["edges"] == [
+        {"reporter_id": "demo-market", "manager_id": "demo-product"},
+        {"reporter_id": "demo-architect", "manager_id": "demo-product"},
+        {"reporter_id": "demo-finance", "manager_id": "demo-product"},
+        {"reporter_id": "demo-qa-ops", "manager_id": "demo-architect"},
+    ]
+    assert (tmp_path / "openhire" / "agents.json").exists()
+    assert (tmp_path / "openhire" / "organization.json").exists()
+
+
+@pytest.mark.skipif(not HAS_AIOHTTP, reason="aiohttp not installed")
+@pytest.mark.asyncio
+async def test_demo_materialized_organization_can_save_capabilities(
+    aiohttp_client,
+    monkeypatch,
+    tmp_path,
+) -> None:
+    monkeypatch.setenv("OPENHIRE_DEMO_MODE", "1")
+    app = create_app(_make_agent(), model_name="test-model", workspace=tmp_path)
+    client = await aiohttp_client(app)
+    initial = await (await client.get("/admin/api/organization")).json()
+
+    resp = await client.put(
+        "/admin/api/organization",
+        json={
+            "settings": initial["settings"],
+            "nodes": initial["nodes"],
+            "edges": [
+                {"reporter_id": "demo-market", "manager_id": "demo-architect"},
+                {"reporter_id": "demo-architect", "manager_id": "demo-product"},
+                {"reporter_id": "demo-finance", "manager_id": "demo-product"},
+                {"reporter_id": "demo-qa-ops", "manager_id": "demo-architect"},
+            ],
+            "capabilities": [
+                {
+                    "employee_id": "demo-market",
+                    "skill_ids": ["market-research"],
+                    "tools": ["browser", "search", "message"],
+                }
+            ],
+        },
+    )
+
+    assert resp.status == 200
+    body = await resp.json()
+    assert body["validation"]["valid"] is True
+    assert {"reporter_id": "demo-market", "manager_id": "demo-architect"} in body["edges"]
+    updated = app["employee_registry"].get("demo-market")
+    assert updated is not None
+    assert updated.skill_ids == [REQUIRED_EMPLOYEE_SKILL_ID, "market-research"]
+    assert updated.tools == ["browser", "search", "message"]
 
 
 @pytest.mark.skipif(not HAS_AIOHTTP, reason="aiohttp not installed")
@@ -181,13 +285,25 @@ async def test_demo_mode_does_not_override_real_employees(aiohttp_client, monkey
     monkeypatch.setenv("OPENHIRE_DEMO_MODE", "1")
     registry = AgentRegistry(OpenHireStore(tmp_path))
     entry = registry.register(AgentEntry(name="Real Employee", role="Backend Engineer"))
+    OrganizationStore(tmp_path).save(
+        {
+            "settings": {"allow_skip_level_reporting": True},
+            "nodes": [{"employee_id": entry.agent_id, "x": 99, "y": 101}],
+            "edges": [],
+        },
+        employee_ids={entry.agent_id},
+    )
     app = create_app(_make_agent(), model_name="test-model", workspace=tmp_path)
     client = await aiohttp_client(app)
 
     employees = await (await client.get("/employees")).json()
+    organization = await (await client.get("/admin/api/organization")).json()
 
     assert [item["id"] for item in employees] == [entry.agent_id]
     assert "demo" not in employees[0]
+    assert [item["id"] for item in organization["employees"]] == [entry.agent_id]
+    assert organization["nodes"][0]["x"] == 99
+    assert organization["settings"]["allow_skip_level_reporting"] is True
 
 
 def test_admin_static_contains_demo_mode_guards() -> None:
