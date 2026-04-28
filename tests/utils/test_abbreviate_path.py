@@ -54,10 +54,10 @@ class TestAbbreviatePathLong:
 
 class TestAbbreviatePathWindows:
     def test_windows_drive_path(self):
-        path = "D:\\Documents\\GitHub\\nanobot\\src\\utils\\helpers.py"
+        path = "D:\\Documents\\GitHub\\OpenHire\\src\\utils\\helpers.py"
         result = abbreviate_path(path, max_len=40)
         assert result.endswith("helpers.py")
-        assert "openhire" in result
+        assert "openhire" in result.casefold()
 
     def test_windows_home(self):
         home = os.path.expanduser("~")

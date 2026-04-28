@@ -3576,7 +3576,7 @@ def _resolve_workspace(agent_loop: Any, workspace: str | Path | None = None) -> 
     if workspace is not None:
         return Path(workspace).expanduser().resolve()
     loop_workspace = getattr(agent_loop, "workspace", None)
-    if loop_workspace:
+    if isinstance(loop_workspace, (str, Path)):
         return Path(loop_workspace).expanduser().resolve()
     return Path.cwd()
 

@@ -1321,7 +1321,7 @@ def test_gateway_cli_host_overrides_configured_host(monkeypatch, tmp_path: Path)
     assert "bound to all interfaces" in result.stdout
 
 
-def test_gateway_health_endpoint_binds_and_serves_expected_responses(
+def test_gateway_admin_server_binds_and_logs_health_endpoint(
     monkeypatch, tmp_path: Path
 ) -> None:
     config_file = _write_instance_config(tmp_path)
@@ -1337,10 +1337,21 @@ def test_gateway_health_endpoint_binds_and_serves_expected_responses(
         async def run(self) -> None:
             return None
 
+    class _FakeRuntimeMonitor:
+        def set_process_role(self, role: str) -> None:
+            captured["process_role"] = role
+
+        def start_docker_sampler(self) -> None:
+            captured["docker_sampler_started"] = True
+
+        async def stop_docker_sampler(self) -> None:
+            captured["docker_sampler_stopped"] = True
+
     class _FakeAgentLoop:
         def __init__(self, **_kwargs) -> None:
             self.model = "test-model"
             self.dream = _FakeDream()
+            self.runtime_monitor = _FakeRuntimeMonitor()
 
         async def run(self) -> None:
             await asyncio.Event().wait()
@@ -1356,7 +1367,9 @@ def test_gateway_health_endpoint_binds_and_serves_expected_responses(
             self.enabled_channels = ["telegram", "discord"]
 
         async def start_all(self) -> None:
-            await asyncio.Event().wait()
+            while not captured.get("admin_site_started"):
+                await asyncio.sleep(0)
+            raise _StopGatewayError("stop")
 
         async def stop_all(self) -> None:
             return None
@@ -1387,42 +1400,29 @@ def test_gateway_health_endpoint_binds_and_serves_expected_responses(
         def stop(self) -> None:
             return None
 
-    class _FakeServer:
-        async def __aenter__(self):
-            return self
+    class _FakeAppRunner:
+        def __init__(self, admin_app) -> None:
+            captured["admin_app"] = admin_app
 
-        async def __aexit__(self, exc_type, exc, tb) -> bool:
-            return False
+        async def setup(self) -> None:
+            captured["runner_setup"] = True
 
-        async def serve_forever(self) -> None:
-            raise _StopGatewayError("stop")
+        async def cleanup(self) -> None:
+            captured["runner_cleanup"] = True
 
-    async def _fake_start_server(handler, host: str, port: int):
-        captured["handler"] = handler
-        captured["host"] = host
-        captured["port"] = port
-        return _FakeServer()
+    class _FakeTCPSite:
+        def __init__(self, runner, host: str, port: int) -> None:
+            captured["runner"] = runner
+            captured["host"] = host
+            captured["port"] = port
 
-    class _FakeReader:
-        def __init__(self, payload: bytes) -> None:
-            self.payload = payload
+        async def start(self) -> None:
+            captured["admin_site_started"] = True
 
-        async def read(self, _size: int) -> bytes:
-            return self.payload
-
-    class _FakeWriter:
-        def __init__(self) -> None:
-            self.output = b""
-            self.closed = False
-
-        def write(self, data: bytes) -> None:
-            self.output += data
-
-        async def drain(self) -> None:
-            return None
-
-        def close(self) -> None:
-            self.closed = True
+    def _fake_create_admin_app(agent, process_role: str):
+        captured["admin_agent"] = agent
+        captured["admin_process_role"] = process_role
+        return object()
 
     _patch_cli_command_runtime(
         monkeypatch,
@@ -1434,38 +1434,21 @@ def test_gateway_health_endpoint_binds_and_serves_expected_responses(
     monkeypatch.setattr("openhire.channels.manager.ChannelManager", _FakeChannelManager)
     monkeypatch.setattr("openhire.cron.service.CronService", _FakeCronService)
     monkeypatch.setattr("openhire.heartbeat.service.HeartbeatService", _FakeHeartbeatService)
-    monkeypatch.setattr("asyncio.start_server", _fake_start_server)
+    monkeypatch.setattr("aiohttp.web.AppRunner", _FakeAppRunner)
+    monkeypatch.setattr("aiohttp.web.TCPSite", _FakeTCPSite)
+    monkeypatch.setattr("openhire.api.server.create_admin_app", _fake_create_admin_app)
 
     result = runner.invoke(app, ["gateway", "--config", str(config_file)])
 
     assert result.exit_code == 0
     assert captured["host"] == "127.0.0.1"
     assert captured["port"] == 18791
+    assert captured["process_role"] == "gateway"
+    assert captured["admin_process_role"] == "gateway"
+    assert captured["runner_setup"] is True
+    assert captured["admin_site_started"] is True
     assert "Health endpoint: http://127.0.0.1:18791/health" in result.stdout
-
-    def _call_handler(path: str) -> tuple[str, _FakeWriter]:
-        request = f"GET {path} HTTP/1.1\r\nHost: localhost\r\n\r\n".encode()
-        writer = _FakeWriter()
-        handler = captured["handler"]
-        assert callable(handler)
-        asyncio.run(handler(_FakeReader(request), writer))
-        return writer.output.decode(), writer
-
-    root_response, root_writer = _call_handler("/")
-    assert root_writer.closed is True
-    assert "HTTP/1.0 404 Not Found" in root_response
-    assert root_response.endswith("\r\n\r\nNot Found")
-
-    health_response, health_writer = _call_handler("/health")
-    assert health_writer.closed is True
-    assert "HTTP/1.0 200 OK" in health_response
-    health_body = json.loads(health_response.split("\r\n\r\n", 1)[1])
-    assert health_body == {"status": "ok"}
-
-    missing_response, missing_writer = _call_handler("/missing")
-    assert missing_writer.closed is True
-    assert "HTTP/1.0 404 Not Found" in missing_response
-    assert missing_response.endswith("\r\n\r\nNot Found")
+    assert "Admin dashboard: http://127.0.0.1:18791/admin" in result.stdout
 
 
 def test_serve_uses_api_config_defaults_and_workspace_override(

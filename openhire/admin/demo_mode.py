@@ -30,6 +30,14 @@ _PATH_MARKERS = (
     "/eas_mount_tmp/",
     "studio_askor305_openhire",
 )
+MODELSCOPE_DEMO_MODEL = "deepseek-ai/DeepSeek-V4-Flash"
+MODELSCOPE_DEMO_API_BASE = "https://api-inference.modelscope.cn/v1"
+MODELSCOPE_DEMO_API_KEY_ENV_KEYS = (
+    "OPENHIRE_MODELSCOPE_API_KEY",
+    "MODELSCOPE_API_TOKEN",
+    "MODELSCOPE_TOKEN",
+    "MODEL_SCOPE_TOKEN",
+)
 
 
 def _now_iso(now: float | None = None) -> str:
@@ -43,6 +51,42 @@ def _minutes_ago(minutes: int, *, now: float | None = None) -> str:
 
 def _env_text(environ: Mapping[str, str], key: str) -> str:
     return str(environ.get(key) or "").strip()
+
+
+def _modelscope_deploy_reason(
+    environ: Mapping[str, str],
+    *,
+    workspace: str | Path | None = None,
+    include_token_env: bool = True,
+) -> str | None:
+    target = _env_text(environ, "OPENHIRE_DEPLOY_TARGET").lower()
+    if target and any(marker in target for marker in ("modelscope", "studio", "创空间")):
+        return "OPENHIRE_DEPLOY_TARGET"
+
+    for key in _MODELSCOPE_ENV_KEYS:
+        if _env_text(environ, key):
+            return key
+    for key, value in environ.items():
+        normalized_key = str(key).upper()
+        if (
+            normalized_key.startswith("MODELSCOPE_")
+            and (include_token_env or normalized_key not in MODELSCOPE_DEMO_API_KEY_ENV_KEYS)
+            and str(value or "").strip()
+        ):
+            return normalized_key
+
+    path_candidates = [
+        str(workspace or ""),
+        _env_text(environ, "PWD"),
+        _env_text(environ, "WORK_SPACE"),
+        _env_text(environ, "PROJECT_DIR"),
+    ]
+    for candidate in path_candidates:
+        normalized = candidate.lower()
+        if normalized and any(marker in normalized for marker in _PATH_MARKERS):
+            return "modelscope_path"
+
+    return None
 
 
 def demo_mode_status(
@@ -61,29 +105,56 @@ def demo_mode_status(
     if raw not in _AUTO_VALUES:
         return {"enabled": False, "mode": "disabled", "reason": "OPENHIRE_DEMO_MODE"}
 
-    target = _env_text(env, "OPENHIRE_DEPLOY_TARGET").lower()
-    if target and any(marker in target for marker in ("modelscope", "studio", "创空间")):
-        return {"enabled": True, "mode": "auto", "reason": "OPENHIRE_DEPLOY_TARGET"}
-
-    for key in _MODELSCOPE_ENV_KEYS:
-        if _env_text(env, key):
-            return {"enabled": True, "mode": "auto", "reason": key}
-    for key, value in env.items():
-        normalized_key = str(key).upper()
-        if normalized_key.startswith("MODELSCOPE_") and str(value or "").strip():
-            return {"enabled": True, "mode": "auto", "reason": normalized_key}
-
-    path_candidates = [str(workspace or ""), _env_text(env, "PWD"), _env_text(env, "WORK_SPACE"), _env_text(env, "PROJECT_DIR")]
-    for candidate in path_candidates:
-        normalized = candidate.lower()
-        if normalized and any(marker in normalized for marker in _PATH_MARKERS):
-            return {"enabled": True, "mode": "auto", "reason": "modelscope_path"}
+    reason = _modelscope_deploy_reason(env, workspace=workspace)
+    if reason:
+        return {"enabled": True, "mode": "auto", "reason": reason}
 
     return {"enabled": False, "mode": "auto", "reason": "no_hosted_deploy_marker"}
 
 
 def is_demo_mode(*, environ: Mapping[str, str] | None = None, workspace: str | Path | None = None) -> bool:
     return bool(demo_mode_status(environ=environ, workspace=workspace).get("enabled"))
+
+
+def _modelscope_demo_api_key(environ: Mapping[str, str]) -> str:
+    for key in MODELSCOPE_DEMO_API_KEY_ENV_KEYS:
+        value = _env_text(environ, key)
+        if value:
+            return value
+    return ""
+
+
+def apply_modelscope_demo_config_overlay(
+    config: Any,
+    *,
+    environ: Mapping[str, str] | None = None,
+    workspace: str | Path | None = None,
+) -> bool:
+    """Point hosted ModelScope demo deployments at ModelScope DeepSeek."""
+
+    env = environ or os.environ
+    resolved_workspace = workspace
+    if resolved_workspace is None:
+        resolved_workspace = getattr(config, "workspace_path", None)
+    status = demo_mode_status(environ=env, workspace=resolved_workspace)
+    if not status.get("enabled"):
+        return False
+    if not _modelscope_deploy_reason(env, workspace=resolved_workspace, include_token_env=False):
+        return False
+
+    api_key = _modelscope_demo_api_key(env)
+    if not api_key:
+        env_names = ", ".join(MODELSCOPE_DEMO_API_KEY_ENV_KEYS)
+        raise ValueError(
+            "ModelScope demo mode requires a ModelScope Inference token. "
+            f"Set one of: {env_names}."
+        )
+
+    config.agents.defaults.provider = "deepseek"
+    config.agents.defaults.model = MODELSCOPE_DEMO_MODEL
+    config.providers.deepseek.api_key = api_key
+    config.providers.deepseek.api_base = MODELSCOPE_DEMO_API_BASE
+    return True
 
 
 def demo_employee_rows(*, now: float | None = None) -> list[dict[str, Any]]:

@@ -25,6 +25,7 @@ from openhire.config.schema import AgentDefaults, DockerAgentConfig, DockerAgent
 from openhire.providers.base import GenerationSettings, LLMProvider, LLMResponse, ToolCallRequest
 from openhire.workforce.registry import AgentEntry, AgentRegistry
 from openhire.workforce.store import OpenHireStore
+from openhire.workforce.workspace import employee_workspace_path
 
 
 def _seed_atlas_algo(workspace: Path) -> AgentEntry:
@@ -415,7 +416,7 @@ async def test_feishu_openhire_delegate_nanobot_e2e_repeats_five_times(tmp_path:
         assert adapter.agent_name == "nanobot"
         assert instance_name == employee.agent_id
         assert agent_cfg["container_name"] == employee.container_name
-        assert workspace == tmp_path
+        assert workspace == employee_workspace_path(tmp_path, employee)
         return employee.container_name
 
     async def fake_exec_in_container(
@@ -428,15 +429,16 @@ async def test_feishu_openhire_delegate_nanobot_e2e_repeats_five_times(tmp_path:
         timeout=300,
         workspace=None,
     ):
+        assert workspace == employee_workspace_path(tmp_path, employee)
         command = adapter.build_command(
             task, role, tools, skills, instance_id=container_name,
         )
-        if command[:2] != ["nanobot", "agent"]:
+        if command[:3] != ["nanobot", "agent", "--session"] or "--message" not in command:
             return (
                 "OCI runtime exec failed: exec failed: unable to start container process: "
                 f"exec: \"{command[0]}\": executable file not found in $PATH"
             )
-        return f"OK container={container_name} command={' '.join(command[:3])}"
+        return f"OK container={container_name} command={' '.join(command[:7])}"
 
     runner = asyncio.create_task(loop.run())
     try:
@@ -461,7 +463,8 @@ async def test_feishu_openhire_delegate_nanobot_e2e_repeats_five_times(tmp_path:
         assert len(outbound_contents) == 5
         assert all("Atlas Algo 结果：" in item for item in outbound_contents)
         assert all(
-            "OK container=openhire-atlas-algo command=nanobot agent --message" in item
+            "OK container=openhire-atlas-algo command=nanobot agent --session" in item
+            and "--message" in item
             for item in outbound_contents
         )
     finally:

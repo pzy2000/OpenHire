@@ -3,7 +3,6 @@ from __future__ import annotations
 import asyncio
 import importlib
 import json
-import sys
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
@@ -368,12 +367,7 @@ def test_nanobot_build_init_commands_write_runtime_config() -> None:
         "provider": "openai",
     }
     assert runtime_config["providers"]["openai"]["apiKey"] == "dummy"
-    expected_base = (
-        "http://host.docker.internal:16666/v1"
-        if sys.platform in {"darwin", "win32"}
-        else "http://localhost:16666/v1"
-    )
-    assert runtime_config["providers"]["openai"]["apiBase"] == expected_base
+    assert runtime_config["providers"]["openai"]["apiBase"] == "http://host.docker.internal:16666/v1"
 
 
 def test_nanobot_build_init_commands_skip_when_llm_config_missing() -> None:
