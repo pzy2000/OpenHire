@@ -1,0 +1,103 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 640" width="960" height="640" role="img" aria-labelledby="title desc">
+  <title id="title">OpenHire 双循环</title>
+  <desc id="desc">流程图展示任务期数字员工协作和任务后治理沉淀如何增强下一次运行。</desc>
+  <defs>
+    <linearGradient id="titleGrad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#ef4444"/>
+      <stop offset="50%" stop-color="#7c3aed"/>
+      <stop offset="100%" stop-color="#2563eb"/>
+    </linearGradient>
+    <linearGradient id="redPanel" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#fff7ed"/>
+      <stop offset="100%" stop-color="#fff1f2"/>
+    </linearGradient>
+    <linearGradient id="bluePanel" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#eff6ff"/>
+      <stop offset="100%" stop-color="#ecfeff"/>
+    </linearGradient>
+    <filter id="cardShadow" x="-15%" y="-20%" width="130%" height="150%">
+      <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#1e293b" flood-opacity=".10"/>
+    </filter>
+    <marker id="arrowBlue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M0,1 L9,5 L0,9 Z" fill="#38bdf8"/>
+    </marker>
+    <marker id="arrowGray" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M0,1 L9,5 L0,9 Z" fill="#94a3b8"/>
+    </marker>
+  </defs>
+  <style>
+    @keyframes dash { to { stroke-dashoffset: -28; } }
+    @keyframes pulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: .72; transform: scale(.985); } }
+    @keyframes glow { 0%,100% { opacity: .78; } 50% { opacity: 1; } }
+    .flow { stroke-dasharray: 10 9; animation: dash 1.8s linear infinite; }
+    .pulse { animation: pulse 2.6s ease-in-out infinite; transform-origin: center; }
+    .glow { animation: glow 2.4s ease-in-out infinite; }
+    .label { font-family: 'PingFang SC','Microsoft YaHei','Noto Sans CJK SC',Inter,sans-serif; }
+  </style>
+  <rect width="960" height="640" rx="22" fill="#ffffff"/>
+  <rect x="1" y="1" width="958" height="638" rx="22" fill="none" stroke="#dbeafe" stroke-width="2"/>
+  <text class="label" x="480" y="48" text-anchor="middle" font-size="18" font-weight="800" letter-spacing="5" fill="url(#titleGrad)">双循环，一个数字员工团队</text>
+  <text class="label" x="480" y="84" text-anchor="middle" font-size="30" font-weight="900" fill="#0f172a">OpenHire 把目标推进成可治理的工作成果</text>
+  <line x1="82" y1="108" x2="878" y2="108" stroke="#e2e8f0" stroke-width="2"/>
+
+  <rect x="324" y="130" width="312" height="66" rx="16" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5" filter="url(#cardShadow)"/>
+  <text class="label" x="480" y="158" text-anchor="middle" font-size="15" font-weight="700" fill="#475569">群聊 / Admin 目标</text>
+  <text class="label" x="480" y="181" text-anchor="middle" font-size="20" font-weight="800" fill="#0f172a">增长收入，控制风险</text>
+  <line x1="480" y1="196" x2="480" y2="230" stroke="#94a3b8" stroke-width="3" marker-end="url(#arrowGray)"/>
+
+  <rect x="84" y="238" width="792" height="136" rx="18" fill="url(#redPanel)" stroke="#fecaca" stroke-width="2"/>
+  <text class="label" x="126" y="270" font-size="24" font-weight="900" fill="#b91c1c">任务期循环</text>
+  <text class="label" x="318" y="270" font-size="16" font-weight="700" fill="#dc2626">招募、路由、协作，工作发生时就把责任拆清楚</text>
+  <g class="pulse">
+    <rect x="128" y="292" width="145" height="54" rx="12" fill="#ffffff" stroke="#fca5a5" stroke-width="1.6"/>
+    <text class="label" x="200" y="326" text-anchor="middle" font-size="18" font-weight="800" fill="#b91c1c">招募</text>
+  </g>
+  <path class="flow" d="M284 319 H350" stroke="#fb7185" stroke-width="4" fill="none" marker-end="url(#arrowBlue)"/>
+  <g class="pulse" style="animation-delay:.25s">
+    <rect x="360" y="292" width="145" height="54" rx="12" fill="#ffffff" stroke="#fca5a5" stroke-width="1.6"/>
+    <text class="label" x="432" y="326" text-anchor="middle" font-size="18" font-weight="800" fill="#b91c1c">分派</text>
+  </g>
+  <path class="flow" d="M516 319 H582" stroke="#fb7185" stroke-width="4" fill="none" marker-end="url(#arrowBlue)"/>
+  <g class="pulse" style="animation-delay:.5s">
+    <rect x="592" y="292" width="145" height="54" rx="12" fill="#ffffff" stroke="#fca5a5" stroke-width="1.6"/>
+    <text class="label" x="664" y="326" text-anchor="middle" font-size="18" font-weight="800" fill="#b91c1c">互检</text>
+  </g>
+  <text class="label" x="750" y="316" font-size="13" font-weight="700" fill="#7f1d1d">角色员工</text>
+  <text class="label" x="750" y="336" font-size="13" fill="#991b1b">独立日志</text>
+
+  <line x1="480" y1="374" x2="480" y2="410" stroke="#94a3b8" stroke-width="3" marker-end="url(#arrowGray)"/>
+  <rect x="413" y="388" width="134" height="26" rx="8" fill="#f1f5f9"/>
+  <text class="label" x="480" y="407" text-anchor="middle" font-size="14" font-weight="800" fill="#64748b">任务完成</text>
+
+  <rect x="84" y="420" width="792" height="150" rx="18" fill="url(#bluePanel)" stroke="#bae6fd" stroke-width="2"/>
+  <text class="label" x="126" y="452" font-size="24" font-weight="900" fill="#075985">治理循环</text>
+  <text class="label" x="358" y="452" font-size="16" font-weight="700" fill="#0284c7">审核、沉淀、增强下一次运行</text>
+  <g>
+    <rect x="120" y="480" width="132" height="56" rx="12" fill="#ffffff" stroke="#7dd3fc" stroke-width="1.6"/>
+    <text class="label" x="186" y="503" text-anchor="middle" font-size="13" font-weight="800" fill="#0369a1">会话记录</text>
+    <text class="label" x="186" y="522" text-anchor="middle" font-size="13" fill="#0c4a6e">事实依据</text>
+  </g>
+  <path class="flow" d="M262 508 H316" stroke="#38bdf8" stroke-width="4" fill="none" marker-end="url(#arrowBlue)"/>
+  <g>
+    <rect x="326" y="480" width="132" height="56" rx="12" fill="#ffffff" stroke="#7dd3fc" stroke-width="1.6"/>
+    <text class="label" x="392" y="503" text-anchor="middle" font-size="13" font-weight="800" fill="#0369a1">Skills</text>
+    <text class="label" x="392" y="522" text-anchor="middle" font-size="13" fill="#0c4a6e">审批复用</text>
+  </g>
+  <path class="flow" d="M468 508 H522" stroke="#38bdf8" stroke-width="4" fill="none" marker-end="url(#arrowBlue)"/>
+  <g>
+    <rect x="532" y="480" width="132" height="56" rx="12" fill="#ffffff" stroke="#7dd3fc" stroke-width="1.6"/>
+    <text class="label" x="598" y="503" text-anchor="middle" font-size="13" font-weight="800" fill="#0369a1">Cases</text>
+    <text class="label" x="598" y="522" text-anchor="middle" font-size="13" fill="#0c4a6e">可迁移包</text>
+  </g>
+  <path class="flow" d="M674 508 H728" stroke="#38bdf8" stroke-width="4" fill="none" marker-end="url(#arrowBlue)"/>
+  <g class="glow">
+    <rect x="738" y="480" width="108" height="56" rx="12" fill="#e0f2fe" stroke="#38bdf8" stroke-width="2"/>
+    <text class="label" x="792" y="503" text-anchor="middle" font-size="13" font-weight="900" fill="#075985">Dream</text>
+    <text class="label" x="792" y="522" text-anchor="middle" font-size="13" fill="#0c4a6e">记忆 diff</text>
+  </g>
+
+  <path class="flow" d="M846 508 C925 446 925 275 742 255" stroke="#60a5fa" stroke-width="4" fill="none" marker-end="url(#arrowBlue)"/>
+  <text class="label" x="918" y="382" transform="rotate(90 918 382)" text-anchor="middle" font-size="15" font-weight="900" letter-spacing="4" fill="#2563eb">下一次更强</text>
+  <rect x="302" y="586" width="356" height="34" rx="17" fill="#dbeafe" stroke="#93c5fd"/>
+  <text class="label" x="480" y="608" text-anchor="middle" font-size="16" font-weight="800" fill="#1d4ed8">保留有效做法 · 复盘变化 · 安全复用</text>
+</svg>

@@ -1,0 +1,87 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 560" width="960" height="560" role="img" aria-labelledby="title desc">
+  <title id="title">OpenHire 治理沉淀流程</title>
+  <desc id="desc">流水线展示会话记录如何通过 Admin 审核沉淀为 skills、case 包、Dream 记忆和员工工作手册。</desc>
+  <defs>
+    <linearGradient id="paper" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#f8fafc"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#f97316"/>
+      <stop offset="50%" stop-color="#0ea5e9"/>
+      <stop offset="100%" stop-color="#22c55e"/>
+    </linearGradient>
+    <filter id="shadow" x="-16%" y="-22%" width="132%" height="150%">
+      <feDropShadow dx="0" dy="10" stdDeviation="11" flood-color="#0f172a" flood-opacity=".10"/>
+    </filter>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M0,1 L9,5 L0,9 Z" fill="#0ea5e9"/>
+    </marker>
+  </defs>
+  <style>
+    @keyframes dash { to { stroke-dashoffset: -26; } }
+    @keyframes pulse { 0%,100% { opacity: .76; } 50% { opacity: 1; } }
+    @keyframes rise { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+    .flow { stroke-dasharray: 9 8; animation: dash 1.7s linear infinite; }
+    .pulse { animation: pulse 2.4s ease-in-out infinite; }
+    .rise { animation: rise 3s ease-in-out infinite; transform-origin: center; }
+    .label { font-family: 'PingFang SC','Microsoft YaHei','Noto Sans CJK SC',Inter,sans-serif; }
+  </style>
+  <rect width="960" height="560" rx="22" fill="#ffffff"/>
+  <rect x="1" y="1" width="958" height="558" rx="22" fill="none" stroke="#e2e8f0" stroke-width="2"/>
+  <text class="label" x="480" y="48" text-anchor="middle" font-size="18" font-weight="800" letter-spacing="5" fill="#0f766e">治理沉淀持续复利</text>
+  <text class="label" x="480" y="84" text-anchor="middle" font-size="30" font-weight="900" fill="#0f172a">每次运行都留下可复用的组织资产</text>
+  <rect x="116" y="112" width="728" height="6" rx="3" fill="url(#accent)" opacity=".75"/>
+
+  <rect x="66" y="172" width="142" height="116" rx="16" fill="url(#paper)" stroke="#fed7aa" stroke-width="1.8" filter="url(#shadow)"/>
+  <text class="label" x="137" y="204" text-anchor="middle" font-size="16" font-weight="900" fill="#c2410c">会话记录</text>
+  <rect x="94" y="225" width="86" height="8" rx="4" fill="#fed7aa"/>
+  <rect x="94" y="244" width="66" height="8" rx="4" fill="#fed7aa" opacity=".7"/>
+  <text class="label" x="137" y="270" text-anchor="middle" font-size="12" fill="#7c2d12">谁做了什么</text>
+
+  <path class="flow" d="M216 230 H292" stroke="#0ea5e9" stroke-width="4" fill="none" marker-end="url(#arrow)"/>
+
+  <g class="rise">
+    <rect x="300" y="172" width="142" height="116" rx="16" fill="#f0f9ff" stroke="#7dd3fc" stroke-width="1.8" filter="url(#shadow)"/>
+    <text class="label" x="371" y="204" text-anchor="middle" font-size="16" font-weight="900" fill="#0369a1">Skill 提案</text>
+    <rect x="326" y="226" width="90" height="24" rx="8" fill="#dbeafe"/>
+    <text class="label" x="371" y="243" text-anchor="middle" font-size="12" font-weight="800" fill="#1d4ed8">审批</text>
+    <text class="label" x="371" y="270" text-anchor="middle" font-size="12" fill="#0c4a6e">通过或驳回</text>
+  </g>
+
+  <path class="flow" d="M450 230 H526" stroke="#0ea5e9" stroke-width="4" fill="none" marker-end="url(#arrow)"/>
+
+  <g class="rise" style="animation-delay:.25s">
+    <rect x="534" y="172" width="142" height="116" rx="16" fill="#eef2ff" stroke="#a5b4fc" stroke-width="1.8" filter="url(#shadow)"/>
+    <text class="label" x="605" y="204" text-anchor="middle" font-size="16" font-weight="900" fill="#3730a3">Case 包</text>
+    <rect x="562" y="226" width="86" height="8" rx="4" fill="#c7d2fe"/>
+    <rect x="562" y="244" width="62" height="8" rx="4" fill="#c7d2fe" opacity=".8"/>
+    <text class="label" x="605" y="270" text-anchor="middle" font-size="12" fill="#312e81">输入 + 输出</text>
+  </g>
+
+  <path class="flow" d="M684 230 H760" stroke="#0ea5e9" stroke-width="4" fill="none" marker-end="url(#arrow)"/>
+
+  <g class="pulse">
+    <rect x="768" y="172" width="142" height="116" rx="16" fill="#ecfdf5" stroke="#86efac" stroke-width="1.8" filter="url(#shadow)"/>
+    <text class="label" x="839" y="204" text-anchor="middle" font-size="16" font-weight="900" fill="#15803d">Dream 记忆</text>
+    <path d="M810 236 C820 216 858 216 868 236 C858 256 820 256 810 236 Z" fill="#bbf7d0" stroke="#22c55e"/>
+    <circle cx="839" cy="236" r="8" fill="#22c55e"/>
+    <text class="label" x="839" y="270" text-anchor="middle" font-size="12" fill="#14532d">diff + 回滚</text>
+  </g>
+
+  <path class="flow" d="M839 288 C812 374 676 406 586 382" stroke="#22c55e" stroke-width="4" fill="none" marker-end="url(#arrow)"/>
+  <path class="flow" d="M371 288 C399 355 469 385 548 382" stroke="#22c55e" stroke-width="4" fill="none" marker-end="url(#arrow)"/>
+
+  <rect x="304" y="350" width="352" height="112" rx="20" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.8" filter="url(#shadow)"/>
+  <text class="label" x="480" y="385" text-anchor="middle" font-size="20" font-weight="900" fill="#0f172a">可复用员工工作手册</text>
+  <text class="label" x="480" y="416" text-anchor="middle" font-size="15" fill="#475569">技能、案例、记忆、负责人、审计链</text>
+  <rect x="352" y="434" width="92" height="28" rx="10" fill="#dbeafe"/>
+  <text class="label" x="398" y="453" text-anchor="middle" font-size="12" font-weight="800" fill="#1d4ed8">下一次</text>
+  <rect x="460" y="434" width="92" height="28" rx="10" fill="#dcfce7"/>
+  <text class="label" x="506" y="453" text-anchor="middle" font-size="12" font-weight="800" fill="#15803d">可迁移</text>
+  <rect x="568" y="434" width="52" height="28" rx="10" fill="#ffedd5"/>
+  <text class="label" x="594" y="453" text-anchor="middle" font-size="12" font-weight="800" fill="#c2410c">安全</text>
+
+  <rect x="232" y="494" width="496" height="34" rx="17" fill="#f1f5f9" stroke="#cbd5e1"/>
+  <text class="label" x="480" y="516" text-anchor="middle" font-size="15" font-weight="800" fill="#334155">Admin 先看到证据，再把资产放入共享运行记忆。</text>
+</svg>
