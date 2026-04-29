@@ -10,8 +10,36 @@
 // sends a real at-sign when fetching jsdelivr.
 const _AT = String.fromCharCode(64);
 const _JSDELIVR = "https://cdn.jsdelivr.net";
-const DEFAULT_MODEL_URL =
-  _JSDELIVR + "/npm/live2d-widget-model-shizuku" + _AT + "latest/assets/shizuku.model.json";
+const DEFAULT_MODEL_ID = "shizuku";
+function live2dWidgetModelUrl(packageName, assetName) {
+  return _JSDELIVR + "/npm/" + packageName + _AT + "1.0.5/assets/" + assetName + ".model.json";
+}
+const COMPANION_MODEL_OPTIONS = [
+  {
+    id: "shizuku",
+    label: "Shizuku",
+    packageName: "live2d-widget-model-shizuku",
+    url: live2dWidgetModelUrl("live2d-widget-model-shizuku", "shizuku"),
+  },
+  {
+    id: "koharu",
+    label: "Koharu",
+    packageName: "live2d-widget-model-koharu",
+    url: live2dWidgetModelUrl("live2d-widget-model-koharu", "koharu"),
+  },
+  {
+    id: "hibiki",
+    label: "Hibiki",
+    packageName: "live2d-widget-model-hibiki",
+    url: live2dWidgetModelUrl("live2d-widget-model-hibiki", "hibiki"),
+  },
+  {
+    id: "z16",
+    label: "Z16",
+    packageName: "live2d-widget-model-z16",
+    url: live2dWidgetModelUrl("live2d-widget-model-z16", "z16"),
+  },
+];
 const VENDOR_SCRIPTS = [
   // Cubism 2.x SDK first; pixi-live2d-display/cubism2 expects window.Live2DModelWebGL.
   _JSDELIVR + "/gh/dylanNew/live2d/webgl/Live2D/lib/live2d.min.js",
@@ -23,6 +51,7 @@ const VENDOR_SCRIPTS = [
 const VENDOR_TIMEOUT_MS = 12000;
 const RUNTIME_TIMEOUT_MS = 9000;
 const STAGE_DIMENSIONS_TIMEOUT_MS = 4000;
+const COMPANION_MODEL_TOP_TRIM_RATIO = 0.25;
 const LOG_PREFIX = "[companion]";
 const STORAGE_KEY = "openhire.companion.history.v1";
 const MAX_HISTORY = 24;
@@ -33,6 +62,7 @@ const MUTE_STORAGE_KEY = "openhire.companion.muted.v1";
 const BUBBLES_STORAGE_KEY = "openhire.companion.bubbles.v1";
 const RUNTIME_REACTIONS_STORAGE_KEY = "openhire.companion.runtimeReactions.v1";
 const REACTION_INTENSITY_STORAGE_KEY = "openhire.companion.reactionIntensity.v1";
+const MODEL_STORAGE_KEY = "openhire.companion.model.v1";
 const DEFAULT_REACTION_DURATION_MS = 4200;
 const DEFAULT_BUBBLE_DURATION_MS = 3600;
 const CONTEXT_MAX_CHARS = 3600;
@@ -71,6 +101,7 @@ const I18N = {
     "companion.preferences.sound": "声音",
     "companion.preferences.bubbles": "气泡提示",
     "companion.preferences.runtime": "运行态反馈",
+    "companion.preferences.model": "角色",
     "companion.preferences.intensity": "反应强度",
     "companion.preferences.intensity.calm": "轻柔",
     "companion.preferences.intensity.normal": "标准",
@@ -110,6 +141,9 @@ const I18N = {
     "companion.bubble.ready": "后台状态已稳定。",
     "companion.bubble.muted": "声音已关闭。",
     "companion.bubble.unmuted": "声音已开启。",
+    "companion.bubble.model_loading": "正在切换到 {name}...",
+    "companion.bubble.model_ready": "已切换到 {name}。",
+    "companion.bubble.model_failed": "角色加载失败，已回退。",
     "companion.bubble.inventory_empty": "模型清单还没加载完成。",
     "companion.inventory.label": "动作 {motions} · 表情 {expressions}",
     "companion.fallback.body": "Live2D 引擎未就绪，先用霓虹版陪你聊。",
@@ -126,6 +160,7 @@ const I18N = {
     "companion.preferences.sound": "Sound",
     "companion.preferences.bubbles": "Bubble tips",
     "companion.preferences.runtime": "Runtime reactions",
+    "companion.preferences.model": "Model",
     "companion.preferences.intensity": "Reaction intensity",
     "companion.preferences.intensity.calm": "Calm",
     "companion.preferences.intensity.normal": "Normal",
@@ -165,6 +200,9 @@ const I18N = {
     "companion.bubble.ready": "Runtime looks settled again.",
     "companion.bubble.muted": "Sound is off.",
     "companion.bubble.unmuted": "Sound is on.",
+    "companion.bubble.model_loading": "Switching to {name}...",
+    "companion.bubble.model_ready": "Switched to {name}.",
+    "companion.bubble.model_failed": "Model failed to load; restored the previous one.",
     "companion.bubble.inventory_empty": "Model inventory is still loading.",
     "companion.inventory.label": "Motions {motions} · Expressions {expressions}",
     "companion.fallback.body": "Live2D runtime offline; chatting with neon outline mode.",
@@ -219,6 +257,10 @@ const STATE = {
   fallback: false,
   bootError: null,
   motionGroups: { idle: [], pat: [], feed: [], chat: [] },
+  selectedModelId: DEFAULT_MODEL_ID,
+  loadedModelId: "",
+  modelLoadToken: 0,
+  modelLoading: false,
   idleTimer: null,
   moodTimer: null,
   lastInteractionAt: 0,
@@ -310,6 +352,37 @@ function saveReactionIntensity(value) {
   } catch (_err) {
     // best-effort persistence
   }
+}
+
+function normalizeModelId(value) {
+  const candidate = textOrEmpty(value);
+  return COMPANION_MODEL_OPTIONS.some((item) => item.id === candidate) ? candidate : DEFAULT_MODEL_ID;
+}
+
+function loadSelectedModelId() {
+  try {
+    return normalizeModelId(window.localStorage?.getItem(MODEL_STORAGE_KEY));
+  } catch (_err) {
+    return DEFAULT_MODEL_ID;
+  }
+}
+
+function saveSelectedModelId(value) {
+  try {
+    window.localStorage?.setItem(MODEL_STORAGE_KEY, normalizeModelId(value));
+  } catch (_err) {
+    // best-effort persistence
+  }
+}
+
+function currentCompanionModel() {
+  const id = normalizeModelId(STATE.selectedModelId);
+  return COMPANION_MODEL_OPTIONS.find((item) => item.id === id) || COMPANION_MODEL_OPTIONS[0];
+}
+
+function companionModelById(value) {
+  const id = normalizeModelId(value);
+  return COMPANION_MODEL_OPTIONS.find((item) => item.id === id) || COMPANION_MODEL_OPTIONS[0];
 }
 
 function loadMuted() {
@@ -427,6 +500,34 @@ async function waitForStageDimensions(stage) {
   };
 }
 
+function showLive2DCanvas() {
+  const fallback = $("[data-companion-fallback]");
+  const canvas = $("[data-companion-canvas]");
+  if (fallback) {
+    fallback.hidden = true;
+    fallback.removeAttribute("data-fallback-active");
+  }
+  if (canvas) canvas.style.display = "";
+  STATE.fallback = false;
+  STATE.bootError = null;
+}
+
+function resetMotionInventory() {
+  STATE.motionGroups = { idle: [], pat: [], feed: [], chat: [] };
+  STATE.expressionNames = [];
+}
+
+function resetLive2DRuntime() {
+  if (STATE.idleTimer) clearInterval(STATE.idleTimer);
+  if (STATE.resizeObserver) STATE.resizeObserver.disconnect();
+  STATE.pixiApp?.destroy?.(false, { children: true, texture: true });
+  STATE.pixiApp = null;
+  STATE.model = null;
+  STATE.resizeObserver = null;
+  STATE.idleTimer = null;
+  resetMotionInventory();
+}
+
 async function bootLive2D() {
   console.info(LOG_PREFIX, "boot start");
   await loadVendorScripts();
@@ -443,6 +544,7 @@ async function bootLive2D() {
   if (!stage || !canvas) {
     throw new Error("companion stage/canvas missing in DOM");
   }
+  showLive2DCanvas();
   const dimensions = await waitForStageDimensions(stage);
   const width = Math.max(1, dimensions.width);
   const height = Math.max(1, dimensions.height);
@@ -460,9 +562,12 @@ async function bootLive2D() {
   STATE.pixiApp = app;
   console.info(LOG_PREFIX, "pixi app ready", { width, height, dpr });
 
-  const model = await window.PIXI.live2d.Live2DModel.from(DEFAULT_MODEL_URL);
+  const modelOption = currentCompanionModel();
+  const model = await window.PIXI.live2d.Live2DModel.from(modelOption.url);
   STATE.model = model;
+  STATE.loadedModelId = modelOption.id;
   console.info(LOG_PREFIX, "model loaded", {
+    model: modelOption.id,
     naturalWidth: model.internalModel?.width,
     naturalHeight: model.internalModel?.height,
     motions: Object.keys(model.internalModel?.settings?.motions || {}),
@@ -492,10 +597,12 @@ function applyLayout(width, height) {
   if (!model || !model.internalModel) return;
   const naturalWidth = model.internalModel.width || width || 1;
   const naturalHeight = model.internalModel.height || height || 1;
-  // Fit the whole model inside the stage with a small breathing margin so the
-  // PIXI canvas never clips the head or feet. The previous `* 1.2` upscale
-  // pushed the model beyond the canvas, hiding the lower body.
-  const fit = Math.min(width / naturalWidth, height / naturalHeight);
+  // The Shizuku asset has transparent space around the visible character.
+  // Fit the visible model area so the canvas clips that empty band while
+  // keeping the desk/feet anchored at the bottom.
+  const visibleNaturalWidth = naturalWidth * (1 - COMPANION_MODEL_TOP_TRIM_RATIO);
+  const visibleNaturalHeight = naturalHeight * (1 - COMPANION_MODEL_TOP_TRIM_RATIO);
+  const fit = Math.min(width / visibleNaturalWidth, height / visibleNaturalHeight);
   const scale = fit * 0.94;
   model.scale.set(scale);
   model.anchor?.set?.(0.5, 1);
@@ -560,6 +667,19 @@ function resolveMotionGroup(groupOrCategory) {
   if (availableMotionGroups().includes(requested)) return requested;
   const candidate = pickMotion(requested);
   return candidate || "";
+}
+
+function resolveReactionMotion(motion, type) {
+  const fallbackCategory = textOrEmpty(type);
+  if (Array.isArray(motion)) {
+    return pickAvailableMotion(motion) || pickMotion(fallbackCategory) || "";
+  }
+  const requested = textOrEmpty(motion);
+  if (!requested) {
+    return pickAvailableMotion(MOTION_BY_REACTION[fallbackCategory] || []) || pickMotion(fallbackCategory) || "";
+  }
+  if (availableMotionGroups().includes(requested)) return requested;
+  return pickMotion(fallbackCategory) || resolveMotionGroup(requested);
 }
 
 function playMotion(group, index) {
@@ -668,6 +788,61 @@ function reactionIntensity() {
   return STATE.reactionIntensity;
 }
 
+function selectedModelId() {
+  return STATE.selectedModelId;
+}
+
+async function setSelectedModelId(value, options = {}) {
+  const next = normalizeModelId(value);
+  const previous = STATE.loadedModelId || STATE.selectedModelId || DEFAULT_MODEL_ID;
+  STATE.selectedModelId = next;
+  saveSelectedModelId(next);
+  renderPreferencesPanel();
+  if (options.reload === false || !STATE.mounted) return;
+  if (STATE.model && STATE.loadedModelId === next) return;
+  const model = currentCompanionModel();
+  setBubble(tFormat("companion.bubble.model_loading", { name: model.label }, STATE.language()), 2400);
+  await reloadLive2DModel(previous);
+}
+
+async function reloadLive2DModel(previousModelId = STATE.loadedModelId || DEFAULT_MODEL_ID) {
+  const token = STATE.modelLoadToken + 1;
+  STATE.modelLoadToken = token;
+  STATE.modelLoading = true;
+  renderPreferencesPanel();
+  resetLive2DRuntime();
+  try {
+    await bootLive2D();
+    if (token !== STATE.modelLoadToken) return;
+    setBubble(tFormat("companion.bubble.model_ready", { name: currentCompanionModel().label }, STATE.language()), 2600);
+  } catch (error) {
+    console.warn("[companion] model reload failed", error);
+    if (token !== STATE.modelLoadToken) return;
+    const fallbackId = normalizeModelId(previousModelId);
+    if (fallbackId !== STATE.selectedModelId) {
+      STATE.selectedModelId = fallbackId;
+      saveSelectedModelId(fallbackId);
+      renderPreferencesPanel();
+      resetLive2DRuntime();
+      try {
+        await bootLive2D();
+        if (token === STATE.modelLoadToken) {
+          setBubble(t("companion.bubble.model_failed", STATE.language()), 4200);
+        }
+      } catch (fallbackError) {
+        showFallback(fallbackError);
+      }
+    } else {
+      showFallback(error);
+    }
+  } finally {
+    if (token === STATE.modelLoadToken) {
+      STATE.modelLoading = false;
+      renderPreferencesPanel();
+    }
+  }
+}
+
 function reactionDisplayDuration(durationMs) {
   const base = Number(durationMs);
   const safeBase = Number.isFinite(base) ? base : DEFAULT_REACTION_DURATION_MS;
@@ -723,12 +898,8 @@ function react(options = {}) {
   const requestedDurationMs = options.durationMs !== undefined ? Number(options.durationMs) : DEFAULT_REACTION_DURATION_MS;
   const durationMs = reactionDisplayDuration(requestedDurationMs);
 
-  if (Array.isArray(motion)) {
-    const selected = pickAvailableMotion(motion);
-    if (selected) playMotion(selected, options.index);
-  } else if (textOrEmpty(motion)) {
-    playMotion(motion, options.index);
-  }
+  const selectedMotion = resolveReactionMotion(motion, type);
+  if (selectedMotion) playMotion(selectedMotion, options.index);
   setExpression(expression);
   if (options.fx && STATE.reactionIntensity !== "calm") {
     spawnFx(options.fx, reactionFxCount());
@@ -772,6 +943,26 @@ function renderPreferenceSwitch(key, label, checked) {
   `;
 }
 
+function renderPreferenceModel(lang) {
+  return `
+    <label class="companion-preference-row companion-preference-row-stacked">
+      <span class="companion-preference-label">${esc(t("companion.preferences.model", lang))}</span>
+      <select
+        class="companion-preference-select"
+        data-companion-model-select="true"
+        aria-label="${esc(t("companion.preferences.model", lang))}"
+        ${STATE.modelLoading ? "disabled" : ""}
+      >
+        ${COMPANION_MODEL_OPTIONS.map((model) => `
+          <option value="${esc(model.id)}" ${STATE.selectedModelId === model.id ? "selected" : ""}>
+            ${esc(model.label)}
+          </option>
+        `).join("")}
+      </select>
+    </label>
+  `;
+}
+
 function renderPreferenceIntensity(lang) {
   return `
     <div class="companion-preference-row companion-preference-row-stacked">
@@ -801,6 +992,7 @@ function renderPreferencesPanel() {
       ${renderPreferenceSwitch("sound", t("companion.preferences.sound", lang), !STATE.muted)}
       ${renderPreferenceSwitch("bubbles", t("companion.preferences.bubbles", lang), STATE.bubblesEnabled)}
       ${renderPreferenceSwitch("runtime", t("companion.preferences.runtime", lang), STATE.runtimeReactionsEnabled)}
+      ${renderPreferenceModel(lang)}
       ${renderPreferenceIntensity(lang)}
       <button class="companion-preference-inspect" type="button" data-companion-preference-action="inspect">
         ${esc(t("companion.preferences.inspect", lang))}
@@ -854,6 +1046,13 @@ function bindPreferences() {
   });
   panel.addEventListener("change", (event) => {
     event.stopPropagation();
+    const modelSelect = event.target.closest("[data-companion-model-select]");
+    if (modelSelect) {
+      setSelectedModelId(modelSelect.value).catch((error) => {
+        console.warn("[companion] model switch failed", error);
+      });
+      return;
+    }
     const control = event.target.closest("[data-companion-preference]");
     if (!control) return;
     const enabled = Boolean(control.checked);
@@ -1386,6 +1585,7 @@ async function mount(opts) {
   STATE.bubblesEnabled = loadBubblesEnabled();
   STATE.runtimeReactionsEnabled = loadRuntimeReactionsEnabled();
   STATE.reactionIntensity = loadReactionIntensity();
+  STATE.selectedModelId = loadSelectedModelId();
 
   bindMenu();
   bindHotspot();
@@ -1431,6 +1631,7 @@ window.OpenHireCompanion = {
   bubblesEnabled,
   runtimeReactionsEnabled,
   reactionIntensity,
+  selectedModelId,
 };
 
 export {
@@ -1445,4 +1646,5 @@ export {
   bubblesEnabled,
   runtimeReactionsEnabled,
   reactionIntensity,
+  selectedModelId,
 };

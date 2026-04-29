@@ -6109,6 +6109,30 @@ html[data-theme="light"] .companion-menu-item {
   font-size: 10px;
 }
 
+.companion-preference-select {
+  min-height: 30px;
+  width: 100%;
+  border: 1px solid rgba(120, 200, 255, 0.24);
+  border-radius: 8px;
+  background: rgba(120, 200, 255, 0.08);
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.companion-preference-select:focus-visible {
+  border-color: rgba(109, 247, 255, 0.58);
+  box-shadow: 0 0 0 2px rgba(109, 247, 255, 0.14);
+  outline: none;
+}
+
+.companion-preference-select:disabled {
+  cursor: wait;
+  opacity: 0.68;
+}
+
 .companion-preference-segmented {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

@@ -230,6 +230,22 @@ def test_companion_static_assets_expose_reaction_context_controls() -> None:
     assert "BUBBLES_STORAGE_KEY" in companion_js
     assert "RUNTIME_REACTIONS_STORAGE_KEY" in companion_js
     assert "REACTION_INTENSITY_STORAGE_KEY" in companion_js
+    assert "MODEL_STORAGE_KEY" in companion_js
+    assert "openhire.companion.model.v1" in companion_js
+    assert "COMPANION_MODEL_OPTIONS" in companion_js
+    assert "live2d-widget-model-shizuku" in companion_js
+    assert "live2d-widget-model-koharu" in companion_js
+    assert "live2d-widget-model-hibiki" in companion_js
+    assert "live2d-widget-model-z16" in companion_js
+    assert "function currentCompanionModel(" in companion_js
+    assert "function renderPreferenceModel(" in companion_js
+    assert "function selectedModelId(" in companion_js
+    assert "function reloadLive2DModel(" in companion_js
+    assert "function resetLive2DRuntime(" in companion_js
+    assert "const modelOption = currentCompanionModel();" in companion_js
+    assert "Live2DModel.from(modelOption.url)" in companion_js
+    assert "destroy?.(false" in companion_js
+    assert "resolveReactionMotion" in companion_js
     assert "openhire.companion.reactionIntensity.v1" in companion_js
     assert "function renderPreferenceIntensity(" in companion_js
     assert "function reactionIntensity(" in companion_js
@@ -242,6 +258,7 @@ def test_companion_static_assets_expose_reaction_context_controls() -> None:
     assert "function runtimeReactionsEnabled(" in companion_js
     assert "function bubblesEnabled(" in companion_js
     assert "data-companion-preference" in companion_js
+    assert "data-companion-model-select" in companion_js
     assert "data-companion-intensity" in companion_js
     assert 'hotspot.addEventListener("click"' in companion_js
     assert 'hotspot.addEventListener("mouseenter"' in companion_js
@@ -302,9 +319,25 @@ def test_companion_static_assets_expose_reaction_context_controls() -> None:
     assert "page.hover(\"[data-companion-hotspot]\")" in smoke_js
     assert "boundingBox()" in smoke_js
     assert "data-companion-preferences-toggle" in smoke_js
+    assert "data-companion-model-select" in smoke_js
+    assert "selectedModelId?.() === \"koharu\"" in smoke_js
+    assert "selectedModelId?.() === \"shizuku\"" in smoke_js
     assert "data-companion-intensity" in smoke_js
     assert "data-companion-chat-chip" in smoke_js
     assert "runtimeReactionsEnabled?.() === false" in smoke_js
+
+
+def test_companion_layout_trims_top_transparent_model_space() -> None:
+    root = Path(__file__).resolve().parents[1]
+    companion_js = (root / "openhire/admin/static/companion.js").read_text()
+
+    assert "const COMPANION_MODEL_TOP_TRIM_RATIO = 0.25;" in companion_js
+    assert "const visibleNaturalWidth = naturalWidth * (1 - COMPANION_MODEL_TOP_TRIM_RATIO);" in companion_js
+    assert "const visibleNaturalHeight = naturalHeight * (1 - COMPANION_MODEL_TOP_TRIM_RATIO);" in companion_js
+    assert "width / visibleNaturalWidth" in companion_js
+    assert "height / visibleNaturalHeight" in companion_js
+    assert "model.anchor?.set?.(0.5, 1);" in companion_js
+    assert "model.y = height - 2;" in companion_js
 
 
 @pytest.mark.skipif(not HAS_AIOHTTP, reason="aiohttp not installed")

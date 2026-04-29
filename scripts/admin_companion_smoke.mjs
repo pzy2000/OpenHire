@@ -50,6 +50,11 @@ try {
 
   await page.click("[data-companion-preferences-toggle]");
   await page.waitForSelector("[data-companion-preferences-panel]:not([hidden])");
+  await page.waitForSelector("[data-companion-model-select]");
+  await page.selectOption("[data-companion-model-select]", "koharu");
+  await page.waitForFunction(() => window.OpenHireCompanion?.selectedModelId?.() === "koharu");
+  await page.selectOption("[data-companion-model-select]", "shizuku");
+  await page.waitForFunction(() => window.OpenHireCompanion?.selectedModelId?.() === "shizuku");
   await page.waitForSelector('[data-companion-intensity="calm"]');
   await page.click('[data-companion-intensity="calm"]');
 
