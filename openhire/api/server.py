@@ -1028,7 +1028,7 @@ def _admin_html() -> str:
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>OpenHire Admin</title>
     <link rel="icon" href="data:," />
-    <link rel="stylesheet" href="/admin/assets/admin.css?v=neon-6" />
+    <link rel="stylesheet" href="/admin/assets/admin.css?v=neon-7" />
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
   </head>
   <body>
@@ -1037,6 +1037,7 @@ def _admin_html() -> str:
       <span class="bg-glow-orb bg-glow-orb-cyan"></span>
       <span class="bg-glow-orb bg-glow-orb-violet"></span>
     </div>
+    <div id="online-presence" class="online-presence" aria-live="polite"></div>
     <div id="admin-app" class="admin-shell">
       <aside class="admin-nav">
         <h1 class="admin-brand">OpenHire</h1>
@@ -1442,7 +1443,7 @@ def _admin_html() -> str:
     </div>
     <div id="employee-modal-root"></div>
     <div id="companion-chat-root" data-companion-chat-root="true"></div>
-    <script type="module" src="/admin/assets/admin.js?v=neon-6"></script>
+    <script type="module" src="/admin/assets/admin.js?v=neon-7"></script>
     <script type="module" src="/admin/assets/companion.js?v=neon-6"></script>
   </body>
 </html>"""
@@ -1779,6 +1780,7 @@ async def _admin_runtime_snapshot(request: web.Request) -> dict[str, Any]:
         context_window_tokens=int(getattr(agent_loop, "context_window_tokens", 0) or 10000),
     )
     await _augment_admin_snapshot_with_employee_contexts(request, snapshot)
+    snapshot["onlineUsers"] = _admin_presence_count(request.app)
     return snapshot
 
 
@@ -1813,7 +1815,6 @@ async def handle_admin_events(request: web.Request) -> web.StreamResponse:
     """GET /admin/api/events — Server-Sent Events runtime stream."""
     agent_loop = request.app["agent_loop"]
     monitor = getattr(agent_loop, "runtime_monitor", None)
-    process_role = request.app.get("process_role", "api")
     response = web.StreamResponse(
         status=200,
         headers={
@@ -1822,32 +1823,36 @@ async def handle_admin_events(request: web.Request) -> web.StreamResponse:
             "Connection": "keep-alive",
         },
     )
-    await response.prepare(request)
+    _increment_admin_presence(request.app)
+    try:
+        await response.prepare(request)
 
-    async def _write_snapshot() -> bool:
-        snapshot = await _admin_runtime_snapshot(request)
-        payload = json.dumps(snapshot, ensure_ascii=False)
-        try:
-            await response.write(f"event: runtime\ndata: {payload}\n\n".encode("utf-8"))
-        except _SSE_WRITE_ERRORS:
-            return False
-        return True
+        async def _write_snapshot() -> bool:
+            snapshot = await _admin_runtime_snapshot(request)
+            payload = json.dumps(snapshot, ensure_ascii=False)
+            try:
+                await response.write(f"event: runtime\ndata: {payload}\n\n".encode("utf-8"))
+            except _SSE_WRITE_ERRORS:
+                return False
+            return True
 
-    if not await _write_snapshot():
-        return response
-
-    if request.query.get("once") == "1" or monitor is None:
-        try:
-            await response.write_eof()
-        except _SSE_WRITE_ERRORS:
-            pass
-        return response
-
-    version = monitor.version
-    while True:
-        version = await monitor.wait_for_change(version)
         if not await _write_snapshot():
-            break
+            return response
+
+        if request.query.get("once") == "1" or monitor is None:
+            try:
+                await response.write_eof()
+            except _SSE_WRITE_ERRORS:
+                pass
+            return response
+
+        version = monitor.version
+        while True:
+            version = await monitor.wait_for_change(version)
+            if not await _write_snapshot():
+                break
+    finally:
+        _decrement_admin_presence(request.app)
     return response
 
 
@@ -3820,6 +3825,32 @@ def _attach_dream_admin_state(app: web.Application) -> None:
     app["dream_results"] = {}
 
 
+def _attach_admin_presence(app: web.Application) -> None:
+    app["admin_presence"] = {"active": 0}
+
+
+def _admin_presence_count(app: web.Application) -> int:
+    state = app.get("admin_presence")
+    if not isinstance(state, dict):
+        return 0
+    return max(0, int(state.get("active") or 0))
+
+
+def _increment_admin_presence(app: web.Application) -> None:
+    state = app.get("admin_presence")
+    if not isinstance(state, dict):
+        state = {"active": 0}
+        app["admin_presence"] = state
+    state["active"] = _admin_presence_count(app) + 1
+
+
+def _decrement_admin_presence(app: web.Application) -> None:
+    state = app.get("admin_presence")
+    if not isinstance(state, dict):
+        return
+    state["active"] = max(0, _admin_presence_count(app) - 1)
+
+
 async def _restore_active_employee_containers(app: web.Application) -> None:
     lifecycle = app.get("employee_lifecycle")
     if not isinstance(lifecycle, AgentLifecycle):
@@ -3889,6 +3920,7 @@ def create_admin_app(
     _attach_case_catalog(app)
     _attach_cron_service(app, agent_loop)
     _attach_dream_admin_state(app)
+    _attach_admin_presence(app)
     _add_employee_restore_hooks(app)
     _add_admin_routes(app)
     _add_employee_routes(app)
@@ -3933,6 +3965,7 @@ def create_app(
     _attach_case_catalog(app)
     _attach_cron_service(app, agent_loop)
     _attach_dream_admin_state(app)
+    _attach_admin_presence(app)
     _add_employee_restore_hooks(app)
 
     app.router.add_post("/v1/chat/completions", handle_chat_completions)

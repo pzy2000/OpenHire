@@ -386,6 +386,8 @@ const TRANSLATIONS = {
     "docker.source": "Source",
     "employees.roster": "Employee Roster",
     "employees.counts": "{live} live workers · {saved} saved employees",
+    "online_presence.label": "Online",
+    "online_presence.meta": "admin clients",
     "employees.selected": "{count} selected",
     "employees.sort_by": "Sort by",
     "employees.empty_detail": "Select a digital employee to inspect role settings.",
@@ -896,6 +898,8 @@ const TRANSLATIONS = {
     "docker.source": "来源",
     "employees.roster": "员工列表",
     "employees.counts": "{live} 个在线 worker · {saved} 个已保存员工",
+    "online_presence.label": "在线人数",
+    "online_presence.meta": "管理页连接",
     "employees.selected": "已选 {count} 个",
     "employees.sort_by": "排序方式",
     "employees.empty_detail": "选择一个数字员工以查看角色设定。",
@@ -1627,6 +1631,7 @@ const adminState = {
   process: {},
   dockerDaemon: {},
   dockerAgents: [],
+  onlineUsers: 0,
   demoMode: { enabled: false },
   demoTodos: [],
   employeeContextAction: null,
@@ -5387,6 +5392,24 @@ function syncEmployeesFromRuntime(payload) {
   revealSelectedEmployeeInList();
 }
 
+function onlinePresenceCount() {
+  const count = Number(adminState.onlineUsers || 0);
+  return Number.isFinite(count) ? Math.max(0, count) : 0;
+}
+
+function renderOnlinePresence() {
+  const root = document.getElementById("online-presence");
+  if (!root) return;
+  root.innerHTML = `
+    <span class="online-presence-dot" aria-hidden="true"></span>
+    <span class="online-presence-body">
+      <span class="online-presence-label">${t("online_presence.label")}</span>
+      <strong>${html(onlinePresenceCount(), "0")}</strong>
+      <span class="online-presence-meta">${t("online_presence.meta")}</span>
+    </span>
+  `;
+}
+
 function renderEmployeeList() {
   const list = document.getElementById("employee-list");
   if (!list) return;
@@ -9135,6 +9158,7 @@ function renderEmployeeExportModal() {
 function renderEmployees() {
   renderEmployeeList();
   renderEmployeeDetail();
+  renderOnlinePresence();
   renderActionCenter();
 }
 
@@ -12609,6 +12633,8 @@ function renderPayload(payload) {
   payload = payload || {};
   adminState.generatedAt = text(payload.generatedAt, "");
   adminState.dockerDaemon = payload.dockerDaemon || {};
+  const onlineUsers = Number(payload.onlineUsers || 0);
+  adminState.onlineUsers = Number.isFinite(onlineUsers) ? Math.max(0, onlineUsers) : 0;
   adminState.demoMode = payload.demoMode || { enabled: false };
   adminState.demoTodos = Array.isArray(payload.demoTodos) ? payload.demoTodos : [];
   appendRuntimeHistorySample(runtimeHistorySampleFromPayload(payload));

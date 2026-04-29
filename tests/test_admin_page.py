@@ -161,6 +161,7 @@ async def test_admin_page_contains_mount_points(aiohttp_client) -> None:
     assert 'id="skill-ops-panel"' in body
     assert 'id="employee-list"' in body
     assert 'id="main-agent-panel"' in body
+    assert 'id="online-presence"' in body
     assert 'id="companion"' in body
     assert 'data-companion-bubble="true"' in body
     assert 'data-companion-action="pat"' in body
@@ -324,6 +325,7 @@ async def test_admin_runtime_endpoint_returns_snapshot(aiohttp_client) -> None:
     assert body["dockerDaemon"]["ok"] is True
     assert "dockerContainers" in body
     assert "dockerAgents" in body
+    assert body["onlineUsers"] == 0
     assert "env" not in str(body)
 
 
@@ -930,6 +932,10 @@ async def test_admin_js_asset_matches_main_polling_and_sse(aiohttp_client) -> No
     assert "runtime.timeline.ago.days_hours_minutes" in body
     assert "formatUtcDate(runtimeHistoryState.lastUpdatedAt)" not in body
     assert "syncEmployeesFromRuntime" in body
+    assert "function renderOnlinePresence" in body
+    assert "function onlinePresenceCount" in body
+    assert "online_presence.label" in body
+    assert "adminState.onlineUsers" in body
     assert "renderEmployeeRuntimeDetail" in body
     assert "dockerAgentSourceLabel" in body
     assert "agent?.employeeName" in body
@@ -1553,6 +1559,8 @@ async def test_admin_css_keeps_scrolled_modal_close_buttons_outside_scroll(aioht
     assert ".skill-card-label-cloud.is-expanded" in body
     assert ".skill-card-label-toggle" in body
     assert ".admin-preferences" in body
+    assert ".online-presence" in body
+    assert ".online-presence-dot" in body
     assert ".hero-command-bar" in body
     assert ".hero-runtime-summary" in body
     assert ".runtime-timeline-panel" in body
@@ -1704,6 +1712,11 @@ async def test_admin_events_once_returns_sse_runtime_event(aiohttp_client) -> No
     assert resp.status == 200
     body = await resp.text()
     assert "event: runtime" in body
+    assert '"onlineUsers": 1' in body
+
+    after = await client.get("/admin/api/runtime")
+    assert after.status == 200
+    assert (await after.json())["onlineUsers"] == 0
     assert "data:" in body
 
 
