@@ -8,6 +8,25 @@ function assert(condition, message) {
   }
 }
 
+async function waitForCompanionModel(page, modelId) {
+  await page.waitForFunction(
+    (expectedModelId) => {
+      const canvas = document.querySelector("[data-companion-canvas]");
+      const fallback = document.querySelector("[data-companion-fallback]");
+      return (
+        window.OpenHireCompanion?.selectedModelId?.() === expectedModelId &&
+        canvas &&
+        getComputedStyle(canvas).display !== "none" &&
+        fallback &&
+        fallback.hidden === true &&
+        !fallback.hasAttribute("data-fallback-active")
+      );
+    },
+    modelId,
+    { timeout: 15000 },
+  );
+}
+
 async function loadPlaywright() {
   try {
     return await import("playwright");
@@ -52,9 +71,9 @@ try {
   await page.waitForSelector("[data-companion-preferences-panel]:not([hidden])");
   await page.waitForSelector("[data-companion-model-select]");
   await page.selectOption("[data-companion-model-select]", "koharu");
-  await page.waitForFunction(() => window.OpenHireCompanion?.selectedModelId?.() === "koharu");
+  await waitForCompanionModel(page, "koharu");
   await page.selectOption("[data-companion-model-select]", "shizuku");
-  await page.waitForFunction(() => window.OpenHireCompanion?.selectedModelId?.() === "shizuku");
+  await waitForCompanionModel(page, "shizuku");
   await page.waitForSelector('[data-companion-intensity="calm"]');
   await page.click('[data-companion-intensity="calm"]');
 

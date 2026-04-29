@@ -242,6 +242,11 @@ def test_companion_static_assets_expose_reaction_context_controls() -> None:
     assert "function selectedModelId(" in companion_js
     assert "function reloadLive2DModel(" in companion_js
     assert "function resetLive2DRuntime(" in companion_js
+    assert "function configurePixiForLive2D(" in companion_js
+    assert "settings.PREFER_ENV = pixi.ENV.WEBGL_LEGACY;" in companion_js
+    assert "settings.SPRITE_MAX_TEXTURES = 1;" in companion_js
+    assert companion_js.index("await waitForRuntimes();") < companion_js.index("configurePixiForLive2D();")
+    assert companion_js.index("configurePixiForLive2D();") < companion_js.index("const app = new window.PIXI.Application({")
     assert "const modelOption = currentCompanionModel();" in companion_js
     assert "Live2DModel.from(modelOption.url)" in companion_js
     assert "destroy?.(false" in companion_js
@@ -320,22 +325,28 @@ def test_companion_static_assets_expose_reaction_context_controls() -> None:
     assert "boundingBox()" in smoke_js
     assert "data-companion-preferences-toggle" in smoke_js
     assert "data-companion-model-select" in smoke_js
-    assert "selectedModelId?.() === \"koharu\"" in smoke_js
-    assert "selectedModelId?.() === \"shizuku\"" in smoke_js
+    assert "function waitForCompanionModel(" in smoke_js
+    assert "selectedModelId?.() === expectedModelId" in smoke_js
+    assert 'waitForCompanionModel(page, "koharu")' in smoke_js
+    assert 'waitForCompanionModel(page, "shizuku")' in smoke_js
+    assert 'getComputedStyle(canvas).display !== "none"' in smoke_js
+    assert '!fallback.hasAttribute("data-fallback-active")' in smoke_js
     assert "data-companion-intensity" in smoke_js
     assert "data-companion-chat-chip" in smoke_js
     assert "runtimeReactionsEnabled?.() === false" in smoke_js
 
 
-def test_companion_layout_trims_top_transparent_model_space() -> None:
+def test_companion_layout_preserves_full_model_bounds() -> None:
     root = Path(__file__).resolve().parents[1]
     companion_js = (root / "openhire/admin/static/companion.js").read_text()
 
-    assert "const COMPANION_MODEL_TOP_TRIM_RATIO = 0.25;" in companion_js
-    assert "const visibleNaturalWidth = naturalWidth * (1 - COMPANION_MODEL_TOP_TRIM_RATIO);" in companion_js
-    assert "const visibleNaturalHeight = naturalHeight * (1 - COMPANION_MODEL_TOP_TRIM_RATIO);" in companion_js
-    assert "width / visibleNaturalWidth" in companion_js
-    assert "height / visibleNaturalHeight" in companion_js
+    assert "const COMPANION_MODEL_FIT_PADDING_RATIO = 0.06;" in companion_js
+    assert "width / naturalWidth" in companion_js
+    assert "height / naturalHeight" in companion_js
+    assert "COMPANION_MODEL_TOP_TRIM_RATIO" not in companion_js
+    assert "visibleNaturalWidth" not in companion_js
+    assert "visibleNaturalHeight" not in companion_js
+    assert "const scale = fit * (1 - COMPANION_MODEL_FIT_PADDING_RATIO);" in companion_js
     assert "model.anchor?.set?.(0.5, 1);" in companion_js
     assert "model.y = height - 2;" in companion_js
 

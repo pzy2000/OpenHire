@@ -1444,7 +1444,7 @@ def _admin_html() -> str:
     <div id="employee-modal-root"></div>
     <div id="companion-chat-root" data-companion-chat-root="true"></div>
     <script type="module" src="/admin/assets/admin.js?v=neon-7"></script>
-    <script type="module" src="/admin/assets/companion.js?v=neon-6"></script>
+    <script type="module" src="/admin/assets/companion.js?v=neon-8"></script>
   </body>
 </html>"""
 

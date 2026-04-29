@@ -51,7 +51,7 @@ const VENDOR_SCRIPTS = [
 const VENDOR_TIMEOUT_MS = 12000;
 const RUNTIME_TIMEOUT_MS = 9000;
 const STAGE_DIMENSIONS_TIMEOUT_MS = 4000;
-const COMPANION_MODEL_TOP_TRIM_RATIO = 0.25;
+const COMPANION_MODEL_FIT_PADDING_RATIO = 0.06;
 const LOG_PREFIX = "[companion]";
 const STORAGE_KEY = "openhire.companion.history.v1";
 const MAX_HISTORY = 24;
@@ -486,6 +486,20 @@ async function waitForRuntimes() {
   throw new Error(`Live2D runtime not ready (missing: ${missing.join(", ")})`);
 }
 
+function configurePixiForLive2D() {
+  const pixi = window.PIXI;
+  const settings = pixi?.settings;
+  if (!pixi || !settings) return;
+
+  if (pixi.ENV?.WEBGL_LEGACY !== undefined) {
+    settings.PREFER_ENV = pixi.ENV.WEBGL_LEGACY;
+  }
+  const spriteMaxTextures = Number(settings.SPRITE_MAX_TEXTURES);
+  if (!Number.isFinite(spriteMaxTextures) || spriteMaxTextures < 1) {
+    settings.SPRITE_MAX_TEXTURES = 1;
+  }
+}
+
 async function waitForStageDimensions(stage) {
   const deadline = performance.now() + STAGE_DIMENSIONS_TIMEOUT_MS;
   while (performance.now() < deadline) {
@@ -532,6 +546,7 @@ async function bootLive2D() {
   console.info(LOG_PREFIX, "boot start");
   await loadVendorScripts();
   await waitForRuntimes();
+  configurePixiForLive2D();
   console.info(LOG_PREFIX, "runtimes ready", {
     pixiVersion: window.PIXI?.VERSION,
     live2d: typeof window.Live2D,
@@ -597,13 +612,10 @@ function applyLayout(width, height) {
   if (!model || !model.internalModel) return;
   const naturalWidth = model.internalModel.width || width || 1;
   const naturalHeight = model.internalModel.height || height || 1;
-  // The Shizuku asset has transparent space around the visible character.
-  // Fit the visible model area so the canvas clips that empty band while
-  // keeping the desk/feet anchored at the bottom.
-  const visibleNaturalWidth = naturalWidth * (1 - COMPANION_MODEL_TOP_TRIM_RATIO);
-  const visibleNaturalHeight = naturalHeight * (1 - COMPANION_MODEL_TOP_TRIM_RATIO);
-  const fit = Math.min(width / visibleNaturalWidth, height / visibleNaturalHeight);
-  const scale = fit * 0.94;
+  // Fit against the full model bounds. Trimming transparent space globally can
+  // over-scale other characters and clip their head at the canvas top.
+  const fit = Math.min(width / naturalWidth, height / naturalHeight);
+  const scale = fit * (1 - COMPANION_MODEL_FIT_PADDING_RATIO);
   model.scale.set(scale);
   model.anchor?.set?.(0.5, 1);
   model.x = width / 2;
