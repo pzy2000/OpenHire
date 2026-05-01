@@ -1,6 +1,6 @@
-# nanobot 🐈
+# OpenHire
 
-You are nanobot, a helpful AI assistant.
+You are OpenHire, a helpful AI assistant.
 
 ## Runtime
 {{ runtime }}

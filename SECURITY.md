@@ -22,13 +22,13 @@ We aim to respond to security reports within 48 hours.
 
 ```bash
 # ✅ Good: Store in config file with restricted permissions
-chmod 600 ~/.OpenHire/config.json
+chmod 600 ~/.openhire/config.json
 
 # ❌ Bad: Hardcoding keys in code or committing them
 ```
 
 **Recommendations:**
-- Store API keys in `~/.OpenHire/config.json` with file permissions set to `0600`
+- Store API keys in `~/.openhire/config.json` with file permissions set to `0600`
 - Consider using environment variables for sensitive keys
 - Use OS keyring/credential manager for production deployments
 - Rotate API keys regularly
@@ -79,7 +79,7 @@ On Linux, set `"tools.exec.sandbox": "bwrap"` to wrap every shell command in a [
 - Workspace directory → **read-write** (agent works normally)
 - Media directory → **read-only** (can read uploaded attachments)
 - System directories (`/usr`, `/bin`, `/lib`) → **read-only** (commands still work)
-- Config files and API keys (`~/.OpenHire/config.json`) → **hidden** (masked by tmpfs)
+- Config files and API keys (`~/.openhire/config.json`) → **hidden** (masked by tmpfs)
 
 Requires `bwrap` installed (`apt install bubblewrap`). Pre-installed in the official Docker image. **Not available on macOS or Windows** — bubblewrap depends on Linux kernel namespaces.
 
@@ -112,7 +112,7 @@ File operations have path traversal protection, but:
 **WhatsApp Bridge:**
 - The bridge binds to `127.0.0.1:3001` (localhost only, not accessible from external network)
 - Set `bridgeToken` in config to enable shared-secret authentication between Python and Node.js
-- Keep authentication data in `~/.OpenHire/whatsapp-auth` secure (mode 0700)
+- Keep authentication data in `~/.openhire/whatsapp-auth` secure (mode 0700)
 
 ### 6. Dependency Security
 
@@ -124,7 +124,7 @@ pip install pip-audit
 pip-audit
 
 # Update to latest secure versions
-pip install --upgrade OpenHire-ai
+pip install --upgrade openhire
 ```
 
 For Node.js dependencies (WhatsApp bridge):
@@ -148,26 +148,26 @@ For production use:
    ```bash
    # Run in a container or VM
    docker run --rm -it python:3.11
-   pip install OpenHire-ai
+   pip install openhire
    ```
 
 2. **Use a Dedicated User**
    ```bash
-   sudo useradd -m -s /bin/bash OpenHire
-   sudo -u OpenHire OpenHire gateway
+   sudo useradd -m -s /bin/bash openhire
+   sudo -u openhire openhire gateway
    ```
 
 3. **Set Proper Permissions**
    ```bash
-   chmod 700 ~/.OpenHire
-   chmod 600 ~/.OpenHire/config.json
-   chmod 700 ~/.OpenHire/whatsapp-auth
+   chmod 700 ~/.openhire
+   chmod 600 ~/.openhire/config.json
+   chmod 700 ~/.openhire/whatsapp-auth
    ```
 
 4. **Enable Logging**
    ```bash
    # Configure log monitoring
-   tail -f ~/.OpenHire/logs/OpenHire.log
+   tail -f ~/.openhire/logs/openhire.log
    ```
 
 5. **Use Rate Limiting**
@@ -178,7 +178,7 @@ For production use:
 6. **Regular Updates**
    ```bash
    # Check for updates weekly
-   pip install --upgrade OpenHire-ai
+   pip install --upgrade openhire
    ```
 
 ### 8. Development vs Production
@@ -200,7 +200,7 @@ For production use:
 
 - **Logs may contain sensitive information** - secure log files appropriately
 - **LLM providers see your prompts** - review their privacy policies
-- **Chat history is stored locally** - protect the `~/.OpenHire` directory
+- **Chat history is stored locally** - protect the `~/.openhire` directory
 - **API keys are in plain text** - use OS keyring for production
 
 ### 10. Incident Response
@@ -210,7 +210,7 @@ If you suspect a security breach:
 1. **Immediately revoke compromised API keys**
 2. **Review logs for unauthorized access**
    ```bash
-   grep "Access denied" ~/.OpenHire/logs/OpenHire.log
+   grep "Access denied" ~/.openhire/logs/openhire.log
    ```
 3. **Check for unexpected file modifications**
 4. **Rotate all credentials**
@@ -268,7 +268,7 @@ Before deploying OpenHire:
 
 ## Updates
 
-**Last Updated**: 2026-04-05
+**Last Updated**: 2026-05-01
 
 For the latest security updates and announcements, check:
 - GitHub Security Advisories: https://github.com/HKUDS/OpenHire/security/advisories
