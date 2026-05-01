@@ -83,6 +83,28 @@ def _skill_markdown(name: str, description: str) -> str:
     return f"---\nname: {name}\ndescription: {description}\n---\n\n# {name}\n\n{description}\n"
 
 
+_PREVIEW_SKILL_KEYS = {
+    "source",
+    "external_id",
+    "name",
+    "description",
+    "version",
+    "author",
+    "license",
+    "source_url",
+    "updated_at",
+    "safety_status",
+    "markdown",
+    "tags",
+}
+
+
+def _assert_preview_skill_contract(skill: dict[str, object]) -> None:
+    assert set(skill) == _PREVIEW_SKILL_KEYS
+    assert "id" not in skill
+    assert "imported_at" not in skill
+
+
 class _FakeClawHubProvider:
     def __init__(
         self,
@@ -937,6 +959,7 @@ async def test_skill_preview_local_skill_returns_normalized_record(aiohttp_clien
     assert response.status == 200
     body = await response.json()
     assert body["skill"]["markdown"].startswith("---\nname: local-tooling")
+    _assert_preview_skill_contract(body["skill"])
     assert body == {
         "skill": {
             "source": "local",
@@ -1464,6 +1487,7 @@ async def test_skill_preview_web_skill_returns_normalized_record(
     assert response.status == 200
     body = await response.json()
     assert body["skill"]["markdown"].startswith("---\nname: pencil-cli")
+    _assert_preview_skill_contract(body["skill"])
     assert body == {
         "skill": {
             "source": "web",

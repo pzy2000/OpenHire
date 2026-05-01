@@ -69,6 +69,20 @@ _SKILL_IMPORT_SCENARIOS = [
         "queries": ["calendar", "meeting", "gmail", "notion", "pdf", "document"],
     },
 ]
+_PREVIEW_SKILL_RECORD_KEYS = (
+    "source",
+    "external_id",
+    "name",
+    "description",
+    "version",
+    "author",
+    "license",
+    "source_url",
+    "updated_at",
+    "safety_status",
+    "markdown",
+    "tags",
+)
 
 
 def _now() -> str:
@@ -554,7 +568,7 @@ class SkillCatalogService:
             return str(entry.get("download_url") or "").strip()
         return ""
 
-    def preview_local_skill(self, filename: str, content: bytes) -> dict[str, str]:
+    def preview_local_skill(self, filename: str, content: bytes) -> dict[str, Any]:
         normalized_filename = str(filename or "").strip()
         if normalized_filename.lower() not in _LOCAL_SKILL_FILENAMES:
             raise LocalSkillImportError("Uploaded file must be named SKILL.md or skill.md.")
@@ -569,7 +583,7 @@ class SkillCatalogService:
         except SkillPreviewParseError as exc:
             raise LocalSkillImportError(str(exc)) from exc
 
-    async def preview_web_skill(self, url: str, *, max_bytes: int) -> dict[str, str]:
+    async def preview_web_skill(self, url: str, *, max_bytes: int) -> dict[str, Any]:
         normalized_url = self._validate_web_skill_url(url)
         try:
             async with httpx.AsyncClient(
@@ -681,6 +695,12 @@ class SkillCatalogService:
             "tags": _normalize_tags(record.get("tags")),
         }
 
+    @classmethod
+    def _normalize_preview_record(cls, record: Mapping[str, Any]) -> dict[str, Any]:
+        """Normalize an unpersisted skill preview for the public preview API."""
+        normalized = cls._normalize_record(record)
+        return {key: normalized[key] for key in _PREVIEW_SKILL_RECORD_KEYS}
+
     def _apply_markdown_metadata(self, normalized: dict[str, Any]) -> dict[str, Any]:
         frontmatter = _load_skill_frontmatter(normalized["markdown"])
         updated = dict(normalized)
@@ -700,7 +720,7 @@ class SkillCatalogService:
     ) -> dict[str, Any]:
         frontmatter = _load_skill_frontmatter(markdown)
         name = _frontmatter_text(frontmatter, "name")
-        return self._normalize_record(
+        return self._normalize_preview_record(
             {
                 "source": source,
                 "external_id": name,
