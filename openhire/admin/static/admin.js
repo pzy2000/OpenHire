@@ -1718,6 +1718,146 @@ const DREAM_SUBJECT_ENDPOINT = "/admin/api/dream/subjects/";
 const MEMORY_WRITE_PROPOSALS_ENDPOINT = "/admin/api/memory-writes/proposals";
 const MEMORY_WRITE_RECORDS_ENDPOINT = "/admin/api/memory-writes/records";
 const DREAM_FILE_TABS = ["SOUL.md", "USER.md", "MEMORY.md", "history.jsonl"];
+const AUTH_SESSION_ENDPOINT = "/admin/api/auth/session";
+const AUTH_LOGOUT_ENDPOINT = "/admin/api/auth/logout";
+const AUTH_USERS_ENDPOINT = "/admin/api/auth/users";
+const AUTH_CSRF_HEADER = "X-OpenHire-CSRF";
+
+const authState = {
+  authenticated: false,
+  user: null,
+  csrfToken: "",
+  demoMode: { enabled: false },
+  users: [],
+  isUsersOpen: false,
+  isUsersLoading: false,
+  usersError: "",
+};
+
+async function authFetch(input, options = {}) {
+  const init = { ...options };
+  const headers = new Headers(init.headers || {});
+  const method = String(init.method || "GET").toUpperCase();
+  if (!["GET", "HEAD", "OPTIONS"].includes(method) && authState.csrfToken && !headers.has(AUTH_CSRF_HEADER)) {
+    headers.set(AUTH_CSRF_HEADER, authState.csrfToken);
+  }
+  init.headers = headers;
+  const response = await window.fetch(input, init);
+  if (response.status === 401) {
+    window.location.href = "/admin/login";
+  }
+  return response;
+}
+
+window.OpenHireAdminAuth = {
+  fetch: authFetch,
+  state: authState,
+  csrfHeader: AUTH_CSRF_HEADER,
+};
+
+async function initializeAdminAuth() {
+  const response = await window.fetch(AUTH_SESSION_ENDPOINT, { headers: { Accept: "application/json" } });
+  if (!response.ok) {
+    window.location.href = "/admin/login";
+    return;
+  }
+  const payload = await response.json();
+  authState.authenticated = payload?.authenticated === true;
+  authState.user = payload?.user || null;
+  authState.csrfToken = text(payload?.csrfToken, "");
+  authState.demoMode = payload?.demoMode || { enabled: false };
+  if (!authState.authenticated && !authState.demoMode.enabled) {
+    window.location.href = "/admin/login";
+    return;
+  }
+  renderAdminAccount();
+}
+
+function renderAdminAccount() {
+  const name = document.getElementById("admin-account-name");
+  const usersButton = document.getElementById("admin-account-users");
+  const logoutButton = document.getElementById("admin-logout-button");
+  const isDemo = authState.demoMode?.enabled === true;
+  if (name) {
+    name.textContent = isDemo ? "Demo" : text(authState.user?.username, "Admin");
+  }
+  if (usersButton) {
+    usersButton.hidden = isDemo;
+  }
+  if (logoutButton) {
+    logoutButton.hidden = isDemo;
+  }
+}
+
+async function logoutAdmin() {
+  await authFetch(AUTH_LOGOUT_ENDPOINT, {
+    method: "POST",
+    headers: { Accept: "application/json" },
+  }).catch(() => null);
+  window.location.href = "/admin/login";
+}
+
+async function loadAuthUsers() {
+  authState.isUsersLoading = true;
+  authState.usersError = "";
+  renderEmployeeModal();
+  try {
+    const response = await authFetch(AUTH_USERS_ENDPOINT, { headers: { Accept: "application/json" } });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(payload?.error?.message || `HTTP ${response.status}`);
+    }
+    authState.users = Array.isArray(payload?.users) ? payload.users : [];
+  } catch (error) {
+    authState.usersError = text(error.message, "Failed to load users.");
+  } finally {
+    authState.isUsersLoading = false;
+    renderEmployeeModal();
+  }
+}
+
+async function openAuthUsersModal() {
+  if (authState.demoMode?.enabled) return;
+  authState.isUsersOpen = true;
+  renderEmployeeModal();
+  await loadAuthUsers();
+}
+
+function closeAuthUsersModal() {
+  authState.isUsersOpen = false;
+  authState.usersError = "";
+  renderEmployeeModal();
+}
+
+async function createAuthUser(form) {
+  const data = new FormData(form);
+  const response = await authFetch(AUTH_USERS_ENDPOINT, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({
+      username: String(data.get("username") || ""),
+      password: String(data.get("password") || ""),
+    }),
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(payload?.error?.message || `HTTP ${response.status}`);
+  }
+  form.reset();
+  await loadAuthUsers();
+}
+
+async function deleteAuthUser(userId) {
+  const response = await authFetch(`${AUTH_USERS_ENDPOINT}/${encodeURIComponent(userId)}`, {
+    method: "DELETE",
+    headers: { Accept: "application/json" },
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(payload?.error?.message || `HTTP ${response.status}`);
+  }
+  await loadAuthUsers();
+}
 
 const caseState = {
   cases: [],
@@ -2897,7 +3037,7 @@ async function loadRuntimeHistory() {
   runtimeHistoryState.error = "";
   renderRuntimeTimeline();
   try {
-    const response = await fetch(`${RUNTIME_HISTORY_ENDPOINT}?limit=${RUNTIME_HISTORY_MAX_SAMPLES}`, { headers: { Accept: "application/json" } });
+    const response = await authFetch(`${RUNTIME_HISTORY_ENDPOINT}?limit=${RUNTIME_HISTORY_MAX_SAMPLES}`, { headers: { Accept: "application/json" } });
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}`);
     }
@@ -3258,7 +3398,7 @@ async function loadDream({ loadDetail = true } = {}) {
   renderDreamPanel();
   try {
     const [response] = await Promise.all([
-      fetch(DREAM_ENDPOINT, { headers: { Accept: "application/json" } }),
+      authFetch(DREAM_ENDPOINT, { headers: { Accept: "application/json" } }),
       loadMemoryWrites({ render: false }),
     ]);
     if (!response.ok) {
@@ -3292,8 +3432,8 @@ async function loadMemoryWrites({ render = true } = {}) {
   }
   try {
     const [proposalsResponse, recordsResponse] = await Promise.all([
-      fetch(MEMORY_WRITE_PROPOSALS_ENDPOINT, { headers: { Accept: "application/json" } }),
-      fetch(`${MEMORY_WRITE_RECORDS_ENDPOINT}?limit=50`, { headers: { Accept: "application/json" } }),
+      authFetch(MEMORY_WRITE_PROPOSALS_ENDPOINT, { headers: { Accept: "application/json" } }),
+      authFetch(`${MEMORY_WRITE_RECORDS_ENDPOINT}?limit=50`, { headers: { Accept: "application/json" } }),
     ]);
     if (!proposalsResponse.ok) {
       const error = await proposalsResponse.json().catch(() => ({ error: { message: `HTTP ${proposalsResponse.status}` } }));
@@ -3326,7 +3466,7 @@ async function loadDreamSubject(subjectId, sha = "") {
   renderDreamPanel();
   try {
     const query = sha ? `?sha=${encodeURIComponent(sha)}` : "";
-    const response = await fetch(`${dreamSubjectEndpoint(normalizedId)}${query}`, { headers: { Accept: "application/json" } });
+    const response = await authFetch(`${dreamSubjectEndpoint(normalizedId)}${query}`, { headers: { Accept: "application/json" } });
     if (!response.ok) {
       const error = await response.json().catch(() => ({ error: { message: `HTTP ${response.status}` } }));
       throw new Error(text(error?.error?.message, `HTTP ${response.status}`));
@@ -3371,7 +3511,7 @@ async function runSelectedDream() {
     bubble: companionPhrase("Dream run started.", "梦境运行已开始。"),
   });
   try {
-    const response = await fetch(dreamSubjectEndpoint(subject.id, "/run"), {
+    const response = await authFetch(dreamSubjectEndpoint(subject.id, "/run"), {
       method: "POST",
       headers: { Accept: "application/json" },
     });
@@ -3423,7 +3563,7 @@ async function restoreDreamCommit(subjectId, sha) {
     bubble: companionPhrase("Dream restore started.", "梦境恢复已开始。"),
   });
   try {
-    const response = await fetch(dreamSubjectEndpoint(normalizedSubjectId, "/restore"), {
+    const response = await authFetch(dreamSubjectEndpoint(normalizedSubjectId, "/restore"), {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -3462,7 +3602,7 @@ async function approveMemoryWriteProposal(proposalId) {
   memoryWriteState.error = "";
   renderDreamPanel();
   try {
-    const response = await fetch(`${MEMORY_WRITE_PROPOSALS_ENDPOINT}/${encodeURIComponent(normalizedId)}/approve`, {
+    const response = await authFetch(`${MEMORY_WRITE_PROPOSALS_ENDPOINT}/${encodeURIComponent(normalizedId)}/approve`, {
       method: "POST",
       headers: { Accept: "application/json" },
     });
@@ -3497,7 +3637,7 @@ async function discardMemoryWriteProposal(proposalId) {
   memoryWriteState.error = "";
   renderDreamPanel();
   try {
-    const response = await fetch(`${MEMORY_WRITE_PROPOSALS_ENDPOINT}/${encodeURIComponent(normalizedId)}`, {
+    const response = await authFetch(`${MEMORY_WRITE_PROPOSALS_ENDPOINT}/${encodeURIComponent(normalizedId)}`, {
       method: "DELETE",
       headers: { Accept: "application/json" },
     });
@@ -4509,7 +4649,7 @@ function openDockerAgentTranscript(containerName) {
 }
 
 async function loadTranscript(endpoint) {
-  const response = await fetch(endpoint, { headers: { Accept: "application/json" } });
+  const response = await authFetch(endpoint, { headers: { Accept: "application/json" } });
   if (!response.ok) {
     const error = await response.json().catch(() => ({ error: { message: `HTTP ${response.status}` } }));
     throw new Error(text(error?.error?.message, `HTTP ${response.status}`));
@@ -5139,7 +5279,7 @@ async function loadOrganization() {
   organizationState.isLoading = true;
   organizationState.error = "";
   renderOrganization();
-  const response = await fetch(ORGANIZATION_ENDPOINT, { headers: { Accept: "application/json" } });
+  const response = await authFetch(ORGANIZATION_ENDPOINT, { headers: { Accept: "application/json" } });
   if (!response.ok) {
     throw new Error(`Failed to load organization: HTTP ${response.status}`);
   }
@@ -5186,7 +5326,7 @@ async function saveOrganization() {
         tools: Array.isArray(node.tools) ? node.tools : [],
       })),
     };
-    const response = await fetch(ORGANIZATION_ENDPOINT, {
+    const response = await authFetch(ORGANIZATION_ENDPOINT, {
       method: "PUT",
       headers: { "Content-Type": "application/json", Accept: "application/json" },
       body: JSON.stringify(payload),
@@ -6521,6 +6661,53 @@ function renderCreateWizardFooter() {
   `;
 }
 
+function renderAuthUsersModal() {
+  const currentUserId = text(authState.user?.id, "");
+  const rows = authState.users.map((user) => {
+    const isCurrent = user.id === currentUserId;
+    return `
+      <article class="employee-card auth-user-row">
+        <div>
+          <h4>${html(user.username, "admin")}</h4>
+          <div class="agent-meta">Created ${html(user.createdAt || "unknown")}</div>
+        </div>
+        <div class="employee-card-foot">
+          ${isCurrent ? `<span class="tag">Current</span>` : ""}
+          <button class="danger-button" type="button" data-auth-delete-user="${html(user.id)}" ${isCurrent ? "disabled" : ""}>Delete</button>
+        </div>
+      </article>
+    `;
+  }).join("");
+  return `
+    <div class="modal-backdrop" data-auth-users-backdrop="true">
+      <section class="employee-modal auth-users-modal" role="dialog" aria-modal="true" aria-labelledby="auth-users-title">
+        <div class="panel-head">
+          <div>
+            <h3 id="auth-users-title">Admin Users</h3>
+            <div class="panel-meta">Create or remove administrators for this workspace.</div>
+          </div>
+          <button class="icon-button" type="button" data-auth-users-close="true" aria-label="Close users dialog">×</button>
+        </div>
+        ${authState.usersError ? `<div class="empty-state auth-error">${html(authState.usersError)}</div>` : ""}
+        <form class="auth-users-form" data-auth-create-user="true">
+          <label class="auth-field">
+            <span>Username</span>
+            <input name="username" type="text" required minlength="3" maxlength="64" autocomplete="off" />
+          </label>
+          <label class="auth-field">
+            <span>Password</span>
+            <input name="password" type="password" required minlength="8" autocomplete="new-password" />
+          </label>
+          <button class="primary-button" type="submit" ${authState.isUsersLoading ? "disabled" : ""}>Create User</button>
+        </form>
+        <div class="auth-users-list">
+          ${authState.isUsersLoading ? `<div class="empty-state">Loading users...</div>` : (rows || `<div class="empty-state">No users found.</div>`)}
+        </div>
+      </section>
+    </div>
+  `;
+}
+
 function renderEmployeeModal() {
   const root = document.getElementById("employee-modal-root");
   if (!root) return;
@@ -6529,8 +6716,12 @@ function renderEmployeeModal() {
   const busyAction = adminState.busyAction;
   const transcript = adminState.transcript || defaultTranscriptState();
   const skillContentModal = skillState.contentModal || {};
-  if (!employeeState.isCreateOpen && !confirmAction && !transcript.isOpen && !skillContentModal.isOpen && !employeeExportState.isOpen && !caseState.isDetailOpen) {
+  if (!employeeState.isCreateOpen && !confirmAction && !transcript.isOpen && !skillContentModal.isOpen && !employeeExportState.isOpen && !caseState.isDetailOpen && !authState.isUsersOpen) {
     root.innerHTML = busyAction ? renderBusyMask() : "";
+    return;
+  }
+  if (authState.isUsersOpen) {
+    root.innerHTML = renderAuthUsersModal();
     return;
   }
   if (confirmAction) {
@@ -6963,7 +7154,7 @@ async function loadSkillGovernance() {
   skillOpsState.error = "";
   renderSkillOpsPanel();
   try {
-    const response = await fetch(SKILL_GOVERNANCE_ENDPOINT, { headers: { Accept: "application/json" } });
+    const response = await authFetch(SKILL_GOVERNANCE_ENDPOINT, { headers: { Accept: "application/json" } });
     if (!response.ok) {
       const error = await response.json().catch(() => ({ error: { message: `HTTP ${response.status}` } }));
       throw new Error(text(error?.error?.message, `HTTP ${response.status}`));
@@ -6988,7 +7179,7 @@ async function scanSkillGovernance({ includeRemote = false } = {}) {
   skillOpsState.preview = null;
   renderSkillOpsPanel();
   try {
-    const response = await fetch(SKILL_GOVERNANCE_SCAN_ENDPOINT, {
+    const response = await authFetch(SKILL_GOVERNANCE_SCAN_ENDPOINT, {
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "application/json" },
       body: JSON.stringify({ include_remote: includeRemote }),
@@ -7041,7 +7232,7 @@ function setSkillOpsIssueListExpanded(expanded) {
 async function setSkillOpsIssuesIgnored(issueIds, ignored) {
   const normalized = Array.from(new Set((issueIds || []).map((issueId) => text(issueId, "")).filter(Boolean)));
   if (!normalized.length) return;
-  const response = await fetch(SKILL_GOVERNANCE_IGNORE_ENDPOINT, {
+  const response = await authFetch(SKILL_GOVERNANCE_IGNORE_ENDPOINT, {
     method: "POST",
     headers: { "Content-Type": "application/json", Accept: "application/json" },
     body: JSON.stringify({ issue_ids: normalized, ignored: ignored === true }),
@@ -7074,7 +7265,7 @@ async function runSkillOpsAction(action, { dryRun = true, confirm = false } = {}
   const issueIds = skillOpsIssueIdsForAction(action);
   if (!issueIds.length) return;
   skillOpsState.pendingAction = action;
-  const response = await fetch(SKILL_GOVERNANCE_ACTION_ENDPOINT, {
+  const response = await authFetch(SKILL_GOVERNANCE_ACTION_ENDPOINT, {
     method: "POST",
     headers: { "Content-Type": "application/json", Accept: "application/json" },
     body: JSON.stringify({
@@ -8229,7 +8420,7 @@ async function loadCases() {
   caseState.error = "";
   renderCaseCarousel();
   try {
-    const response = await fetch(CASES_ENDPOINT, { headers: { Accept: "application/json" } });
+    const response = await authFetch(CASES_ENDPOINT, { headers: { Accept: "application/json" } });
     if (!response.ok) {
       const error = await response.json().catch(() => ({ error: { message: `HTTP ${response.status}` } }));
       throw new Error(text(error?.error?.message, `HTTP ${response.status}`));
@@ -8250,7 +8441,7 @@ async function loadCaseOps() {
   caseOpsState.error = "";
   renderCaseCarousel();
   try {
-    const response = await fetch(CASE_OPS_ENDPOINT, { headers: { Accept: "application/json" } });
+    const response = await authFetch(CASE_OPS_ENDPOINT, { headers: { Accept: "application/json" } });
     if (!response.ok) {
       const error = await response.json().catch(() => ({ error: { message: `HTTP ${response.status}` } }));
       throw new Error(text(error?.error?.message, `HTTP ${response.status}`));
@@ -8273,7 +8464,7 @@ async function scanCaseOps() {
   caseOpsState.preview = null;
   renderCaseCarousel();
   try {
-    const response = await fetch(CASE_OPS_SCAN_ENDPOINT, {
+    const response = await authFetch(CASE_OPS_SCAN_ENDPOINT, {
       method: "POST",
       headers: { Accept: "application/json" },
     });
@@ -8306,7 +8497,7 @@ function toggleCaseOpsIssueSelection(issueId) {
 async function setCaseOpsIssueIgnored(issueId, ignored) {
   const normalized = text(issueId, "");
   if (!normalized) return;
-  const response = await fetch(CASE_OPS_IGNORE_ENDPOINT, {
+  const response = await authFetch(CASE_OPS_IGNORE_ENDPOINT, {
     method: "POST",
     headers: { "Content-Type": "application/json", Accept: "application/json" },
     body: JSON.stringify({ issue_ids: [normalized], ignored: ignored === true }),
@@ -8323,7 +8514,7 @@ async function runCaseOpsAction(action, { dryRun = true, confirm = false, caseId
   const issueIds = caseIds.length ? [] : caseOpsIssueIdsForAction(action);
   if (!caseIds.length && !issueIds.length) return;
   caseOpsState.pendingAction = action;
-  const response = await fetch(CASE_OPS_ACTION_ENDPOINT, {
+  const response = await authFetch(CASE_OPS_ACTION_ENDPOINT, {
     method: "POST",
     headers: { "Content-Type": "application/json", Accept: "application/json" },
     body: JSON.stringify({
@@ -8518,7 +8709,7 @@ async function openEmployeeExportModal() {
   employeeExportState.draft = defaultEmployeeExportDraft();
   renderEmployeeModal();
   try {
-    const response = await fetch(EMPLOYEE_EXPORT_ENDPOINT, {
+    const response = await authFetch(EMPLOYEE_EXPORT_ENDPOINT, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -8606,7 +8797,7 @@ async function downloadEmployeeExportCase() {
 }
 
 async function loadCaseDetail(caseId) {
-  const response = await fetch(`${CASES_ENDPOINT}/${encodeURIComponent(caseId)}`, { headers: { Accept: "application/json" } });
+  const response = await authFetch(`${CASES_ENDPOINT}/${encodeURIComponent(caseId)}`, { headers: { Accept: "application/json" } });
   if (!response.ok) {
     const error = await response.json().catch(() => ({ error: { message: `HTTP ${response.status}` } }));
     throw new Error(text(error?.error?.message, `HTTP ${response.status}`));
@@ -8655,7 +8846,7 @@ async function previewCaseConfigFile(file) {
     } catch (error) {
       throw new Error(`Invalid JSON in ${text(file?.name, "selected file")}: ${text(error?.message, "parse error")}`);
     }
-    const response = await fetch(CASE_CONFIG_IMPORT_PREVIEW_ENDPOINT, {
+    const response = await authFetch(CASE_CONFIG_IMPORT_PREVIEW_ENDPOINT, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -8698,7 +8889,7 @@ async function previewCaseImport(caseId) {
   setBusyAction({ key: actionKey, label: "Previewing case import..." });
   try {
     const response = caseState.importedCasePayload
-      ? await fetch(CASE_CONFIG_IMPORT_PREVIEW_ENDPOINT, {
+      ? await authFetch(CASE_CONFIG_IMPORT_PREVIEW_ENDPOINT, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -8706,7 +8897,7 @@ async function previewCaseImport(caseId) {
         },
         body: JSON.stringify({ case: caseState.importedCasePayload }),
       })
-      : await fetch(`${CASES_ENDPOINT}/${encodeURIComponent(caseId)}/import/preview`, {
+      : await authFetch(`${CASES_ENDPOINT}/${encodeURIComponent(caseId)}/import/preview`, {
         method: "POST",
         headers: { Accept: "application/json" },
       });
@@ -8780,7 +8971,7 @@ async function confirmCaseImport(caseId) {
   startCaseImportProgress(actionKey);
   try {
     const response = caseState.importedCasePayload
-      ? await fetch(CASE_CONFIG_IMPORT_ENDPOINT, {
+      ? await authFetch(CASE_CONFIG_IMPORT_ENDPOINT, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -8788,7 +8979,7 @@ async function confirmCaseImport(caseId) {
         },
         body: JSON.stringify({ case: caseState.importedCasePayload }),
       })
-      : await fetch(`${CASES_ENDPOINT}/${encodeURIComponent(caseId)}/import`, {
+      : await authFetch(`${CASES_ENDPOINT}/${encodeURIComponent(caseId)}/import`, {
         method: "POST",
         headers: { Accept: "application/json" },
       });
@@ -9277,7 +9468,7 @@ async function recommendEmployeeSkills() {
     const selectedSkills = skillState.localSkills
       .filter((skill) => employeeState.selectedSkillIds.includes(skill.id))
       .map((skill) => skill.name);
-    const response = await fetch("/admin/api/employee-skills/recommend", {
+    const response = await authFetch("/admin/api/employee-skills/recommend", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -9474,8 +9665,8 @@ async function loadAgentSkills() {
   renderAgentSkillsWorkbench();
   try {
     const [skillsResponse, proposalsResponse] = await Promise.all([
-      fetch(AGENT_SKILLS_ENDPOINT, { headers: { Accept: "application/json" } }),
-      fetch(AGENT_SKILL_PROPOSALS_ENDPOINT, { headers: { Accept: "application/json" } }),
+      authFetch(AGENT_SKILLS_ENDPOINT, { headers: { Accept: "application/json" } }),
+      authFetch(AGENT_SKILL_PROPOSALS_ENDPOINT, { headers: { Accept: "application/json" } }),
     ]);
     if (!skillsResponse.ok) {
       const error = await skillsResponse.json().catch(() => ({ error: { message: `HTTP ${skillsResponse.status}` } }));
@@ -9504,7 +9695,7 @@ async function loadAgentSkills() {
 }
 
 async function refreshAgentSkillProposals() {
-  const response = await fetch(AGENT_SKILL_PROPOSALS_ENDPOINT, { headers: { Accept: "application/json" } });
+  const response = await authFetch(AGENT_SKILL_PROPOSALS_ENDPOINT, { headers: { Accept: "application/json" } });
   if (!response.ok) return;
   const payload = await response.json();
   agentSkillState.proposals = Array.isArray(payload) ? payload.map(normalizeAgentSkillProposal) : [];
@@ -9522,7 +9713,7 @@ async function selectAgentSkill(name) {
   agentSkillState.error = "";
   renderAgentSkillsWorkbench();
   try {
-    const response = await fetch(`${AGENT_SKILLS_ENDPOINT}/${encodeURIComponent(normalizedName)}`, {
+    const response = await authFetch(`${AGENT_SKILLS_ENDPOINT}/${encodeURIComponent(normalizedName)}`, {
       headers: { Accept: "application/json" },
     });
     if (!response.ok) {
@@ -9547,7 +9738,7 @@ async function createAgentSkillFromDraft() {
   }
   setBusyAction({ key: "agent-skill-create", label: "Creating agent skill..." });
   try {
-    const response = await fetch(AGENT_SKILLS_ENDPOINT, {
+    const response = await authFetch(AGENT_SKILLS_ENDPOINT, {
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "application/json" },
       body: JSON.stringify({ name, description }),
@@ -9586,7 +9777,7 @@ async function saveAgentSkill() {
   if (!name) return;
   setBusyAction({ key: `agent-skill-save:${name}`, label: "Saving agent skill..." });
   try {
-    const response = await fetch(`${AGENT_SKILLS_ENDPOINT}/${encodeURIComponent(name)}`, {
+    const response = await authFetch(`${AGENT_SKILLS_ENDPOINT}/${encodeURIComponent(name)}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json", Accept: "application/json" },
       body: JSON.stringify({ content: agentSkillState.draft }),
@@ -9612,7 +9803,7 @@ async function deleteAgentSkill(name) {
   if (!window.confirm(`Delete workspace agent skill ${normalizedName}?`)) return;
   setBusyAction({ key: `agent-skill-delete:${normalizedName}`, label: "Deleting agent skill..." });
   try {
-    const response = await fetch(`${AGENT_SKILLS_ENDPOINT}/${encodeURIComponent(normalizedName)}`, {
+    const response = await authFetch(`${AGENT_SKILLS_ENDPOINT}/${encodeURIComponent(normalizedName)}`, {
       method: "DELETE",
       headers: { Accept: "application/json" },
     });
@@ -9633,7 +9824,7 @@ async function packageAgentSkill(name) {
   if (!normalizedName) return;
   setBusyAction({ key: `agent-skill-package:${normalizedName}`, label: "Packaging agent skill..." });
   try {
-    const response = await fetch(`${AGENT_SKILLS_ENDPOINT}/${encodeURIComponent(normalizedName)}/package`, {
+    const response = await authFetch(`${AGENT_SKILLS_ENDPOINT}/${encodeURIComponent(normalizedName)}/package`, {
       method: "POST",
       headers: { Accept: "application/json" },
     });
@@ -9663,7 +9854,7 @@ async function writeAgentSkillFile() {
   if (!name) return;
   setBusyAction({ key: `agent-skill-file:${name}`, label: "Writing agent skill file..." });
   try {
-    const response = await fetch(`${AGENT_SKILLS_ENDPOINT}/${encodeURIComponent(name)}/files`, {
+    const response = await authFetch(`${AGENT_SKILLS_ENDPOINT}/${encodeURIComponent(name)}/files`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "application/json" },
       body: JSON.stringify({
@@ -9688,7 +9879,7 @@ async function deleteAgentSkillFile(filePath) {
   const name = agentSkillState.selectedDetail?.skill?.name;
   const normalizedPath = text(filePath, "");
   if (!name || !normalizedPath) return;
-  const response = await fetch(`${AGENT_SKILLS_ENDPOINT}/${encodeURIComponent(name)}/files?file_path=${encodeURIComponent(normalizedPath)}`, {
+  const response = await authFetch(`${AGENT_SKILLS_ENDPOINT}/${encodeURIComponent(name)}/files?file_path=${encodeURIComponent(normalizedPath)}`, {
     method: "DELETE",
     headers: { Accept: "application/json" },
   });
@@ -9704,7 +9895,7 @@ async function approveAgentSkillProposal(proposalId) {
   const normalizedId = text(proposalId, "");
   if (!normalizedId) return;
   try {
-    const response = await fetch(`${AGENT_SKILL_PROPOSALS_ENDPOINT}/${encodeURIComponent(normalizedId)}/approve`, {
+    const response = await authFetch(`${AGENT_SKILL_PROPOSALS_ENDPOINT}/${encodeURIComponent(normalizedId)}/approve`, {
       method: "POST",
       headers: { Accept: "application/json" },
     });
@@ -9729,7 +9920,7 @@ async function approveAgentSkillProposal(proposalId) {
 async function discardAgentSkillProposal(proposalId) {
   const normalizedId = text(proposalId, "");
   if (!normalizedId) return;
-  const response = await fetch(`${AGENT_SKILL_PROPOSALS_ENDPOINT}/${encodeURIComponent(normalizedId)}`, {
+  const response = await authFetch(`${AGENT_SKILL_PROPOSALS_ENDPOINT}/${encodeURIComponent(normalizedId)}`, {
     method: "DELETE",
     headers: { Accept: "application/json" },
   });
@@ -9745,7 +9936,7 @@ async function installCatalogSkillToAgentSkills(skillId) {
   if (!normalizedId) return;
   setBusyAction({ key: `install-agent-skill:${normalizedId}`, label: "Installing to Agent Skills..." });
   try {
-    const response = await fetch(AGENT_SKILLS_ENDPOINT, {
+    const response = await authFetch(AGENT_SKILLS_ENDPOINT, {
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "application/json" },
       body: JSON.stringify({ catalog_skill_id: normalizedId }),
@@ -9769,7 +9960,7 @@ async function installCatalogSkillToAgentSkills(skillId) {
 
 async function loadEmployees() {
   const previousSignature = employeeIdSignature();
-  const response = await fetch("/employees", { headers: { Accept: "application/json" } });
+  const response = await authFetch("/employees", { headers: { Accept: "application/json" } });
   if (!response.ok) {
     throw new Error(`Failed to load employees: HTTP ${response.status}`);
   }
@@ -9785,8 +9976,8 @@ async function loadEmployees() {
 
 async function loadEmployeeConfig(employeeId) {
   const [configResponse, cronResponse] = await Promise.all([
-    fetch(employeeConfigEndpoint(employeeId, "/runtime-config"), { headers: { Accept: "application/json" } }),
-    fetch(employeeConfigEndpoint(employeeId, "/cron"), { headers: { Accept: "application/json" } }),
+    authFetch(employeeConfigEndpoint(employeeId, "/runtime-config"), { headers: { Accept: "application/json" } }),
+    authFetch(employeeConfigEndpoint(employeeId, "/cron"), { headers: { Accept: "application/json" } }),
   ]);
   if (!configResponse.ok) {
     const error = await configResponse.json().catch(() => ({ error: { message: `HTTP ${configResponse.status}` } }));
@@ -9847,7 +10038,7 @@ async function saveEmployeeConfigFile() {
   const content = Object.prototype.hasOwnProperty.call(employeeConfigState.drafts, selected.name)
     ? employeeConfigState.drafts[selected.name]
     : text(selected.content, "");
-  const response = await fetch(employeeConfigEndpoint(employeeId, `/runtime-config/${encodeURIComponent(selected.name)}`), {
+  const response = await authFetch(employeeConfigEndpoint(employeeId, `/runtime-config/${encodeURIComponent(selected.name)}`), {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
@@ -9918,7 +10109,7 @@ async function saveEmployeeCron() {
   const draft = employeeConfigState.cronDraft;
   const isUpdate = Boolean(draft.id);
   const endpoint = employeeConfigEndpoint(employeeId, isUpdate ? `/cron/${encodeURIComponent(draft.id)}` : "/cron");
-  const response = await fetch(endpoint, {
+  const response = await authFetch(endpoint, {
     method: isUpdate ? "PUT" : "POST",
     headers: {
       "Content-Type": "application/json",
@@ -9942,7 +10133,7 @@ async function saveEmployeeCron() {
 
 async function deleteEmployeeCron(jobId) {
   const employeeId = employeeConfigState.employeeId;
-  const response = await fetch(employeeConfigEndpoint(employeeId, `/cron/${encodeURIComponent(jobId)}`), {
+  const response = await authFetch(employeeConfigEndpoint(employeeId, `/cron/${encodeURIComponent(jobId)}`), {
     method: "DELETE",
     headers: { Accept: "application/json" },
   });
@@ -9969,7 +10160,7 @@ function startEmployeePolling() {
 }
 
 async function loadEmployeeTemplates() {
-  const response = await fetch("/employee-templates", { headers: { Accept: "application/json" } });
+  const response = await authFetch("/employee-templates", { headers: { Accept: "application/json" } });
   if (!response.ok) {
     throw new Error(`Failed to load employee templates: HTTP ${response.status}`);
   }
@@ -9986,7 +10177,7 @@ async function loadEmployeeTemplates() {
 }
 
 async function loadSkills() {
-  const response = await fetch("/skills", { headers: { Accept: "application/json" } });
+  const response = await authFetch("/skills", { headers: { Accept: "application/json" } });
   if (!response.ok) {
     throw new Error(`Failed to load skills: HTTP ${response.status}`);
   }
@@ -10026,7 +10217,7 @@ async function openSkillContent(skillId) {
   };
   renderEmployeeModal();
   try {
-    const response = await fetch(`/skills/${encodeURIComponent(normalizedId)}/content`, {
+    const response = await authFetch(`/skills/${encodeURIComponent(normalizedId)}/content`, {
       headers: { Accept: "application/json" },
     });
     if (!response.ok) {
@@ -10067,7 +10258,7 @@ async function openSearchSkillContent(identity) {
   };
   renderEmployeeModal();
   try {
-    const response = await fetch(`/skills/search/clawhub/content?source_url=${encodeURIComponent(skill.source_url)}`, {
+    const response = await authFetch(`/skills/search/clawhub/content?source_url=${encodeURIComponent(skill.source_url)}`, {
       headers: { Accept: "application/json" },
     });
     if (!response.ok) {
@@ -10160,7 +10351,7 @@ async function openCaseSkillContent(identity) {
   };
   renderEmployeeModal();
   try {
-    const response = await fetch(`/skills/search/clawhub/content?source_url=${encodeURIComponent(skill.source_url)}`, {
+    const response = await authFetch(`/skills/search/clawhub/content?source_url=${encodeURIComponent(skill.source_url)}`, {
       headers: { Accept: "application/json" },
     });
     if (!response.ok) {
@@ -10244,7 +10435,7 @@ async function saveSkillContent({ syncEmployeePrompts = false } = {}) {
   const actionKey = `save-skill-content:${modal.skillId}`;
   setBusyAction({ key: actionKey, label: "Saving skill..." });
   try {
-    const response = await fetch(`/skills/${encodeURIComponent(modal.skillId)}/content`, {
+    const response = await authFetch(`/skills/${encodeURIComponent(modal.skillId)}/content`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
@@ -10280,7 +10471,7 @@ async function importSearchSkillFromModal() {
   const actionKey = `import-search-skill:${modal.skillId}`;
   setBusyAction({ key: actionKey, label: "Importing skill..." });
   try {
-    const response = await fetch("/skills/import", {
+    const response = await authFetch("/skills/import", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -10367,7 +10558,7 @@ async function cookCustomTemplate() {
   const draft = ensureCreateEmployeeDraft();
   setBusyAction({ key: "cook-custom-template", label: "Cooking custom role..." });
   try {
-    const response = await fetch("/admin/api/employee-templates/cook", {
+    const response = await authFetch("/admin/api/employee-templates/cook", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -10399,7 +10590,7 @@ async function cookCustomTemplate() {
 
 async function saveCustomEmployeeTemplate() {
   const draft = ensureCreateEmployeeDraft();
-  const response = await fetch("/employee-templates", {
+  const response = await authFetch("/employee-templates", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -10433,7 +10624,7 @@ async function deleteEmployeeTemplate(templateId) {
   const actionKey = `delete-template:${normalizedId}`;
   setBusyAction({ key: actionKey, label: "Deleting template..." });
   try {
-    const response = await fetch(`/employee-templates/${encodeURIComponent(normalizedId)}`, {
+    const response = await authFetch(`/employee-templates/${encodeURIComponent(normalizedId)}`, {
       method: "DELETE",
       headers: { Accept: "application/json" },
     });
@@ -10459,7 +10650,7 @@ async function loadSoulBannerSkills() {
   skillState.selectedSoulBannerKeys = [];
   renderSkillCatalog();
   try {
-    const response = await fetch(SOULBANNER_SKILL_SEARCH_ENDPOINT, {
+    const response = await authFetch(SOULBANNER_SKILL_SEARCH_ENDPOINT, {
       headers: { Accept: "application/json" },
     });
     if (!response.ok) {
@@ -10491,7 +10682,7 @@ async function importSelectedSoulBannerSkills() {
   if (selected.length === 0) return;
   setBusyAction({ key: "import-soulbanner-skills", label: "Importing SoulBanner skills..." });
   try {
-    const response = await fetch("/skills/import", {
+    const response = await authFetch("/skills/import", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -10532,7 +10723,7 @@ async function loadMbtiSbtiSkills() {
   skillState.selectedMbtiSbtiKeys = [];
   renderSkillCatalog();
   try {
-    const response = await fetch(MBTI_SBTI_SKILL_SEARCH_ENDPOINT, {
+    const response = await authFetch(MBTI_SBTI_SKILL_SEARCH_ENDPOINT, {
       headers: { Accept: "application/json" },
     });
     if (!response.ok) {
@@ -10564,7 +10755,7 @@ async function importSelectedMbtiSbtiSkills() {
   if (selected.length === 0) return;
   setBusyAction({ key: "import-mbti-sbti-skills", label: "Importing Mbti/Sbti skills..." });
   try {
-    const response = await fetch("/skills/import", {
+    const response = await authFetch("/skills/import", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -10604,7 +10795,7 @@ async function searchClawHubSkills(query) {
     for (let attempt = 1; attempt <= CLAWHUB_SEARCH_MAX_ATTEMPTS; attempt += 1) {
       let response;
       try {
-        response = await fetch(`/skills/search/clawhub?q=${encodeURIComponent(skillState.searchQuery)}`, {
+        response = await authFetch(`/skills/search/clawhub?q=${encodeURIComponent(skillState.searchQuery)}`, {
           headers: { Accept: "application/json" },
         });
       } catch (error) {
@@ -10640,7 +10831,7 @@ async function importSelectedSkills() {
   if (selected.length === 0) return;
   setBusyAction({ key: "import-skills", label: "Importing skills..." });
   try {
-    const response = await fetch("/skills/import", {
+    const response = await authFetch("/skills/import", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -10681,7 +10872,7 @@ async function previewLocalSkillFile(file) {
   skillState.previewSource = "";
   setBusyAction({ key: "preview-local-skill", label: "Analyzing local skill..." });
   try {
-    const response = await fetch(LOCAL_SKILL_PREVIEW_ENDPOINT, {
+    const response = await authFetch(LOCAL_SKILL_PREVIEW_ENDPOINT, {
       method: "POST",
       headers: { Accept: "application/json" },
       body: data,
@@ -10714,7 +10905,7 @@ async function previewWebSkillUrl(url) {
   skillState.previewSource = "";
   setBusyAction({ key: "preview-web-skill", label: "Fetching web skill..." });
   try {
-    const response = await fetch(WEB_SKILL_PREVIEW_ENDPOINT, {
+    const response = await authFetch(WEB_SKILL_PREVIEW_ENDPOINT, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -10743,7 +10934,7 @@ async function importPreviewedSkill() {
   const previewSource = skillState.previewSource;
   setBusyAction({ key: "import-preview-skill", label: "Importing skill..." });
   try {
-    const response = await fetch("/skills/import", {
+    const response = await authFetch("/skills/import", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -10840,7 +11031,7 @@ async function createEmployeeFromForm(form) {
   };
   startCreateEmployeeProgress();
   try {
-    const response = await fetch("/employees", {
+    const response = await authFetch("/employees", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -10910,7 +11101,7 @@ async function deleteEmployee(employeeId) {
 }
 
 async function requestDeleteEmployee(employeeId) {
-  const response = await fetch(`/employees/${encodeURIComponent(employeeId)}`, {
+  const response = await authFetch(`/employees/${encodeURIComponent(employeeId)}`, {
     method: "DELETE",
     headers: { Accept: "application/json" },
   });
@@ -10958,7 +11149,7 @@ async function deleteSkill(skillId) {
 }
 
 async function requestDeleteSkill(skillId) {
-  const response = await fetch(`/skills/${encodeURIComponent(skillId)}`, {
+  const response = await authFetch(`/skills/${encodeURIComponent(skillId)}`, {
     method: "DELETE",
     headers: { Accept: "application/json" },
   });
@@ -11001,7 +11192,7 @@ async function runMainAgentContextAction(action) {
   }
   setMainContextAction(action);
   try {
-    const response = await fetch(endpoint, {
+    const response = await authFetch(endpoint, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -11038,7 +11229,7 @@ async function runEmployeeContextAction(employeeId, action, sessionKey = "", sur
   if (isEmployeeContextActionBusy(normalizedEmployeeId)) return;
   setEmployeeContextAction(normalizedEmployeeId, normalizedAction, surface);
   try {
-    const response = await fetch(`${EMPLOYEE_CONTEXT_ENDPOINT}${encodeURIComponent(normalizedEmployeeId)}/context/${normalizedAction}`, {
+    const response = await authFetch(`${EMPLOYEE_CONTEXT_ENDPOINT}${encodeURIComponent(normalizedEmployeeId)}/context/${normalizedAction}`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -11099,7 +11290,7 @@ async function repairDockerDaemon() {
     bubble: companionPhrase("Docker repair started.", "开始修复 Docker daemon。"),
   });
   try {
-    const response = await fetch(DOCKER_DAEMON_REPAIR_ENDPOINT, {
+    const response = await authFetch(DOCKER_DAEMON_REPAIR_ENDPOINT, {
       method: "POST",
       headers: { Accept: "application/json" },
     });
@@ -11139,7 +11330,7 @@ async function restoreEmployeeContainers() {
     bubble: companionPhrase("Docker worker repair started.", "开始修复 Docker workers。"),
   });
   try {
-    const response = await fetch(EMPLOYEE_CONTAINER_RESTORE_ENDPOINT, {
+    const response = await authFetch(EMPLOYEE_CONTAINER_RESTORE_ENDPOINT, {
       method: "POST",
       headers: { Accept: "application/json" },
     });
@@ -11175,7 +11366,7 @@ async function deleteRuntimeDocker(containerName) {
   const actionKey = `delete-docker:${containerName}`;
   setBusyAction({ key: actionKey, label: `Deleting Docker ${containerName}...` });
   try {
-    const response = await fetch(`${DOCKER_CONTAINERS_ENDPOINT}${encodeURIComponent(containerName)}`, {
+    const response = await authFetch(`${DOCKER_CONTAINERS_ENDPOINT}${encodeURIComponent(containerName)}`, {
       method: "DELETE",
       headers: { Accept: "application/json" },
     });
@@ -11222,6 +11413,14 @@ function initEmployeeInteractions() {
   document.getElementById("admin-language-zh")?.addEventListener("click", () => applyLanguage("zh"));
   document.getElementById("admin-language-en")?.addEventListener("click", () => applyLanguage("en"));
   document.getElementById("admin-theme-toggle")?.addEventListener("click", () => applyTheme(currentTheme() === "dark" ? "light" : "dark"));
+  document.querySelector("[data-auth-users-open]")?.addEventListener("click", () => {
+    openAuthUsersModal().catch((error) => {
+      window.alert(text(error.message, "Failed to load users"));
+    });
+  });
+  document.querySelector("[data-auth-logout]")?.addEventListener("click", () => {
+    logoutAdmin();
+  });
   window.addEventListener("scroll", requestNavSectionSync, { passive: true });
   window.addEventListener("resize", () => {
     requestNavSectionSync();
@@ -11234,6 +11433,24 @@ function initEmployeeInteractions() {
   observeNavSections();
   document.addEventListener("click", (event) => {
     if (!(event.target instanceof Element)) return;
+    const authUsersClose = event.target.closest("[data-auth-users-close]");
+    if (authUsersClose) {
+      closeAuthUsersModal();
+      return;
+    }
+    const authUsersBackdrop = event.target.closest("[data-auth-users-backdrop]");
+    if (authUsersBackdrop && event.target === authUsersBackdrop) {
+      closeAuthUsersModal();
+      return;
+    }
+    const authDeleteUserButton = event.target.closest("[data-auth-delete-user]");
+    if (authDeleteUserButton) {
+      deleteAuthUser(authDeleteUserButton.getAttribute("data-auth-delete-user")).catch((error) => {
+        authState.usersError = text(error.message, "Failed to delete user.");
+        renderEmployeeModal();
+      });
+      return;
+    }
     const navSectionLink = event.target.closest("[data-nav-target]");
     if (navSectionLink) {
       event.preventDefault();
@@ -12405,6 +12622,14 @@ function initEmployeeInteractions() {
     toggleLocalSkill(skillCard.getAttribute("data-local-skill-id"));
   });
   document.addEventListener("submit", (event) => {
+    if (event.target?.matches?.("[data-auth-create-user]")) {
+      event.preventDefault();
+      createAuthUser(event.target).catch((error) => {
+        authState.usersError = text(error.message, "Failed to create user.");
+        renderEmployeeModal();
+      });
+      return;
+    }
     if (event.target?.id === "skill-web-import-form") {
       event.preventDefault();
       const formData = new FormData(event.target);
@@ -12622,7 +12847,7 @@ function renderDockerAgents(agents) {
 }
 
 async function refreshDashboard() {
-  const response = await fetch("/admin/api/runtime", { headers: { Accept: "application/json" } });
+  const response = await authFetch("/admin/api/runtime", { headers: { Accept: "application/json" } });
   if (!response.ok) {
     throw new Error(`HTTP ${response.status}`);
   }
@@ -12680,6 +12905,7 @@ function startSse() {
 }
 
 window.addEventListener("DOMContentLoaded", async () => {
+  await initializeAdminAuth();
   initializeAdminPreferences();
   initEmployeeInteractions();
   try {

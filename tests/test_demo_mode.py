@@ -10,7 +10,7 @@ import pytest_asyncio
 
 from openhire.admin.demo_mode import demo_mode_status
 from openhire.admin.runtime import RuntimeMonitor, build_admin_snapshot
-from openhire.api.server import create_app
+from openhire.api.server import create_app as _create_app
 from openhire.config.schema import DockerAgentConfig, DockerAgentsConfig
 from openhire.workforce.organization import OrganizationStore
 from openhire.workforce.registry import AgentEntry, AgentRegistry
@@ -23,6 +23,11 @@ try:
     HAS_AIOHTTP = True
 except ImportError:
     HAS_AIOHTTP = False
+
+
+def create_app(*args, **kwargs):
+    kwargs.setdefault("admin_auth_required", False)
+    return _create_app(*args, **kwargs)
 
 
 @pytest_asyncio.fixture

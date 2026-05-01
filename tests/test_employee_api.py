@@ -6,7 +6,7 @@ import aiohttp
 import pytest
 import pytest_asyncio
 
-from openhire.api.server import create_app
+from openhire.api.server import create_app as _create_app
 from openhire.config.schema import DockerAgentConfig, DockerAgentsConfig
 from openhire.providers.base import LLMResponse
 from openhire.skill_catalog import ClawHubProviderError, SkillCatalogService, SkillCatalogStore
@@ -24,6 +24,11 @@ try:
     HAS_AIOHTTP = True
 except ImportError:
     HAS_AIOHTTP = False
+
+
+def create_app(*args, **kwargs):
+    kwargs.setdefault("admin_auth_required", False)
+    return _create_app(*args, **kwargs)
 
 
 def _make_agent() -> MagicMock:

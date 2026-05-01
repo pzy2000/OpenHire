@@ -9,7 +9,8 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 import pytest_asyncio
 
-from openhire.api.server import create_admin_app, create_app
+from openhire.api.server import create_admin_app as _create_admin_app
+from openhire.api.server import create_app as _create_app
 from openhire.agent.memory import MemoryStore
 from openhire.admin import employee_context as employee_context_module
 from openhire.admin.runtime import RuntimeMonitor
@@ -24,6 +25,16 @@ try:
     HAS_AIOHTTP = True
 except ImportError:
     HAS_AIOHTTP = False
+
+
+def create_app(*args, **kwargs):
+    kwargs.setdefault("admin_auth_required", False)
+    return _create_app(*args, **kwargs)
+
+
+def create_admin_app(*args, **kwargs):
+    kwargs.setdefault("admin_auth_required", False)
+    return _create_admin_app(*args, **kwargs)
 
 
 class _FakeProvider:
@@ -139,6 +150,10 @@ async def test_admin_page_contains_mount_points(aiohttp_client) -> None:
     assert 'id="admin-language-en"' in body
     assert 'id="admin-theme-toggle"' in body
     assert 'id="admin-github-link"' in body
+    assert 'id="admin-account-users"' in body
+    assert 'id="admin-logout-button"' in body
+    assert 'data-auth-users-open="true"' in body
+    assert 'data-auth-logout="true"' in body
     assert 'href="https://github.com/pzy2000/openhire"' in body
     assert 'id="hero-command-center"' in body
     assert 'id="hero-runtime-summary"' in body
@@ -1001,7 +1016,13 @@ async def test_admin_js_asset_matches_main_polling_and_sse(aiohttp_client) -> No
     assert "Drag from an employee connector to its direct manager card." in body
     assert "从员工连接点拖到直属上级员工卡片。" in body
     assert "organization.skills_selected" in body
-    assert 'fetch("/employees"' in body
+    assert 'authFetch("/employees"' in body
+    assert "function authFetch" in body
+    assert 'const AUTH_SESSION_ENDPOINT = "/admin/api/auth/session"' in body
+    assert 'const AUTH_CSRF_HEADER = "X-OpenHire-CSRF"' in body
+    assert "data-auth-create-user" in body
+    assert "data-auth-delete-user" in body
+    assert "data-auth-logout" in body
     assert "Delete Employee" in body
     assert "data-delete-employee-card" in body
     assert "data-employee-delete-toggle" in body
@@ -1317,7 +1338,7 @@ async def test_admin_js_asset_matches_main_polling_and_sse(aiohttp_client) -> No
     assert "EMPLOYEE_SORT_STORAGE_KEY" in body
     assert "window.localStorage" in body
     assert "startEmployeePolling" in body
-    assert 'fetch("/employees"' in body
+    assert 'authFetch("/employees"' in body
     assert "Failed to refresh employees" in body
     assert "data-employee-sort" in body
     assert "Last Modified" in body

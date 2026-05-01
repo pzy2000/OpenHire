@@ -431,6 +431,25 @@ html[data-theme="light"] .admin-nav {
   stroke: none;
 }
 
+.nav-icon-button[data-auth-logout] .nav-icon {
+  display: block;
+}
+
+.admin-account-button {
+  width: auto;
+  min-width: 74px;
+  padding: 0 12px;
+}
+
+.admin-account-name {
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 800;
+}
+
 .nav-chip {
   position: relative;
   display: inline-flex;
@@ -2582,6 +2601,93 @@ html[data-theme="dark"] .dream-diff-preview {
   display: grid;
   gap: 12px;
   margin-bottom: 14px;
+}
+
+.auth-page {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.auth-shell {
+  width: min(440px, 100%);
+}
+
+.auth-panel,
+.auth-users-modal {
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface-strong);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.42);
+  backdrop-filter: blur(14px);
+}
+
+.auth-panel {
+  padding: clamp(24px, 5vw, 36px);
+}
+
+.auth-panel h1 {
+  margin: 8px 0 8px;
+  font-size: clamp(30px, 6vw, 46px);
+  letter-spacing: 0;
+}
+
+.auth-form,
+.auth-users-form {
+  display: grid;
+  gap: 14px;
+}
+
+.auth-field {
+  display: grid;
+  gap: 7px;
+}
+
+.auth-field span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.auth-field input {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--ink);
+  padding: 0 12px;
+  font: inherit;
+}
+
+.auth-field input:focus-visible {
+  border-color: rgba(109, 247, 255, 0.55);
+  box-shadow: var(--halo-cyan);
+  outline: none;
+}
+
+.auth-error {
+  color: var(--neon-rose);
+}
+
+.auth-users-form {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  align-items: end;
+  margin: 16px 0;
+}
+
+.auth-users-list {
+  display: grid;
+  gap: 10px;
+}
+
+.auth-user-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .employee-export-form label {

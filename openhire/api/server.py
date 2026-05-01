@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import contextlib
+import hmac
 import json
 import mimetypes
 import re
@@ -23,6 +24,13 @@ from aiohttp import web
 from aiohttp.client_exceptions import ClientConnectionResetError
 from loguru import logger
 
+from openhire.admin.auth import (
+    ADMIN_CSRF_HEADER,
+    ADMIN_SESSION_COOKIE,
+    ADMIN_SESSION_DAYS,
+    AdminAuthStore,
+    AuthError,
+)
 from openhire.agent.memory import Dream, MemoryStore
 from openhire.memory_write_service import (
     MemoryWriteError,
@@ -160,6 +168,10 @@ def _error_json(status: int, message: str, err_type: str = "invalid_request_erro
     )
 
 
+def _admin_auth_store(request: web.Request) -> AdminAuthStore:
+    return request.app["admin_auth_store"]
+
+
 def _employee_registry(request: web.Request) -> AgentRegistry:
     return request.app["employee_registry"]
 
@@ -213,6 +225,116 @@ def _demo_mode(request: web.Request) -> dict[str, Any]:
 
 def _demo_enabled(request: web.Request) -> bool:
     return bool(_demo_mode(request).get("enabled"))
+
+
+def _auth_public_path(path: str) -> bool:
+    return (
+        path == "/health"
+        or path == "/admin/login"
+        or path.startswith("/v1/")
+        or path.startswith("/admin/assets/")
+        or path
+        in {
+            "/admin/api/auth/session",
+            "/admin/api/auth/register",
+            "/admin/api/auth/login",
+            "/admin/api/auth/logout",
+        }
+    )
+
+
+def _auth_protected_path(path: str) -> bool:
+    if path == "/admin" or path.startswith("/admin/api/"):
+        return True
+    return any(
+        path == prefix or path.startswith(f"{prefix}/")
+        for prefix in ("/employees", "/skills", "/employee-templates")
+    )
+
+
+def _auth_html_request(request: web.Request) -> bool:
+    accept = request.headers.get("Accept", "")
+    return request.path == "/admin" or "text/html" in accept.lower()
+
+
+def _admin_cookie_secure(request: web.Request) -> bool:
+    return bool(request.secure)
+
+
+def _set_admin_session_cookie(request: web.Request, response: web.StreamResponse, token: str) -> None:
+    response.set_cookie(
+        ADMIN_SESSION_COOKIE,
+        token,
+        max_age=ADMIN_SESSION_DAYS * 24 * 60 * 60,
+        path="/",
+        httponly=True,
+        secure=_admin_cookie_secure(request),
+        samesite="Lax",
+    )
+
+
+def _clear_admin_session_cookie(response: web.StreamResponse) -> None:
+    response.del_cookie(ADMIN_SESSION_COOKIE, path="/")
+
+
+def _admin_auth_session(request: web.Request) -> dict[str, Any] | None:
+    session = request.get("admin_auth_session")
+    if isinstance(session, dict):
+        return session
+    return _admin_auth_store(request).session_for_token(request.cookies.get(ADMIN_SESSION_COOKIE))
+
+
+def _admin_current_user(request: web.Request) -> dict[str, Any] | None:
+    session = _admin_auth_session(request)
+    user = session.get("user") if isinstance(session, dict) else None
+    return user if isinstance(user, dict) else None
+
+
+def _auth_session_payload(request: web.Request, session: dict[str, Any] | None = None) -> dict[str, Any]:
+    demo = _demo_mode(request)
+    if bool(demo.get("enabled")):
+        return {
+            "demoMode": demo,
+            "authenticated": True,
+            "needsBootstrap": False,
+            "user": {"id": "demo", "username": "demo"},
+            "csrfToken": "",
+        }
+    resolved = session if session is not None else _admin_auth_session(request)
+    user = resolved.get("user") if isinstance(resolved, dict) else None
+    return {
+        "demoMode": demo,
+        "authenticated": bool(user),
+        "needsBootstrap": _admin_auth_store(request).needs_bootstrap(),
+        "user": user if isinstance(user, dict) else None,
+        "csrfToken": str(resolved.get("csrfToken") or "") if isinstance(resolved, dict) else "",
+    }
+
+
+@web.middleware
+async def _admin_auth_middleware(request: web.Request, handler):
+    if request.app.get("admin_auth_required") is False:
+        return await handler(request)
+    path = request.path
+    if not _auth_protected_path(path) or _auth_public_path(path):
+        return await handler(request)
+    if _demo_enabled(request):
+        return await handler(request)
+
+    session = _admin_auth_store(request).session_for_token(request.cookies.get(ADMIN_SESSION_COOKIE))
+    if not session:
+        if _auth_html_request(request):
+            raise web.HTTPFound("/admin/login")
+        return _error_json(401, "Admin authentication required.", err_type="authentication_error")
+
+    request["admin_auth_session"] = session
+    if request.method not in {"GET", "HEAD", "OPTIONS"}:
+        supplied = request.headers.get(ADMIN_CSRF_HEADER, "")
+        expected = str(session.get("csrfToken") or "")
+        if not supplied or not hmac.compare_digest(str(supplied), expected):
+            return _error_json(403, "Invalid or missing CSRF token.", err_type="authentication_error")
+
+    return await handler(request)
 
 
 def _ensure_demo_materialized(request: web.Request) -> bool:
@@ -1260,6 +1382,29 @@ def _admin_html() -> str:
                     <path d="M12 2.2a9.8 9.8 0 0 0-3.1 19.1c.5.1.7-.2.7-.5v-1.9c-2.7.6-3.3-1.1-3.3-1.1-.4-1-.9-1.3-.9-1.3-.8-.5.1-.5.1-.5.9.1 1.4.9 1.4.9.8 1.4 2.2 1 2.8.8.1-.6.3-1 .6-1.2-2.2-.3-4.5-1.1-4.5-5a4 4 0 0 1 1.1-2.8c-.1-.3-.5-1.4.1-2.8 0 0 .9-.3 3 .9a10 10 0 0 1 5.4 0c2.1-1.2 3-.9 3-.9.6 1.4.2 2.5.1 2.8a4 4 0 0 1 1.1 2.8c0 3.9-2.3 4.7-4.5 5 .4.3.7 1 .7 2v3c0 .3.2.6.7.5A9.8 9.8 0 0 0 12 2.2Z" />
                   </svg>
                 </a>
+                <button
+                  id="admin-account-users"
+                  class="nav-icon-button admin-account-button"
+                  type="button"
+                  aria-label="Manage users"
+                  title="Manage users"
+                  data-auth-users-open="true"
+                >
+                  <span id="admin-account-name" class="admin-account-name">Admin</span>
+                </button>
+                <button
+                  id="admin-logout-button"
+                  class="nav-icon-button"
+                  type="button"
+                  aria-label="Logout"
+                  title="Logout"
+                  data-auth-logout="true"
+                >
+                  <span class="visually-hidden">Logout</span>
+                  <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <path d="M10 4.5H5.8a1.3 1.3 0 0 0-1.3 1.3v12.4c0 .7.6 1.3 1.3 1.3H10M14.5 7.5 19 12l-4.5 4.5M18.5 12H9" />
+                  </svg>
+                </button>
               </div>
             </div>
           </div>
@@ -1445,6 +1590,101 @@ def _admin_html() -> str:
     <div id="companion-chat-root" data-companion-chat-root="true"></div>
     <script type="module" src="/admin/assets/admin.js?v=neon-7"></script>
     <script type="module" src="/admin/assets/companion.js?v=neon-8"></script>
+  </body>
+</html>"""
+
+
+def _admin_login_html() -> str:
+    return """<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>OpenHire Admin Login</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="/admin/assets/admin.css?v=neon-7" />
+  </head>
+  <body class="auth-page">
+    <div class="bg-grid" aria-hidden="true"></div>
+    <main class="auth-shell" data-auth-login-root="true">
+      <section class="auth-panel" aria-labelledby="auth-title">
+        <div class="hero-eyebrow">OpenHire Admin</div>
+        <h1 id="auth-title">Sign in</h1>
+        <p id="auth-copy" class="section-copy">Loading...</p>
+        <form id="auth-form" class="auth-form" autocomplete="on" hidden>
+          <label class="auth-field">
+            <span>Username</span>
+            <input id="auth-username" name="username" type="text" autocomplete="username" required minlength="3" maxlength="64" />
+          </label>
+          <label class="auth-field">
+            <span>Password</span>
+            <input id="auth-password" name="password" type="password" autocomplete="current-password" required minlength="8" />
+          </label>
+          <button id="auth-submit" class="primary-button" type="submit">Sign in</button>
+          <div id="auth-error" class="auth-error" role="alert" hidden></div>
+        </form>
+      </section>
+    </main>
+    <script>
+      const root = document.querySelector("[data-auth-login-root]");
+      const form = document.getElementById("auth-form");
+      const title = document.getElementById("auth-title");
+      const copy = document.getElementById("auth-copy");
+      const button = document.getElementById("auth-submit");
+      const errorBox = document.getElementById("auth-error");
+      let mode = "login";
+
+      function setError(message) {
+        errorBox.textContent = message || "";
+        errorBox.hidden = !message;
+      }
+
+      async function loadSession() {
+        const response = await fetch("/admin/api/auth/session", { headers: { Accept: "application/json" } });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const payload = await response.json();
+        if (payload?.demoMode?.enabled || payload?.authenticated) {
+          window.location.replace("/admin");
+          return;
+        }
+        mode = payload?.needsBootstrap ? "register" : "login";
+        root.dataset.authMode = mode;
+        title.textContent = mode === "register" ? "Create administrator" : "Sign in";
+        copy.textContent = mode === "register"
+          ? "Create the first administrator for this OpenHire workspace."
+          : "Use your administrator account to continue.";
+        button.textContent = mode === "register" ? "Create administrator" : "Sign in";
+        form.hidden = false;
+      }
+
+      form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        setError("");
+        button.disabled = true;
+        const formData = new FormData(form);
+        try {
+          const response = await fetch(mode === "register" ? "/admin/api/auth/register" : "/admin/api/auth/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Accept: "application/json" },
+            body: JSON.stringify({
+              username: String(formData.get("username") || ""),
+              password: String(formData.get("password") || ""),
+            }),
+          });
+          const payload = await response.json().catch(() => ({}));
+          if (!response.ok) throw new Error(payload?.error?.message || `HTTP ${response.status}`);
+          window.location.replace("/admin");
+        } catch (error) {
+          setError(error?.message || "Authentication failed.");
+        } finally {
+          button.disabled = false;
+        }
+      });
+
+      loadSession().catch((error) => {
+        setError(error?.message || "Failed to load authentication state.");
+      });
+    </script>
   </body>
 </html>"""
 
@@ -1765,6 +2005,116 @@ async def handle_health(request: web.Request) -> web.Response:
 async def handle_admin(request: web.Request) -> web.Response:
     """GET /admin"""
     return web.Response(text=_admin_html(), content_type="text/html")
+
+
+async def handle_admin_login(request: web.Request) -> web.Response:
+    """GET /admin/login"""
+    return web.Response(text=_admin_login_html(), content_type="text/html")
+
+
+async def _auth_json_body(request: web.Request) -> dict[str, Any] | web.Response:
+    try:
+        payload = await request.json() if request.can_read_body else {}
+    except Exception:
+        return _error_json(400, "Invalid JSON body")
+    if not isinstance(payload, dict):
+        return _error_json(400, "JSON body must be an object")
+    return payload
+
+
+async def handle_admin_auth_session(request: web.Request) -> web.Response:
+    """GET /admin/api/auth/session"""
+    return web.json_response(_auth_session_payload(request))
+
+
+async def handle_admin_auth_register(request: web.Request) -> web.Response:
+    """POST /admin/api/auth/register"""
+    if _demo_enabled(request):
+        return web.json_response(_auth_session_payload(request))
+    payload = await _auth_json_body(request)
+    if isinstance(payload, web.Response):
+        return payload
+    store = _admin_auth_store(request)
+    try:
+        user = store.create_user(
+            str(payload.get("username") or ""),
+            str(payload.get("password") or ""),
+            bootstrap_only=True,
+        )
+        token, user = store.create_session(str(user["id"]))
+    except AuthError as exc:
+        return _error_json(400, str(exc))
+    session = store.session_for_token(token) or {"user": user, "csrfToken": ""}
+    response = web.json_response(_auth_session_payload(request, session), status=201)
+    _set_admin_session_cookie(request, response, token)
+    return response
+
+
+async def handle_admin_auth_login(request: web.Request) -> web.Response:
+    """POST /admin/api/auth/login"""
+    if _demo_enabled(request):
+        return web.json_response(_auth_session_payload(request))
+    payload = await _auth_json_body(request)
+    if isinstance(payload, web.Response):
+        return payload
+    store = _admin_auth_store(request)
+    if store.needs_bootstrap():
+        return _error_json(409, "Create the first administrator before signing in.", err_type="authentication_error")
+    user = store.authenticate(str(payload.get("username") or ""), str(payload.get("password") or ""))
+    if user is None:
+        return _error_json(401, "Invalid username or password.", err_type="authentication_error")
+    token, user = store.create_session(str(user["id"]))
+    session = store.session_for_token(token) or {"user": user, "csrfToken": ""}
+    response = web.json_response(_auth_session_payload(request, session))
+    _set_admin_session_cookie(request, response, token)
+    return response
+
+
+async def handle_admin_auth_logout(request: web.Request) -> web.Response:
+    """POST /admin/api/auth/logout"""
+    if not _demo_enabled(request):
+        _admin_auth_store(request).delete_session(request.cookies.get(ADMIN_SESSION_COOKIE))
+    response = web.json_response({"ok": True})
+    _clear_admin_session_cookie(response)
+    return response
+
+
+async def handle_admin_auth_users(request: web.Request) -> web.Response:
+    """GET /admin/api/auth/users"""
+    return web.json_response({"users": _admin_auth_store(request).list_users()})
+
+
+async def handle_admin_auth_create_user(request: web.Request) -> web.Response:
+    """POST /admin/api/auth/users"""
+    payload = await _auth_json_body(request)
+    if isinstance(payload, web.Response):
+        return payload
+    try:
+        user = _admin_auth_store(request).create_user(
+            str(payload.get("username") or ""),
+            str(payload.get("password") or ""),
+        )
+    except AuthError as exc:
+        return _error_json(400, str(exc))
+    return web.json_response({"user": user}, status=201)
+
+
+async def handle_admin_auth_delete_user(request: web.Request) -> web.Response:
+    """DELETE /admin/api/auth/users/{id}"""
+    current = _admin_current_user(request)
+    if not current:
+        return _error_json(401, "Admin authentication required.", err_type="authentication_error")
+    user_id = request.match_info.get("id", "")
+    try:
+        result = _admin_auth_store(request).delete_user(
+            user_id,
+            current_user_id=str(current.get("id") or ""),
+        )
+    except KeyError:
+        return _error_json(404, f"User '{user_id}' not found.")
+    except AuthError as exc:
+        return _error_json(400, str(exc))
+    return web.json_response(result)
 
 
 async def _admin_runtime_snapshot(request: web.Request) -> dict[str, Any]:
@@ -3663,6 +4013,14 @@ async def handle_cook_employee_template(request: web.Request) -> web.Response:
 def _add_admin_routes(app: web.Application) -> None:
     app.router.add_get("/health", handle_health)
     app.router.add_get("/admin", handle_admin)
+    app.router.add_get("/admin/login", handle_admin_login)
+    app.router.add_get("/admin/api/auth/session", handle_admin_auth_session)
+    app.router.add_post("/admin/api/auth/register", handle_admin_auth_register)
+    app.router.add_post("/admin/api/auth/login", handle_admin_auth_login)
+    app.router.add_post("/admin/api/auth/logout", handle_admin_auth_logout)
+    app.router.add_get("/admin/api/auth/users", handle_admin_auth_users)
+    app.router.add_post("/admin/api/auth/users", handle_admin_auth_create_user)
+    app.router.add_delete("/admin/api/auth/users/{id}", handle_admin_auth_delete_user)
     app.router.add_post("/admin/api/companion/chat", handle_companion_chat)
     app.router.add_get("/admin/api/runtime", handle_admin_runtime)
     app.router.add_get("/admin/api/runtime/history", handle_admin_runtime_history)
@@ -3781,6 +4139,10 @@ def _attach_employee_registry(
 
 def _attach_demo_mode(app: web.Application) -> None:
     app["demo_mode"] = demo_mode_status(workspace=app.get("workspace"))
+
+
+def _attach_admin_auth(app: web.Application) -> None:
+    app["admin_auth_store"] = AdminAuthStore(Path(app["workspace"]))
 
 
 def _attach_skill_catalog(
@@ -3903,13 +4265,16 @@ def create_admin_app(
     skill_provider: ClawHubSkillProvider | None = None,
     soulbanner_provider: SoulBannerSkillProvider | None = None,
     mbti_sbti_provider: MbtiSbtiSkillProvider | None = None,
+    admin_auth_required: bool = True,
 ) -> web.Application:
     """Create a lightweight admin/health app for gateway monitoring."""
-    app = web.Application()
+    app = web.Application(middlewares=[_admin_auth_middleware])
     app["agent_loop"] = agent_loop
     app["process_role"] = process_role
+    app["admin_auth_required"] = bool(admin_auth_required)
     _attach_employee_registry(app, agent_loop, workspace=workspace)
     _attach_demo_mode(app)
+    _attach_admin_auth(app)
     _attach_skill_catalog(
         app,
         skill_provider=skill_provider,
@@ -3938,6 +4303,7 @@ def create_app(
     skill_provider: ClawHubSkillProvider | None = None,
     soulbanner_provider: SoulBannerSkillProvider | None = None,
     mbti_sbti_provider: MbtiSbtiSkillProvider | None = None,
+    admin_auth_required: bool = True,
 ) -> web.Application:
     """Create the aiohttp application.
 
@@ -3947,14 +4313,19 @@ def create_app(
         request_timeout: Per-request timeout in seconds.
         process_role: Label for the admin runtime snapshot (api vs gateway).
     """
-    app = web.Application(client_max_size=20 * 1024 * 1024)  # 20MB for base64 images
+    app = web.Application(
+        client_max_size=20 * 1024 * 1024,  # 20MB for base64 images
+        middlewares=[_admin_auth_middleware],
+    )
     app["agent_loop"] = agent_loop
     app["model_name"] = model_name
     app["request_timeout"] = request_timeout
     app["process_role"] = process_role
+    app["admin_auth_required"] = bool(admin_auth_required)
     app["session_locks"] = {}  # per-user locks, keyed by session_key
     _attach_employee_registry(app, agent_loop, workspace=workspace)
     _attach_demo_mode(app)
+    _attach_admin_auth(app)
     _attach_skill_catalog(
         app,
         skill_provider=skill_provider,

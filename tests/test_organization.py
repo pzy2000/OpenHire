@@ -8,7 +8,7 @@ import pytest_asyncio
 
 from openhire.agent.loop import AgentLoop
 from openhire.agent.tools.message import MessageTool
-from openhire.api.server import create_app
+from openhire.api.server import create_app as _create_app
 from openhire.bus.queue import MessageBus
 from openhire.config.schema import DockerAgentsConfig, OpenHireConfig
 from openhire.providers.base import GenerationSettings, LLMProvider, LLMResponse, ToolCallRequest
@@ -25,6 +25,11 @@ try:
     HAS_AIOHTTP = True
 except ImportError:
     HAS_AIOHTTP = False
+
+
+def create_app(*args, **kwargs):
+    kwargs.setdefault("admin_auth_required", False)
+    return _create_app(*args, **kwargs)
 
 
 @pytest_asyncio.fixture

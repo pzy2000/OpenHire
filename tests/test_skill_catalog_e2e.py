@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 import pytest_asyncio
 
-from openhire.api.server import create_app
+from openhire.api.server import create_app as _create_app
 from openhire.workforce.required_skill import REQUIRED_EMPLOYEE_SKILL_ID, REQUIRED_EMPLOYEE_SKILL_NAME
 
 try:
@@ -14,6 +14,11 @@ try:
     HAS_AIOHTTP = True
 except ImportError:
     HAS_AIOHTTP = False
+
+
+def create_app(*args, **kwargs):
+    kwargs.setdefault("admin_auth_required", False)
+    return _create_app(*args, **kwargs)
 
 
 class _FakeClawHubProvider:

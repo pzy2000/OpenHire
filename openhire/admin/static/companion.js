@@ -1497,8 +1497,9 @@ async function submitChatText(text, textarea) {
 }
 
 async function sendChat(text) {
+  const companionFetch = window.OpenHireAdminAuth?.fetch || window.fetch.bind(window);
   if (STATE.useMain) {
-    const res = await fetch("/v1/chat/completions", {
+    const res = await companionFetch("/v1/chat/completions", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -1518,7 +1519,7 @@ async function sendChat(text) {
     content: msg.content,
   }));
   const context = companionContextSnapshot();
-  const res = await fetch("/admin/api/companion/chat", {
+  const res = await companionFetch("/admin/api/companion/chat", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(context ? { messages, context } : { messages }),

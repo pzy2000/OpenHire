@@ -9,7 +9,7 @@ import httpx
 import pytest
 import pytest_asyncio
 
-from openhire.api.server import create_app
+from openhire.api.server import create_app as _create_app
 from openhire.workforce.registry import AgentEntry, AgentRegistry
 from openhire.workforce.required_skill import (
     REQUIRED_EMPLOYEE_SKILL_ID,
@@ -25,6 +25,11 @@ try:
     HAS_AIOHTTP = True
 except ImportError:
     HAS_AIOHTTP = False
+
+
+def create_app(*args, **kwargs):
+    kwargs.setdefault("admin_auth_required", False)
+    return _create_app(*args, **kwargs)
 
 
 def _make_agent() -> MagicMock:

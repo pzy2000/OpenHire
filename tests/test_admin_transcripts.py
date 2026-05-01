@@ -146,7 +146,7 @@ async def test_docker_transcript_timeout_is_typed(monkeypatch) -> None:
 @pytest.mark.skipif(not HAS_AIOHTTP, reason="aiohttp not installed")
 @pytest.mark.asyncio
 async def test_admin_transcript_routes_return_main_and_unknown_docker(aiohttp_client, tmp_path: Path) -> None:
-    from openhire.api.server import create_app
+    from openhire.api.server import create_app as _create_app
 
     agent = MagicMock()
     agent.runtime_monitor = None
@@ -172,7 +172,7 @@ async def test_admin_transcript_routes_return_main_and_unknown_docker(aiohttp_cl
     agent._connect_mcp = AsyncMock()
     agent.close_mcp = AsyncMock()
 
-    app = create_app(agent, model_name="test-model", workspace=tmp_path)
+    app = _create_app(agent, model_name="test-model", workspace=tmp_path, admin_auth_required=False)
     client = await aiohttp_client(app)
 
     main_resp = await client.get("/admin/api/transcripts/main")

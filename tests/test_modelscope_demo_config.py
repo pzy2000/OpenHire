@@ -13,7 +13,7 @@ from openhire.admin.demo_mode import (
     MODELSCOPE_DEMO_MODEL,
     apply_modelscope_demo_config_overlay,
 )
-from openhire.api.server import create_app
+from openhire.api.server import create_app as _create_app
 from openhire.cli.commands import _load_runtime_config, _make_provider
 from openhire.config.schema import Config
 
@@ -23,6 +23,11 @@ try:
     HAS_AIOHTTP = True
 except ImportError:
     HAS_AIOHTTP = False
+
+
+def create_app(*args, **kwargs):
+    kwargs.setdefault("admin_auth_required", False)
+    return _create_app(*args, **kwargs)
 
 
 @pytest_asyncio.fixture
